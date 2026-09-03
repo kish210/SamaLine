@@ -44,6 +44,8 @@ export class CampaignService {
     template: string;
     subject?: string;
     baseUrl?: string;
+    /** برای کمپین بزرگ: پیام‌ها در صف پایدار می‌نشینند و پس‌زمینه می‌فرستد. */
+    useQueue?: boolean;
   }) {
     if (!input.recipients?.length) {
       throw new BadRequestException('فهرست گیرندگان خالی است');
@@ -76,7 +78,9 @@ export class CampaignService {
       };
     });
 
-    return this.messaging.sendBulk(messages, input.publicationId);
+    return input.useQueue
+      ? this.messaging.queueBulk(messages, input.publicationId)
+      : this.messaging.sendBulk(messages, input.publicationId);
   }
 
   /**

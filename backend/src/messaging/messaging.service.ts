@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeliveryLogEntity } from '../database/entities/delivery-log.entity';
+import { DurableQueueService } from './durable-queue.service';
 import { InProcessQueue } from './in-process-queue';
 import type {
   DeliveryResult,
@@ -13,11 +14,14 @@ import { KavenegarProvider } from './providers/kavenegar.provider';
 import { LocalFileProvider } from './providers/local-file.provider';
 import { WebhookProvider } from './providers/webhook.provider';
 
+/** نوع کار صف برای ارسال یک پیام. */
+export const MESSAGE_JOB = 'message.send';
+
 @Injectable()
 export class MessagingService {
   private readonly logger = new Logger(MessagingService.name);
   private readonly providers = new Map<MessageChannel, MessagingProvider>();
-  private readonly queue = new InProcessQueue({
+  private readonly inProcess = new InProcessQueue({
     concurrency: Number(process.env.MESSAGING_CONCURRENCY ?? 5),
     maxAttempts: Number(process.env.MESSAGING_MAX_ATTEMPTS ?? 3),
     retryDelayMs: Number(process.env.MESSAGING_RETRY_DELAY_MS ?? 500),
@@ -26,7 +30,21 @@ export class MessagingService {
   constructor(
     @InjectRepository(DeliveryLogEntity)
     private readonly logRepo: Repository<DeliveryLogEntity>,
+    private readonly queue: DurableQueueService,
   ) {
+    // پردازشگر کار ارسال؛ صف پایدار آن را در پس‌زمینه صدا می‌زند.
+    this.queue.register(MESSAGE_JOB, async (payload) => {
+      const { message, publicationId } = payload as {
+        message: OutboundMessage;
+        publicationId: string | null;
+      };
+      const result = await this.send(message, publicationId ?? undefined);
+      if (result.status === 'failed') {
+        // شکست را به صف اعلام می‌کنیم تا تلاش مجدد انجام شود.
+        throw new Error(result.providerMessage ?? 'ارسال ناموفق بود');
+      }
+    });
+
     this.providers.set('sms', this.resolveProvider('sms'));
     this.providers.set('email', this.resolveProvider('email'));
     this.logger.log(
@@ -42,8 +60,14 @@ export class MessagingService {
     };
   }
 
+  /** آمار صف درون‌فرایندی (ارسال فوری). */
   get queueStats() {
-    return this.queue.stats;
+    return this.inProcess.stats;
+  }
+
+  /** آمار صف پایدار (ارسال انبوه). */
+  durableQueueStats() {
+    return this.queue.stats();
   }
 
   /**
@@ -60,7 +84,7 @@ export class MessagingService {
 
     let result: DeliveryResult;
     try {
-      result = await this.queue.add(() => provider.send(message));
+      result = await this.inProcess.add(() => provider.send(message));
     } catch (error) {
       result = {
         status: 'failed',
@@ -90,6 +114,24 @@ export class MessagingService {
       failed: results.filter((r) => r.status === 'failed').length,
       results,
     };
+  }
+
+  /**
+   * ارسال انبوه پایدار: پیام‌ها پیش از ارسال در دیتابیس ثبت می‌شوند و
+   * پس‌زمینه آن‌ها را می‌فرستد.
+   *
+   * برای کمپین‌های بزرگ مناسب است: پاسخ فورا برمی‌گردد و ری‌استارت
+   * سرور باعث گم شدن پیام‌های نرفته نمی‌شود.
+   */
+  async queueBulk(messages: OutboundMessage[], publicationId?: string) {
+    for (const message of messages) {
+      await this.queue.enqueue(MESSAGE_JOB, {
+        message: message,
+        publicationId: publicationId ?? null,
+      });
+    }
+
+    return { queued: messages.length };
   }
 
   private async recordDelivery(

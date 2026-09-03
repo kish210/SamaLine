@@ -14,10 +14,11 @@ export class MessagingController {
 
   /** وضعیت سرویس‌دهنده‌های فعال و صف ارسال. */
   @Get('status')
-  status() {
+  async status() {
     return {
       providers: this.messaging.activeProviders,
       queue: this.messaging.queueStats,
+      durableQueue: await this.messaging.durableQueueStats(),
     };
   }
 

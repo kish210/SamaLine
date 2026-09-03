@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsBoolean,
   IsArray,
   IsIn,
   IsNotEmpty,
@@ -49,6 +50,11 @@ export class SendCampaignDto {
   @IsOptional()
   @IsString()
   baseUrl?: string;
+
+  /** ارسال از طریق صف پایدار، مناسب کمپین‌های بزرگ. */
+  @IsOptional()
+  @IsBoolean()
+  useQueue?: boolean;
 }
 
 export class SendSingleMessageDto {
