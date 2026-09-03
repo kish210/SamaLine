@@ -153,11 +153,21 @@ export class PublicService {
     };
   }
 
+  /**
+   * فرم را با توکن تصادفی یا نشانی اختصاصی پیدا می‌کند.
+   * هر دو راه معتبرند تا لینک‌های پخش‌شده‌ی قبلی با افزودن نشانی
+   * اختصاصی نشکنند.
+   */
   async getByToken(token: string): Promise<PublicFormPayload> {
-    const publication = await this.publicationRepo.findOne({
-      where: { token },
-      relations: { form: { workspace: true } },
-    });
+    const publication =
+      (await this.publicationRepo.findOne({
+        where: { token },
+        relations: { form: { workspace: true } },
+      })) ??
+      (await this.publicationRepo.findOne({
+        where: { slug: token.toLowerCase() },
+        relations: { form: { workspace: true } },
+      }));
 
     if (!publication || !publication.isActive)
       throw new NotFoundException('لینک معتبر نیست');

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { describeError, formsApi } from '../api';
 import type { FormPage, Question } from '../types';
+import { CustomLinkCard } from './builder/CustomLinkCard';
 import { FlowChart } from './builder/FlowChart';
 import { QuestionEditor } from './builder/QuestionEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
@@ -115,10 +116,6 @@ export function FormBuilderPage() {
       }),
     );
 
-  const publicUrl = form.data?.publication
-    ? `${import.meta.env.VITE_RENDERER_URL ?? 'http://localhost:5173'}/f/${form.data.publication.token}`
-    : null;
-
   if (form.isLoading) return <div className="page">در حال بارگذاری…</div>;
   if (!form.data) return <div className="page">فرم یافت نشد.</div>;
 
@@ -153,13 +150,12 @@ export function FormBuilderPage() {
 
       {error && <p className="error">{error}</p>}
 
-      {publicUrl && (
-        <p className="public-link">
-          لینک عمومی:{' '}
-          <a href={publicUrl} target="_blank" rel="noreferrer">
-            {publicUrl}
-          </a>
-        </p>
+      {form.data.publication && tab === 'build' && (
+        <CustomLinkCard
+          formId={formId}
+          token={form.data.publication.token}
+          currentSlug={form.data.publication.slug}
+        />
       )}
 
       <div className="tabs">

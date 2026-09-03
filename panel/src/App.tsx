@@ -3,6 +3,7 @@ import { Layout } from './Layout';
 import { useAuth } from './auth';
 import { AiPage } from './pages/AiPage';
 import { CampaignsPage } from './pages/CampaignsPage';
+import { ContactSourcesPage } from './pages/ContactSourcesPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { FormBuilderPage } from './pages/FormBuilderPage';
 import { FormsPage } from './pages/FormsPage';
@@ -20,6 +21,7 @@ function App() {
         <Route path="/forms" element={<FormsPage />} />
         <Route path="/forms/:formId" element={<FormBuilderPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/sources" element={<ContactSourcesPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/ai" element={<AiPage />} />
         <Route path="/settings" element={<SettingsPage />} />

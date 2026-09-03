@@ -619,3 +619,41 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── نشانی اختصاصی و اتصال به سرویس بیرونی ─────── */
+.url-prefix {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.inline-form input[dir],
+.url-prefix + input {
+  direction: ltr;
+  text-align: left;
+}
+
+.hint.success {
+  color: var(--ok);
+}
+
+.source-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.source-row:last-child {
+  border-bottom: none;
+}
+
+.source-row .hint {
+  direction: ltr;
+  text-align: start;
+  word-break: break-all;
+}

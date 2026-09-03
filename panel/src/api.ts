@@ -11,6 +11,17 @@ import type {
   Workspace,
 } from './types';
 
+/** ورودی ساخت یا پیش‌نمایش اتصال به API بیرونی. */
+export interface ContactSourceInput {
+  listId: string;
+  name: string;
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  itemsPath?: string;
+  mapping: Record<string, string>;
+}
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1',
 });
@@ -84,6 +95,16 @@ export const formsApi = {
 
   flowGraph: (id: string) =>
     api.get<FlowGraph>(`/forms/${id}/flow-graph`).then((r) => r.data),
+
+  setSlug: (id: string, slug: string) =>
+    api.patch<Publication>(`/forms/${id}/slug`, { slug }).then((r) => r.data),
+
+  slugAvailability: (slug: string) =>
+    api
+      .get<{ available: boolean; reason: string | null }>(
+        `/forms/slug-availability/${encodeURIComponent(slug)}`,
+      )
+      .then((r) => r.data),
 };
 
 export const reportsApi = {
@@ -137,6 +158,50 @@ export const contactsApi = {
         }>
       >(`/contacts/lists/${listId}/contacts`)
       .then((r) => r.data),
+
+  // ── اتصال به API نرم‌افزارهای دیگر ──
+  sources: () =>
+    api
+      .get<
+        Array<{
+          id: string;
+          name: string;
+          url: string;
+          listId: string;
+          itemsPath: string;
+          headerKeys: string[];
+          lastSyncedAt: string | null;
+          lastResult: Record<string, unknown>;
+        }>
+      >('/contacts/sources')
+      .then((r) => r.data),
+
+  previewSource: (body: ContactSourceInput) =>
+    api
+      .post<{
+        totalFetched: number;
+        usable: number;
+        unusable: number;
+        sampleRaw: Array<Record<string, unknown>>;
+        sampleMapped: Array<Record<string, unknown>>;
+      }>('/contacts/sources/preview', body)
+      .then((r) => r.data),
+
+  createSource: (body: ContactSourceInput) =>
+    api.post('/contacts/sources', body).then((r) => r.data),
+
+  syncSource: (sourceId: string) =>
+    api
+      .post<{
+        fetched: number;
+        created: number;
+        updated: number;
+        unusable: number;
+      }>(`/contacts/sources/${sourceId}/sync`)
+      .then((r) => r.data),
+
+  removeSource: (sourceId: string) =>
+    api.delete(`/contacts/sources/${sourceId}`).then((r) => r.data),
 
   recipients: (listId: string, channel: 'sms' | 'email') =>
     api

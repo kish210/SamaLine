@@ -62,8 +62,17 @@ export class PublicationEntity {
   })
   authMode: PublicationAuthMode;
 
+  /** توکن تصادفی؛ همیشه ساخته می‌شود و لینک پیش‌فرض را می‌سازد. */
   @Column({ type: 'varchar', unique: true, length: 80 })
   token: string;
+
+  /**
+   * نشانی اختصاصی و خواندنی که کاربر خودش انتخاب می‌کند
+   * (مثلا `/f/nazarsanji-1405`). یکتا در کل سامانه و ثابت می‌ماند حتی
+   * اگر فرم بازنشر شود، پس در بروشور و بنر چاپی قابل استفاده است.
+   */
+  @Column({ type: 'varchar', unique: true, length: 80, nullable: true })
+  slug: string | null;
 
   @Column({ type: JSON_COLUMN, default: [] })
   tags: string[];

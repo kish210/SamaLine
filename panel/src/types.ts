@@ -87,6 +87,8 @@ export interface Publication {
   formId: string;
   type: string;
   token: string;
+  /** نشانی اختصاصی و ثابت فرم؛ null یعنی تعیین نشده. */
+  slug: string | null;
   tags: string[];
   isActive: boolean;
 }

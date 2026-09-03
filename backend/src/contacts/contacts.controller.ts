@@ -11,13 +11,22 @@ import {
 } from '@nestjs/common';
 import { OrganizationId } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { ContactSourceService } from './contact-source.service';
 import { ContactsService } from './contacts.service';
-import { AddContactsDto, CreateContactListDto, ImportCsvDto } from './dto';
+import {
+  AddContactsDto,
+  CreateContactListDto,
+  CreateContactSourceDto,
+  ImportCsvDto,
+} from './dto';
 
 @Controller('contacts')
 @UseGuards(JwtAuthGuard)
 export class ContactsController {
-  constructor(private readonly contacts: ContactsService) {}
+  constructor(
+    private readonly contacts: ContactsService,
+    private readonly sources: ContactSourceService,
+  ) {}
 
   @Post('lists')
   createList(
@@ -100,5 +109,50 @@ export class ContactsController {
     @OrganizationId() organizationId: string,
   ) {
     return this.contacts.removeContact(organizationId, listId, contactId);
+  }
+
+  // ── اتصال به API نرم‌افزارهای دیگر ──────────────────────
+
+  /** پیش‌نمایش داده‌ی سرویس بیرونی پیش از ذخیره‌ی اتصال. */
+  @Post('sources/preview')
+  previewSource(
+    @Body() dto: CreateContactSourceDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.sources.preview(organizationId, dto);
+  }
+
+  @Post('sources')
+  createSource(
+    @Body() dto: CreateContactSourceDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.sources.create(organizationId, dto);
+  }
+
+  @Get('sources')
+  listSources(@OrganizationId() organizationId: string) {
+    return this.sources.list(organizationId);
+  }
+
+  @Post('sources/:sourceId/sync')
+  syncSource(
+    @Param('sourceId') sourceId: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.sources.sync(organizationId, sourceId);
+  }
+
+  @Post('sources/sync-all')
+  syncAllSources(@OrganizationId() organizationId: string) {
+    return this.sources.syncAll(organizationId);
+  }
+
+  @Delete('sources/:sourceId')
+  removeSource(
+    @Param('sourceId') sourceId: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.sources.remove(organizationId, sourceId);
   }
 }

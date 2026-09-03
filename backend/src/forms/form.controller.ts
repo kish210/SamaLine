@@ -9,7 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
-import { CreateFormDto, CreatePublicationDto, UpdateFormDto } from './dto';
+import {
+  CreateFormDto,
+  CreatePublicationDto,
+  SetSlugDto,
+  UpdateFormDto,
+} from './dto';
 import { FormService } from './form.service';
 
 @Controller('forms')
@@ -50,6 +55,17 @@ export class FormController {
   @Post(':id/publish-link')
   publish(@Param('id') id: string) {
     return this.formService.publishLink(id);
+  }
+
+  /** تعیین نشانی اختصاصی و ثابت فرم. */
+  @Patch(':id/slug')
+  setSlug(@Param('id') id: string, @Body() dto: SetSlugDto) {
+    return this.formService.setPublicationSlug(id, dto.slug);
+  }
+
+  @Get('slug-availability/:slug')
+  slugAvailability(@Param('slug') slug: string) {
+    return this.formService.isSlugAvailable(slug);
   }
 
   @Post(':id/publications')

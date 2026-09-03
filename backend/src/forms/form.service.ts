@@ -24,6 +24,7 @@ import {
 } from './dto';
 import { LogicEngineService } from './logic-engine.service';
 import type { FormStructure } from './logic-types';
+import { validateSlug } from './slug';
 
 @Injectable()
 export class FormService {
@@ -186,6 +187,53 @@ export class FormService {
     }
 
     return publication;
+  }
+
+  /**
+   * تعیین یا تغییر لینک اختصاصی فرم.
+   *
+   * توکن تصادفی همچنان معتبر می‌ماند تا لینک‌های پخش‌شده‌ی قبلی نشکنند؛
+   * نشانی اختصاصی یک راه ورود اضافه است، نه جایگزین.
+   */
+  async setPublicationSlug(formId: string, requestedSlug: string) {
+    const publication = await this.publicationRepo.findOne({
+      where: { formId, type: PublicationType.LINK },
+    });
+    if (!publication) {
+      throw new NotFoundException(
+        'ابتدا لینک فرم را منتشر کنید سپس نشانی اختصاصی بگذارید',
+      );
+    }
+
+    const validation = validateSlug(requestedSlug);
+    if (!validation.valid) {
+      throw new BadRequestException(validation.reason ?? 'نشانی نامعتبر است');
+    }
+
+    const taken = await this.publicationRepo.findOne({
+      where: { slug: validation.normalized },
+    });
+    if (taken && taken.id !== publication.id) {
+      throw new BadRequestException('این نشانی قبلا استفاده شده است');
+    }
+
+    publication.slug = validation.normalized;
+    return this.publicationRepo.save(publication);
+  }
+
+  /** آیا این نشانی آزاد است؟ برای بررسی زنده هنگام تایپ در پنل. */
+  async isSlugAvailable(requestedSlug: string) {
+    const validation = validateSlug(requestedSlug);
+    if (!validation.valid) {
+      return { available: false, reason: validation.reason };
+    }
+
+    const taken = await this.publicationRepo.findOne({
+      where: { slug: validation.normalized },
+    });
+    return taken
+      ? { available: false, reason: 'این نشانی قبلا استفاده شده است' }
+      : { available: true, reason: null, slug: validation.normalized };
   }
 
   async createPublication(formId: string, dto: CreatePublicationDto) {

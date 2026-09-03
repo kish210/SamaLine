@@ -171,3 +171,10 @@ export class CreatePublicationDto {
   @IsObject()
   config?: Record<string, unknown>;
 }
+
+export class SetSlugDto {
+  /** نشانی اختصاصی فرم؛ فقط حروف کوچک انگلیسی، رقم و خط تیره. */
+  @IsNotEmpty()
+  @IsString()
+  slug: string;
+}
