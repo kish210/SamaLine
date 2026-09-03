@@ -1,7 +1,7 @@
 {
   "name": "form-renderer",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,5 +25,6 @@
     "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2"
-  }
+  },
+  "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین"
 }

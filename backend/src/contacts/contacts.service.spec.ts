@@ -90,6 +90,37 @@ describe('ContactsService — دفترچه مخاطبان', () => {
       expect(contacts[0].variables).toEqual({ شهر: 'تهران' });
     });
 
+    it('شماره موبایل را در همه‌ی مسیرهای ورود یکسان‌سازی می‌کند', async () => {
+      await service.addContacts(organizationId, listId, {
+        contacts: [
+          { fullName: 'مریم', mobile: '+989121112233' },
+          { fullName: 'علی', mobile: '۰۹۱۲۴۴۴۵۵۶۶' },
+          { fullName: 'سارا', mobile: '0912-777-8899' },
+        ],
+      });
+
+      const contacts = await service.listContacts(organizationId, listId);
+      expect(contacts.map((c) => c.mobile).sort()).toEqual([
+        '09121112233',
+        '09124445566',
+        '09127778899',
+      ]);
+    });
+
+    it('همان شماره با قالب متفاوت رکورد تکراری نمی‌سازد', async () => {
+      await service.addContacts(organizationId, listId, {
+        contacts: [{ fullName: 'مریم', mobile: '09121112233' }],
+      });
+      const second = await service.addContacts(organizationId, listId, {
+        contacts: [{ fullName: 'مریم', mobile: '+989121112233' }],
+      });
+
+      expect(second.updated).toBe(1);
+      expect(await service.listContacts(organizationId, listId)).toHaveLength(
+        1,
+      );
+    });
+
     it('ایمیل را برای تشخیص تکرار یکسان‌سازی می‌کند', async () => {
       await service.addContacts(organizationId, listId, {
         contacts: [{ email: 'Ali@Test.Local' }],

@@ -1,7 +1,7 @@
 {
   "name": "backend",
-  "version": "0.0.1",
-  "description": "",
+  "version": "1.0.0",
+  "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -19,7 +19,10 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:seed:prod": "node dist/database/seed.js",
+    "release": "npm run build && npm run db:seed:prod && npm run start:prod",
+    "smoke": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

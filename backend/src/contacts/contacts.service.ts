@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { ContactEntity } from '../database/entities/contact.entity';
 import { ContactListEntity } from '../database/entities/contact-list.entity';
 import type { AddContactsDto, CreateContactListDto } from './dto';
+import { normalizeMobile } from './source-mapper';
 
 @Injectable()
 export class ContactsService {
@@ -66,7 +67,9 @@ export class ContactsService {
     const skipped: string[] = [];
 
     for (const input of dto.contacts) {
-      const mobile = input.mobile?.trim() || null;
+      // شماره از هر مسیری (CSV، دستی، API) به یک شکل درمی‌آید، وگرنه
+      // همان مخاطب از دو مسیر دو رکورد می‌شد.
+      const mobile = normalizeMobile(input.mobile) ?? null;
       const email = input.email?.trim().toLowerCase() || null;
 
       if (!mobile && !email) {
