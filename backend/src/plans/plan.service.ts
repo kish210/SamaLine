@@ -60,6 +60,14 @@ export class PlanService {
     return { allowed: true, reason: null };
   }
 
+  async getWorkspacePolicy(workspaceId: string) {
+    const workspace = await this.workspaceRepo.findOne({
+      where: { id: workspaceId },
+    });
+    if (!workspace) return null;
+    return this.getPolicyByOrganization(workspace.organizationId);
+  }
+
   async trackUsage(organizationId: string, metric: string, amount = 1) {
     const periodKey = new Date().toISOString().slice(0, 7);
     const limits = await this.getPolicyByOrganization(organizationId);

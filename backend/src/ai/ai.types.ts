@@ -13,4 +13,12 @@ export interface AiProvider {
   analyzeTextAnswers(input: {
     answers: string[];
   }): Promise<Record<string, unknown>>;
+  chatWithData(input: {
+    question: string;
+    context?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>>;
+  translateForm(input: {
+    structure: Record<string, unknown>;
+    targetLanguage: 'fa' | 'en' | 'ar';
+  }): Promise<Record<string, unknown>>;
 }

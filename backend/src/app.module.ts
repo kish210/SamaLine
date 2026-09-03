@@ -11,10 +11,22 @@ import { ReportModule } from './reports/report.module';
 import { AiModule } from './ai/ai.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AdminModule } from './admin/admin.module';
+import { DistributionModule } from './distribution/distribution.module';
+import { OrganizationModule } from './organization/organization.module';
+import { ChannelsModule } from './channels/channels.module';
+import { BillingModule } from './billing/billing.module';
+import { ApiKeyEntity } from './database/entities/api-key.entity';
 import { AuditLogEntity } from './database/entities/audit-log.entity';
 import { AnswerFlatEntity } from './database/entities/answer-flat.entity';
+import { DeliveryLogEntity } from './database/entities/delivery-log.entity';
 import { FormEntity } from './database/entities/form.entity';
 import { FormVersionEntity } from './database/entities/form-version.entity';
+import { IdentityProviderEntity } from './database/entities/identity-provider.entity';
+import { InterviewerQuotaEntity } from './database/entities/interviewer-quota.entity';
+import { InvoiceEntity } from './database/entities/invoice.entity';
+import { KioskSessionEntity } from './database/entities/kiosk-session.entity';
+import { OnPremLicenseEntity } from './database/entities/onprem-license.entity';
+import { PaymentEntity } from './database/entities/payment.entity';
 import { OrganizationEntity } from './database/entities/organization.entity';
 import { OrganizationUserEntity } from './database/entities/organization-user.entity';
 import { PlanPolicyEntity } from './database/entities/plan-policy.entity';
@@ -53,6 +65,14 @@ import { WorkspaceEntity } from './database/entities/workspace.entity';
           AuditLogEntity,
           ResponseCommentEntity,
           SavedFilterEntity,
+          DeliveryLogEntity,
+          ApiKeyEntity,
+          IdentityProviderEntity,
+          KioskSessionEntity,
+          InterviewerQuotaEntity,
+          InvoiceEntity,
+          PaymentEntity,
+          OnPremLicenseEntity,
         ],
         synchronize: false,
       }),
@@ -67,6 +87,10 @@ import { WorkspaceEntity } from './database/entities/workspace.entity';
     AiModule,
     IntegrationsModule,
     AdminModule,
+    DistributionModule,
+    OrganizationModule,
+    ChannelsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

@@ -14,7 +14,7 @@ import {
   PublicationType,
 } from '../database/entities/publication.entity';
 import { PlanService } from '../plans/plan.service';
-import { PHASE1_QUESTION_TYPES } from '../types/form-types';
+import { ALL_QUESTION_TYPES } from '../types/form-types';
 import {
   CreateFormDto,
   CreatePublicationDto,
@@ -44,7 +44,8 @@ export class FormService {
 
   async create(dto: CreateFormDto) {
     const pages = this.resolvePages(dto.pages, dto.questions);
-    this.validatePages(pages);
+    await this.validatePages(pages, dto.workspaceId);
+    this.validateLogic(dto.logic);
     const planCheck = await this.planService.canCreateForm(dto.workspaceId);
     if (!planCheck.allowed) {
       throw new BadRequestException(
@@ -109,7 +110,8 @@ export class FormService {
 
     if (dto.questions || dto.pages) {
       const pages = this.resolvePages(dto.pages, dto.questions);
-      this.validatePages(pages);
+      await this.validatePages(pages, form.workspaceId);
+      this.validateLogic(dto.logic);
       const latest = await this.versionRepo.findOne({
         where: { formId: id },
         order: { version: 'DESC' },
@@ -170,14 +172,31 @@ export class FormService {
 
   private validateQuestions(questions: FormQuestionDto[]) {
     const invalid = questions.find(
-      (q) => !(PHASE1_QUESTION_TYPES as readonly string[]).includes(q.type),
+      (q) => !(ALL_QUESTION_TYPES as readonly string[]).includes(q.type),
     );
     if (invalid)
-      throw new BadRequestException('نوع سوال خارج از محدوده فاز ۱ است');
+      throw new BadRequestException('نوع سوال خارج از محدوده سامانه است');
   }
 
-  private validatePages(pages: FormPageDto[]) {
+  private async validatePages(pages: FormPageDto[], workspaceId: string) {
     pages.forEach((page) => this.validateQuestions(page.questions ?? []));
+
+    const usedTypes = new Set<string>();
+    pages.forEach((page) =>
+      (page.questions ?? []).forEach((question) =>
+        usedTypes.add(question.type),
+      ),
+    );
+
+    const policy = (await this.planService.getWorkspacePolicy(workspaceId)) as {
+      maxQuestionTypes?: number;
+    } | null;
+    const maxQuestionTypes = Number(policy?.maxQuestionTypes ?? -1);
+    if (maxQuestionTypes >= 0 && usedTypes.size > maxQuestionTypes) {
+      throw new BadRequestException(
+        `تعداد نوع سوال استفاده‌شده از سقف پلن (${maxQuestionTypes}) بیشتر است`,
+      );
+    }
   }
 
   private resolvePages(
@@ -193,6 +212,27 @@ export class FormService {
     }
 
     throw new BadRequestException('حداقل یک صفحه یا سوال لازم است');
+  }
+
+  private validateLogic(logic?: Record<string, unknown>) {
+    if (!logic) return;
+    const skipRules = Array.isArray(logic.skip)
+      ? (logic.skip as Array<Record<string, unknown>>)
+      : [];
+
+    const invalidSelfLoop = skipRules.find((rule) => {
+      const fromId = rule.fromQuestionId;
+      const toId = rule.toQuestionId;
+      return (
+        typeof fromId === 'string' &&
+        typeof toId === 'string' &&
+        fromId === toId
+      );
+    });
+
+    if (invalidSelfLoop) {
+      throw new BadRequestException('قانون پرش با حلقه مستقیم مجاز نیست');
+    }
   }
 
   private buildStructure(

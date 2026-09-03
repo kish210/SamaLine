@@ -23,6 +23,23 @@ class AiAnalyzeDto {
   answers: string[];
 }
 
+class AiChatDto {
+  @IsString()
+  question: string;
+
+  @IsOptional()
+  @IsObject()
+  context?: Record<string, unknown>;
+}
+
+class AiTranslateDto {
+  @IsObject()
+  structure: Record<string, unknown>;
+
+  @IsIn(['fa', 'en', 'ar'])
+  targetLanguage: 'fa' | 'en' | 'ar';
+}
+
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {
@@ -41,5 +58,15 @@ export class AiController {
   @Post('analyze-open-text')
   analyze(@Body() dto: AiAnalyzeDto) {
     return this.aiService.analyzeAnswers(dto.answers);
+  }
+
+  @Post('chat-with-data')
+  chat(@Body() dto: AiChatDto) {
+    return this.aiService.chatWithData(dto.question, dto.context);
+  }
+
+  @Post('translate-form')
+  translate(@Body() dto: AiTranslateDto) {
+    return this.aiService.translateSurvey(dto.structure, dto.targetLanguage);
   }
 }

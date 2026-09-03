@@ -16,4 +16,15 @@ export class AiService {
   analyzeAnswers(answers: string[]) {
     return this.provider.analyzeTextAnswers({ answers });
   }
+
+  chatWithData(question: string, context?: Record<string, unknown>) {
+    return this.provider.chatWithData({ question, context });
+  }
+
+  translateSurvey(
+    structure: Record<string, unknown>,
+    targetLanguage: 'fa' | 'en' | 'ar',
+  ) {
+    return this.provider.translateForm({ structure, targetLanguage });
+  }
 }

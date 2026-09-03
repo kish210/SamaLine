@@ -28,7 +28,21 @@ type Question = {
     | 'number'
     | 'boolean'
     | 'multiple_choice'
-    | 'dropdown';
+    | 'dropdown'
+    | 'date'
+    | 'static_text'
+    | 'rating'
+    | 'slider'
+    | 'image_choice'
+    | 'emoji'
+    | 'nps'
+    | 'ranking'
+    | 'matrix'
+    | 'file_upload'
+    | 'camera'
+    | 'audio_record'
+    | 'signature'
+    | 'location';
   options?: string[];
   required?: boolean;
 };
@@ -44,6 +58,20 @@ const QUESTION_TYPES: Question['type'][] = [
   'boolean',
   'multiple_choice',
   'dropdown',
+  'date',
+  'static_text',
+  'rating',
+  'slider',
+  'image_choice',
+  'emoji',
+  'nps',
+  'ranking',
+  'matrix',
+  'file_upload',
+  'camera',
+  'audio_record',
+  'signature',
+  'location',
 ];
 
 function App() {
@@ -71,6 +99,17 @@ function App() {
   const [selectedResponseId, setSelectedResponseId] = useState('');
   const [commentAuthorName, setCommentAuthorName] = useState('تحلیلگر');
   const [commentBody, setCommentBody] = useState('');
+  const [distributionType, setDistributionType] = useState('qr');
+  const [selectedPublicationId, setSelectedPublicationId] = useState('');
+  const [distributionAssets, setDistributionAssets] = useState<Record<string, unknown> | null>(null);
+  const [apiKeyName, setApiKeyName] = useState('کلید داشبورد');
+  const [newApiKey, setNewApiKey] = useState<Record<string, unknown> | null>(null);
+  const [idpType, setIdpType] = useState('oauth');
+  const [idpName, setIdpName] = useState('ورود سازمانی');
+  const [chatQuestion, setChatQuestion] = useState('کدام شعبه کمترین رضایت را داشته؟');
+  const [translateTarget, setTranslateTarget] = useState('en');
+  const [invoiceAmount, setInvoiceAmount] = useState('1000000');
+  const [licenseCaps, setLicenseCaps] = useState('{"offline":true,"maxUsers":500}');
 
   const registerMutation = useMutation({
     mutationFn: (payload: Record<string, string>) => api.post<AuthPayload>('/auth/register', payload),
@@ -165,6 +204,49 @@ function App() {
     enabled: Boolean(token && selectedResponseId),
   });
 
+  const distributionLogsQuery = useQuery({
+    queryKey: ['distribution-logs', selectedPublicationId, token],
+    queryFn: async () =>
+      (
+        await api.get('/distribution/delivery-logs', {
+          params: { publicationId: selectedPublicationId },
+        })
+      ).data,
+    enabled: Boolean(token && selectedPublicationId),
+  });
+
+  const apiKeysQuery = useQuery({
+    queryKey: ['api-keys', organizationId, token],
+    queryFn: async () =>
+      (await api.get('/organization/api-keys', { params: { organizationId } })).data,
+    enabled: Boolean(token && organizationId),
+  });
+
+  const identityProvidersQuery = useQuery({
+    queryKey: ['idps', organizationId, token],
+    queryFn: async () =>
+      (
+        await api.get('/organization/identity-providers', {
+          params: { organizationId },
+        })
+      ).data,
+    enabled: Boolean(token && organizationId),
+  });
+
+  const invoicesQuery = useQuery({
+    queryKey: ['invoices', organizationId, token],
+    queryFn: async () =>
+      (await api.get('/billing/invoices', { params: { organizationId } })).data,
+    enabled: Boolean(token && organizationId),
+  });
+
+  const licensesQuery = useQuery({
+    queryKey: ['licenses', organizationId, token],
+    queryFn: async () =>
+      (await api.get('/billing/licenses', { params: { organizationId } })).data,
+    enabled: Boolean(token && organizationId),
+  });
+
   const saveFilterMutation = useMutation({
     mutationFn: () =>
       api.post('/reports/filters', {
@@ -192,6 +274,68 @@ function App() {
       setCommentBody('');
       commentsQuery.refetch();
     },
+  });
+
+  const createChannelMutation = useMutation({
+    mutationFn: (formId: string) =>
+      api.post(`/distribution/forms/${formId}/publications/${distributionType}`),
+    onSuccess: () => formsQuery.refetch(),
+  });
+
+  const loadAssetsMutation = useMutation({
+    mutationFn: (publicationId: string) =>
+      api.get(`/distribution/publications/${publicationId}/assets`),
+    onSuccess: ({ data }) => setDistributionAssets(data),
+  });
+
+  const createApiKeyMutation = useMutation({
+    mutationFn: () =>
+      api.post('/organization/api-keys', {
+        organizationId,
+        name: apiKeyName,
+      }),
+    onSuccess: ({ data }) => {
+      setNewApiKey(data);
+      apiKeysQuery.refetch();
+    },
+  });
+
+  const createIdentityProviderMutation = useMutation({
+    mutationFn: () =>
+      api.post('/organization/identity-providers', {
+        organizationId,
+        type: idpType,
+        name: idpName,
+        config: { endpoint: 'https://auth.company.local', clientId: 'samaline' },
+      }),
+    onSuccess: () => identityProvidersQuery.refetch(),
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: () =>
+      api.post('/billing/invoices', {
+        organizationId,
+        amount: Number(invoiceAmount),
+      }),
+    onSuccess: () => invoicesQuery.refetch(),
+  });
+
+  const createLicenseMutation = useMutation({
+    mutationFn: () => {
+      let capabilities: Record<string, unknown> = {};
+      try {
+        capabilities = JSON.parse(licenseCaps) as Record<string, unknown>;
+      } catch {
+        capabilities = { raw: licenseCaps };
+      }
+      return (
+      api.post('/billing/licenses', {
+        organizationId,
+        capabilities,
+      })
+      );
+    },
+    onSuccess: () => licensesQuery.refetch(),
   });
 
   if (!token) {
@@ -382,21 +526,73 @@ function App() {
         <h3>{t('forms')}</h3>
         {!!organizationId && <small>شناسه سازمان: {organizationId}</small>}
         <ul>
-          {(formsQuery.data ?? []).map((form: { id: string; title: string; publication?: { token: string } }) => (
-            <li key={form.id} className="card">
-              <strong>{form.title}</strong>
-              <div className="row">
-                <button onClick={() => publishMutation.mutate(form.id)}>{t('publish')}</button>
-                <button className="secondary" onClick={() => setActiveFormId(form.id)}>
-                  {t('responses')}
-                </button>
-              </div>
-              {form.publication?.token && (
-                <small dir="ltr">{`${window.location.origin.replace(':5173', ':5174')}/f/${form.publication.token}`}</small>
-              )}
-            </li>
-          ))}
+          {(formsQuery.data ?? []).map(
+            (form: {
+              id: string;
+              title: string;
+              publication?: { id: string; token: string };
+            }) => (
+              <li key={form.id} className="card">
+                <strong>{form.title}</strong>
+                <div className="row">
+                  <button onClick={() => publishMutation.mutate(form.id)}>
+                    {t('publish')}
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => setActiveFormId(form.id)}
+                  >
+                    {t('responses')}
+                  </button>
+                </div>
+                <div className="row">
+                  <select
+                    value={distributionType}
+                    onChange={(event) => setDistributionType(event.target.value)}
+                  >
+                    <option value="qr">qr</option>
+                    <option value="embed">embed</option>
+                    <option value="popup">popup</option>
+                    <option value="social">social</option>
+                    <option value="sms">sms</option>
+                    <option value="email">email</option>
+                    <option value="kiosk">kiosk</option>
+                    <option value="interviewer">interviewer</option>
+                  </select>
+                  <button onClick={() => createChannelMutation.mutate(form.id)}>
+                    ساخت کانال انتشار
+                  </button>
+                </div>
+                {form.publication?.token && (
+                  <small dir="ltr">{`${window.location.origin.replace(':5173', ':5174')}/f/${form.publication.token}`}</small>
+                )}
+                {!!form.publication?.id && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setSelectedPublicationId(form.publication!.id);
+                      loadAssetsMutation.mutate(form.publication!.id);
+                    }}
+                  >
+                    مشاهده دارایی انتشار
+                  </button>
+                )}
+              </li>
+            ),
+          )}
         </ul>
+      </div>
+
+      <div className="card">
+        <h3>انتشار پیشرفته (فاز ۴)</h3>
+        <small>شناسه انتشار انتخابی: {selectedPublicationId || '-'}</small>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(distributionAssets ?? {}, null, 2)}
+        </pre>
+        <h4>لاگ ارسال</h4>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(distributionLogsQuery.data ?? [], null, 2)}
+        </pre>
       </div>
 
       <div className="card">
@@ -521,8 +717,114 @@ function App() {
         >
           ساخت فرم با AI
         </button>
+        <input
+          value={chatQuestion}
+          onChange={(event) => setChatQuestion(event.target.value)}
+          placeholder="سوال از داده‌ها"
+        />
+        <button
+          onClick={async () => {
+            const result = await api.post('/ai/chat-with-data', {
+              question: chatQuestion,
+              context: { formId: activeFormId || null },
+            });
+            setAiResult(result.data);
+          }}
+        >
+          پرسش از داده
+        </button>
+        <div className="row">
+          <select
+            value={translateTarget}
+            onChange={(event) => setTranslateTarget(event.target.value)}
+          >
+            <option value="fa">fa</option>
+            <option value="en">en</option>
+            <option value="ar">ar</option>
+          </select>
+          <button
+            onClick={async () => {
+              const result = await api.post('/ai/translate-form', {
+                structure: { pages: [{ id: 'page_1', questions }] },
+                targetLanguage: translateTarget,
+              });
+              setAiResult(result.data);
+            }}
+          >
+            ترجمه فرم
+          </button>
+        </div>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(aiResult ?? {}, null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
+        <h3>API و هویت سازمانی (فاز ۷)</h3>
+        <div className="row">
+          <input
+            value={apiKeyName}
+            onChange={(event) => setApiKeyName(event.target.value)}
+            placeholder="نام API Key"
+          />
+          <button onClick={() => createApiKeyMutation.mutate()}>
+            ایجاد API Key
+          </button>
+        </div>
+        {!!newApiKey && (
+          <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+            {JSON.stringify(newApiKey, null, 2)}
+          </pre>
+        )}
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(apiKeysQuery.data ?? [], null, 2)}
+        </pre>
+        <div className="row">
+          <select value={idpType} onChange={(event) => setIdpType(event.target.value)}>
+            <option value="oauth">oauth</option>
+            <option value="ldap">ldap</option>
+          </select>
+          <input
+            value={idpName}
+            onChange={(event) => setIdpName(event.target.value)}
+            placeholder="نام ارائه‌دهنده هویت"
+          />
+          <button onClick={() => createIdentityProviderMutation.mutate()}>
+            ثبت ارائه‌دهنده هویت
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(identityProvidersQuery.data ?? [], null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
+        <h3>تجاری‌سازی و لایسنس (فاز ۹)</h3>
+        <div className="row">
+          <input
+            value={invoiceAmount}
+            onChange={(event) => setInvoiceAmount(event.target.value)}
+            placeholder="مبلغ فاکتور"
+          />
+          <button onClick={() => createInvoiceMutation.mutate()}>
+            ایجاد فاکتور
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(invoicesQuery.data ?? [], null, 2)}
+        </pre>
+        <div className="row">
+          <input
+            value={licenseCaps}
+            onChange={(event) => setLicenseCaps(event.target.value)}
+            placeholder='{"offline":true}'
+          />
+          <button onClick={() => createLicenseMutation.mutate()}>
+            ایجاد لایسنس On-Prem
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(licensesQuery.data ?? [], null, 2)}
         </pre>
       </div>
     </div>

@@ -14,13 +14,13 @@ import {
   PublicationAuthMode,
   PublicationType,
 } from '../database/entities/publication.entity';
-import { PHASE1_QUESTION_TYPES } from '../types/form-types';
+import { ALL_QUESTION_TYPES } from '../types/form-types';
 
 export class FormQuestionDto {
   @IsString()
   id: string;
 
-  @IsIn(PHASE1_QUESTION_TYPES)
+  @IsIn(ALL_QUESTION_TYPES)
   type: string;
 
   @IsString()

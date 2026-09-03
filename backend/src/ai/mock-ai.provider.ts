@@ -52,4 +52,29 @@ export class MockAiProvider implements AiProvider {
       topics: ['کیفیت خدمت', 'زمان پاسخگویی', 'رفتار کارکنان'],
     });
   }
+
+  chatWithData(input: { question: string; context?: Record<string, unknown> }) {
+    return Promise.resolve({
+      question: input.question,
+      answer:
+        'بر اساس داده‌های فعلی، شعبه تهران کمترین رضایت را داشته است (خروجی نمونه).',
+      queryPlan: {
+        filters: input.context ?? {},
+        metric: 'avg_satisfaction',
+        grouping: 'branch',
+      },
+      safeMode: true,
+    });
+  }
+
+  translateForm(input: {
+    structure: Record<string, unknown>;
+    targetLanguage: 'fa' | 'en' | 'ar';
+  }) {
+    return Promise.resolve({
+      targetLanguage: input.targetLanguage,
+      translatedStructure: input.structure,
+      note: 'ترجمه در حالت mock انجام شده و ساختار اصلی حفظ شده است.',
+    });
+  }
 }
