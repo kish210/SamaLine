@@ -10,6 +10,7 @@ describe('ScoreEngineService', () => {
     scoreIndexes: [{ id: 'i1', key: 'satisfaction', method, ...extras }],
     pages: [
       {
+        id: 'p1',
         questions: [
           { id: 'q1', scoring: { indexId: 'i1', weight: 1 } },
           { id: 'q2', scoring: { indexId: 'i1', weight: 3 } },
@@ -63,6 +64,7 @@ describe('ScoreEngineService', () => {
       scoreIndexes: [{ id: 'i1', key: 'satisfaction', method: 'sum' as const }],
       pages: [
         {
+          id: 'p1',
           questions: [
             { id: 'q1', scoring: { indexId: 'i1' } },
             { id: 'qX' }, // بدون scoring
@@ -80,6 +82,7 @@ describe('ScoreEngineService', () => {
       scoreIndexes: [{ id: 'i1', key: 'q', method: 'sum' as const }],
       pages: [
         {
+          id: 'p1',
           questions: [
             {
               id: 'q1',
@@ -101,6 +104,7 @@ describe('ScoreEngineService', () => {
       scoreIndexes: [{ id: 'i1', key: 'q', method: 'sum' as const }],
       pages: [
         {
+          id: 'p1',
           questions: [
             {
               id: 'q1',

@@ -17,6 +17,8 @@ import {
   ResponseStatus,
 } from '../database/entities/response.entity';
 import { LogicEngineService } from '../forms/logic-engine.service';
+import { LogicRuntimeService } from '../forms/logic-runtime.service';
+import type { FormStructure } from '../forms/logic-types';
 import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
@@ -45,7 +47,70 @@ export class PublicService {
     private readonly planService: PlanService,
     private readonly scoreEngine: ScoreEngineService,
     private readonly logicEngine: LogicEngineService,
+    private readonly logicRuntime: LogicRuntimeService,
   ) {}
+
+  /**
+   * گام بعدی پاسخ‌دهنده: صفحه‌ی بعد با اعمال قوانین پرش،
+   * سوالات قابل نمایش آن، و متن‌های Piping‌شده.
+   */
+  async nextStepByToken(
+    token: string,
+    dto: {
+      currentPageId?: string | null;
+      answers?: Record<string, unknown>;
+      params?: Record<string, unknown>;
+    },
+  ) {
+    const formData = await this.getByToken(token);
+    const structure = formData.structure as FormStructure;
+    const answers = dto.answers ?? {};
+    const params = dto.params ?? {};
+    // شاخص‌ها با پاسخ‌های فعلی محاسبه می‌شوند تا شرط‌های مبتنی بر
+    // شاخص (بند ۶ سند) در همان لحظه قابل ارزیابی باشند.
+    const scores = this.scoreEngine.calculate(structure, answers);
+    const context = { answers, params, scores };
+
+    const step = this.logicRuntime.nextStep(
+      structure,
+      dto.currentPageId ?? null,
+      context,
+    );
+
+    if (step.finished || !step.nextPageId) {
+      return { ...step, page: null, scores };
+    }
+
+    const page = (structure.pages ?? []).find((p) => p.id === step.nextPageId);
+    const visible = this.logicRuntime.visibleQuestionIds(structure, context);
+
+    return {
+      ...step,
+      scores,
+      page: page
+        ? {
+            ...page,
+            questions: (page.questions ?? [])
+              .filter((q) => visible.has(q.id))
+              .map((q) => ({
+                ...q,
+                title: this.logicEngine.applyPiping(
+                  String(q.title ?? ''),
+                  answers,
+                  params,
+                ),
+                description: q.description
+                  ? this.logicEngine.applyPiping(
+                      String(q.description),
+                      answers,
+                      params,
+                    )
+                  : q.description,
+              })),
+          }
+        : null,
+    };
+  }
 
   async getByToken(token: string): Promise<PublicFormPayload> {
     const publication = await this.publicationRepo.findOne({
@@ -183,8 +248,23 @@ export class PublicService {
 
     const startedAt = new Date();
     const submittedAt = new Date();
-    const structure = formData.structure;
-    const scores = this.scoreEngine.calculate(structure, dto.answers);
+    const structure = formData.structure as FormStructure;
+
+    // پاسخ سوالاتی که با منطق نمایش پنهان بوده‌اند ذخیره نمی‌شود؛
+    // در غیر این صورت کلاینت می‌تواند پاسخ سوالی را بفرستد که هرگز ندیده است.
+    const params = (dto.meta?.params ?? {}) as Record<string, unknown>;
+    const preliminaryScores = this.scoreEngine.calculate(
+      structure,
+      dto.answers,
+    );
+    const answers = this.logicRuntime.stripHiddenAnswers(
+      structure,
+      dto.answers,
+      params,
+      preliminaryScores,
+    );
+    // شاخص نهایی روی پاسخ‌های پاک‌سازی‌شده محاسبه می‌شود.
+    const scores = this.scoreEngine.calculate(structure, answers);
 
     let response: ResponseEntity | null = null;
     if (respondentKey) {
@@ -207,7 +287,7 @@ export class PublicService {
           (submittedAt.getTime() - response.startedAt.getTime()) / 1000,
         ),
       );
-      response.answers = dto.answers;
+      response.answers = answers;
       response.meta = dto.meta ?? response.meta;
       response.respondentKey = respondentKey ?? response.respondentKey;
       response.scores = scores;
@@ -223,14 +303,14 @@ export class PublicService {
           submittedAt,
           durationSeconds: 0,
           meta: dto.meta ?? {},
-          answers: dto.answers,
+          answers,
           scores,
         }),
       );
     }
 
     await this.answerFlatRepo.delete({ responseId: response.id });
-    const rows = this.mapAnswersToFlatRows(response.id, dto.answers);
+    const rows = this.mapAnswersToFlatRows(response.id, answers);
     if (rows.length) {
       await this.answerFlatRepo.save(rows);
     }

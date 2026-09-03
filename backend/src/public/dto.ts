@@ -25,3 +25,19 @@ export class SaveProgressDto {
   @IsObject()
   answers: Record<string, unknown>;
 }
+
+export class NextStepDto {
+  /** صفحه‌ی فعلی؛ خالی یعنی شروع فرم. */
+  @IsOptional()
+  @IsString()
+  currentPageId?: string;
+
+  @IsOptional()
+  @IsObject()
+  answers?: Record<string, unknown>;
+
+  /** پارامترهای مخفی لینک (utm، شعبه و …). */
+  @IsOptional()
+  @IsObject()
+  params?: Record<string, unknown>;
+}

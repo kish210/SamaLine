@@ -1,28 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import type { FormQuestionNode, FormStructure } from './logic-types';
 
-type ChoiceLike = { id: string; weight?: number };
-
-type QuestionLike = {
-  id: string;
-  weight?: number;
-  scoring?: {
-    indexId?: string;
-    weight?: number;
-  };
-  choices?: ChoiceLike[];
-};
-
-type ScoreIndexLike = {
-  id: string;
-  key: string;
-  method?: 'sum' | 'avg' | 'weighted' | 'percent';
-  maxScore?: number;
-};
-
-type FormStructure = {
-  pages?: Array<{ questions?: QuestionLike[] }>;
-  scoreIndexes?: ScoreIndexLike[];
-};
+// نوع‌های ساختار فرم مشترک با موتور منطق است تا دو تعریف واگرا نشوند.
+type QuestionLike = FormQuestionNode;
 
 @Injectable()
 export class ScoreEngineService {

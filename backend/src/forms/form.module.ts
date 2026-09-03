@@ -7,6 +7,7 @@ import { PlanModule } from '../plans/plan.module';
 import { FormController } from './form.controller';
 import { FormService } from './form.service';
 import { LogicEngineService } from './logic-engine.service';
+import { LogicRuntimeService } from './logic-runtime.service';
 import { ScoreEngineService } from './score-engine.service';
 
 @Module({
@@ -18,8 +19,18 @@ import { ScoreEngineService } from './score-engine.service';
     ]),
     PlanModule,
   ],
-  providers: [FormService, LogicEngineService, ScoreEngineService],
+  providers: [
+    FormService,
+    LogicEngineService,
+    LogicRuntimeService,
+    ScoreEngineService,
+  ],
   controllers: [FormController],
-  exports: [FormService, LogicEngineService, ScoreEngineService],
+  exports: [
+    FormService,
+    LogicEngineService,
+    LogicRuntimeService,
+    ScoreEngineService,
+  ],
 })
 export class FormModule {}

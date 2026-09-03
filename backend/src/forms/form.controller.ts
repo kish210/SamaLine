@@ -37,6 +37,11 @@ export class FormController {
     return this.formService.analyzeLogic(id);
   }
 
+  @Get(':id/flow-graph')
+  flowGraph(@Param('id') id: string) {
+    return this.formService.flowGraph(id);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateFormDto) {
     return this.formService.update(id, dto);

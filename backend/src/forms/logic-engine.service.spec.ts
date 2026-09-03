@@ -85,6 +85,129 @@ describe('LogicEngineService', () => {
     });
   });
 
+  describe('analyzeStructure — شکل گروهی قوانین', () => {
+    it('شرط گروهی با منبع معتبر را می‌پذیرد', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: {
+          display: [
+            {
+              targetQuestionId: 'q3',
+              when: {
+                combinator: 'and',
+                conditions: [{ source: 'q1', operator: 'equals', value: 1 }],
+              },
+            },
+          ],
+        },
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('منبع شرط ناموجود را خطا می‌دهد', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: {
+          display: [
+            {
+              targetQuestionId: 'q3',
+              when: {
+                combinator: 'and',
+                conditions: [{ source: 'qX', operator: 'equals', value: 1 }],
+              },
+            },
+          ],
+        },
+      });
+      expect(result.errors).toContain('display[0] منبع شرط «qX» نامعتبر است');
+    });
+
+    it('منبع param و score همیشه مجاز است', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: {
+          display: [
+            {
+              targetQuestionId: 'q3',
+              when: {
+                combinator: 'or',
+                conditions: [
+                  {
+                    source: 'param.branch',
+                    operator: 'equals',
+                    value: 'تهران',
+                  },
+                  { source: 'score.sat', operator: 'lt', value: 3 },
+                ],
+              },
+            },
+          ],
+        },
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('پرش با مبدا صفحه و مقصد پایان معتبر است', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: { skip: [{ fromPageId: 'p1', toEnd: true }] },
+      });
+      expect(result.isValid).toBe(true);
+    });
+
+    it('قانون نمایش بدون هدف را خطا می‌دهد', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: { display: [{ sourceQuestionId: 'q1', operator: 'equals' }] },
+      });
+      expect(result.errors).toContain('display[0] هدف (سوال یا صفحه) ندارد');
+    });
+
+    it('پرش بدون مقصد را خطا می‌دهد', () => {
+      const result = engine.analyzeStructure({
+        ...twoPageForm,
+        logic: { skip: [{ fromQuestionId: 'q1' }] },
+      });
+      expect(result.errors).toContain('skip[0] مقصد ندارد');
+    });
+  });
+
+  describe('buildFlowGraph', () => {
+    it('گره‌ها و یال‌های ترتیبی را می‌سازد', () => {
+      const graph = engine.buildFlowGraph(twoPageForm);
+      expect(graph.nodes.map((n) => n.id)).toEqual(['p1', 'p2']);
+      expect(graph.edges).toEqual([
+        { from: 'p1', to: 'p2', kind: 'sequential', conditional: false },
+      ]);
+    });
+
+    it('یال پرش شرطی را با مقصد پایان نشان می‌دهد', () => {
+      const graph = engine.buildFlowGraph({
+        ...twoPageForm,
+        logic: {
+          skip: [
+            {
+              fromQuestionId: 'q1',
+              toEnd: true,
+              when: {
+                combinator: 'and',
+                conditions: [
+                  { source: 'q1', operator: 'equals', value: 'خیر' },
+                ],
+              },
+            },
+          ],
+        },
+      });
+      expect(graph.edges).toContainEqual({
+        from: 'p1',
+        to: null,
+        kind: 'skip',
+        conditional: true,
+      });
+    });
+  });
+
   describe('applyPiping', () => {
     it('پاسخ سوال قبلی را جایگزین می‌کند', () => {
       expect(engine.applyPiping('سلام {{q1}} عزیز', { q1: 'مریم' })).toBe(

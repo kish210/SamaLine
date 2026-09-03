@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { SaveProgressDto, SubmitResponseDto } from './dto';
+import { NextStepDto, SaveProgressDto, SubmitResponseDto } from './dto';
 import { PublicService } from './public.service';
 
 @Controller('public/forms')
@@ -14,6 +14,11 @@ export class PublicController {
   @Get(':token')
   getForm(@Param('token') token: string) {
     return this.publicService.getByToken(token);
+  }
+
+  @Post(':token/next')
+  nextStep(@Param('token') token: string, @Body() dto: NextStepDto) {
+    return this.publicService.nextStepByToken(token, dto);
   }
 
   @Post(':token/submit')

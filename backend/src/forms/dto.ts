@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsIn,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -41,6 +42,26 @@ export class FormQuestionDto {
   @IsOptional()
   @IsArray()
   options?: string[];
+
+  /** گزینه‌ها با وزن، برای امتیازدهی (بند ۶ سند). */
+  @IsOptional()
+  @IsArray()
+  choices?: Array<{
+    id: string;
+    label?: string;
+    weight?: number;
+    hidden?: boolean;
+  }>;
+
+  /** وزن پیش‌فرض سوال در محاسبه‌ی شاخص. */
+  @IsOptional()
+  @IsNumber()
+  weight?: number;
+
+  /** اتصال سوال به یک شاخص امتیازدهی. */
+  @IsOptional()
+  @IsObject()
+  scoring?: { indexId?: string; weight?: number };
 
   @IsOptional()
   @IsObject()

@@ -1,36 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import {
+  type DisplayRule,
+  type FormStructure,
+  type LogicCondition,
+  type LogicConditionGroup,
+  type SkipRule,
+  isConditionGroup,
+} from './logic-types';
 
-type DisplayRule = {
-  targetQuestionId: string;
-  sourceQuestionId: string;
-  operator:
-    | 'equals'
-    | 'not_equals'
-    | 'contains'
-    | 'starts_with'
-    | 'gt'
-    | 'lt'
-    | 'between'
-    | 'is_empty'
-    | 'is_not_empty';
-  value?: unknown;
-};
-
-type SkipRule = {
-  fromQuestionId: string;
-  toPageId?: string;
-  toQuestionId?: string;
-};
-
-type FormStructure = {
-  pages?: Array<{ id: string; questions?: Array<{ id: string }> }>;
-  logic?: {
-    display?: DisplayRule[];
-    skip?: SkipRule[];
-    pipe?: Array<{ source: string; targetQuestionId: string }>;
-  };
-};
-
+/**
+ * اعتبارسنجی ساختاری منطق فرم: ارجاع‌های نامعتبر، حلقه‌ی بی‌نهایت،
+ * صفحه‌ی غیرقابل دسترس و جایگذاری Piping.
+ *
+ * اجرای منطق در زمان پاسخ‌دهی در LogicRuntimeService است.
+ */
 @Injectable()
 export class LogicEngineService {
   analyzeStructure(structure: FormStructure) {
@@ -45,24 +28,42 @@ export class LogicEngineService {
 
     const displayRules = structure.logic?.display ?? [];
     displayRules.forEach((rule, i) => {
-      if (!questionIds.has(rule.targetQuestionId)) {
+      if (rule.targetQuestionId && !questionIds.has(rule.targetQuestionId)) {
         errors.push(`display[${i}] targetQuestionId نامعتبر است`);
       }
-      if (!questionIds.has(rule.sourceQuestionId)) {
+      if (rule.targetPageId && !pageIds.has(rule.targetPageId)) {
+        errors.push(`display[${i}] targetPageId نامعتبر است`);
+      }
+      if (!rule.targetQuestionId && !rule.targetPageId) {
+        errors.push(`display[${i}] هدف (سوال یا صفحه) ندارد`);
+      }
+      if (rule.sourceQuestionId && !questionIds.has(rule.sourceQuestionId)) {
         errors.push(`display[${i}] sourceQuestionId نامعتبر است`);
       }
+      this.collectSourceErrors(rule.when, questionIds).forEach((source) =>
+        errors.push(`display[${i}] منبع شرط «${source}» نامعتبر است`),
+      );
     });
 
     const skipRules = structure.logic?.skip ?? [];
     skipRules.forEach((rule, i) => {
-      if (!questionIds.has(rule.fromQuestionId)) {
+      if (rule.fromQuestionId && !questionIds.has(rule.fromQuestionId)) {
         errors.push(`skip[${i}] fromQuestionId نامعتبر است`);
+      }
+      if (rule.fromPageId && !pageIds.has(rule.fromPageId)) {
+        errors.push(`skip[${i}] fromPageId نامعتبر است`);
+      }
+      if (!rule.fromQuestionId && !rule.fromPageId) {
+        errors.push(`skip[${i}] مبدا (سوال یا صفحه) ندارد`);
       }
       if (rule.toQuestionId && !questionIds.has(rule.toQuestionId)) {
         errors.push(`skip[${i}] toQuestionId نامعتبر است`);
       }
       if (rule.toPageId && !pageIds.has(rule.toPageId)) {
         errors.push(`skip[${i}] toPageId نامعتبر است`);
+      }
+      if (!rule.toQuestionId && !rule.toPageId && !rule.toEnd) {
+        errors.push(`skip[${i}] مقصد ندارد`);
       }
       if (
         rule.toQuestionId &&
@@ -71,32 +72,12 @@ export class LogicEngineService {
       ) {
         errors.push(`skip[${i}] حلقه مستقیم دارد`);
       }
+      this.collectSourceErrors(rule.when, questionIds).forEach((source) =>
+        errors.push(`skip[${i}] منبع شرط «${source}» نامعتبر است`),
+      );
     });
 
-    const pageGraph = new Map<string, Set<string>>();
-    pages.forEach((p, idx) => {
-      if (!pageGraph.has(p.id)) pageGraph.set(p.id, new Set());
-      if (idx < pages.length - 1) {
-        pageGraph.get(p.id)?.add(pages[idx + 1].id);
-      }
-    });
-
-    const questionToPage = new Map<string, string>();
-    pages.forEach((p) =>
-      (p.questions ?? []).forEach((q) => questionToPage.set(q.id, p.id)),
-    );
-
-    skipRules.forEach((rule) => {
-      const fromPage = questionToPage.get(rule.fromQuestionId);
-      const toPage =
-        rule.toPageId ??
-        (rule.toQuestionId ? questionToPage.get(rule.toQuestionId) : undefined);
-      if (fromPage && toPage) {
-        if (!pageGraph.has(fromPage)) pageGraph.set(fromPage, new Set());
-        pageGraph.get(fromPage)?.add(toPage);
-      }
-    });
-
+    const pageGraph = this.buildPageGraph(structure);
     const startPageId = pages[0]?.id;
     if (startPageId) {
       const visited = new Set<string>();
@@ -120,6 +101,64 @@ export class LogicEngineService {
     return { errors, warnings, isValid: errors.length === 0 };
   }
 
+  /** گراف مسیر صفحات: ترتیب پیش‌فرض به‌علاوه‌ی یال‌های پرش. */
+  private buildPageGraph(structure: FormStructure) {
+    const pages = structure.pages ?? [];
+    const graph = new Map<string, Set<string>>();
+
+    pages.forEach((p, idx) => {
+      if (!graph.has(p.id)) graph.set(p.id, new Set());
+      if (idx < pages.length - 1) graph.get(p.id)?.add(pages[idx + 1].id);
+    });
+
+    const questionToPage = new Map<string, string>();
+    pages.forEach((p) =>
+      (p.questions ?? []).forEach((q) => questionToPage.set(q.id, p.id)),
+    );
+
+    (structure.logic?.skip ?? []).forEach((rule) => {
+      const fromPage =
+        rule.fromPageId ??
+        (rule.fromQuestionId
+          ? questionToPage.get(rule.fromQuestionId)
+          : undefined);
+      const toPage =
+        rule.toPageId ??
+        (rule.toQuestionId ? questionToPage.get(rule.toQuestionId) : undefined);
+      if (fromPage && toPage) {
+        if (!graph.has(fromPage)) graph.set(fromPage, new Set());
+        graph.get(fromPage)?.add(toPage);
+      }
+    });
+
+    return graph;
+  }
+
+  /**
+   * منابع شرط ناموجود را برمی‌گرداند.
+   * `param.*` و `score.*` همیشه مجازند چون در زمان اجرا تامین می‌شوند.
+   */
+  private collectSourceErrors(
+    group: LogicConditionGroup | undefined,
+    questionIds: Set<string>,
+  ): string[] {
+    if (!group) return [];
+    const invalid: string[] = [];
+
+    const walk = (node: LogicCondition | LogicConditionGroup) => {
+      if (isConditionGroup(node)) {
+        (node.conditions ?? []).forEach(walk);
+        return;
+      }
+      const source = node.source ?? '';
+      if (source.startsWith('param.') || source.startsWith('score.')) return;
+      if (!questionIds.has(source)) invalid.push(source);
+    };
+
+    (group.conditions ?? []).forEach(walk);
+    return invalid;
+  }
+
   private hasCycle(graph: Map<string, Set<string>>) {
     const visiting = new Set<string>();
     const visited = new Set<string>();
@@ -141,6 +180,70 @@ export class LogicEngineService {
     }
 
     return false;
+  }
+
+  /**
+   * نمای فلوچارت مسیر فرم (بند ۵ سند): گره‌ها و یال‌های
+   * ترتیبی و شرطی، برای رسم در ویرایشگر گرافیکی.
+   */
+  buildFlowGraph(structure: FormStructure) {
+    const pages = structure.pages ?? [];
+    const questionToPage = new Map<string, string>();
+    pages.forEach((p) =>
+      (p.questions ?? []).forEach((q) => questionToPage.set(q.id, p.id)),
+    );
+
+    const nodes = pages.map((page) => ({
+      id: page.id,
+      title: page.title ?? page.id,
+      questionCount: (page.questions ?? []).length,
+    }));
+
+    const edges: Array<{
+      from: string;
+      to: string | null;
+      kind: 'sequential' | 'skip';
+      conditional: boolean;
+    }> = [];
+
+    pages.forEach((page, idx) => {
+      if (idx < pages.length - 1) {
+        edges.push({
+          from: page.id,
+          to: pages[idx + 1].id,
+          kind: 'sequential',
+          conditional: false,
+        });
+      }
+    });
+
+    (structure.logic?.skip ?? []).forEach((rule: SkipRule) => {
+      const from =
+        rule.fromPageId ??
+        (rule.fromQuestionId
+          ? questionToPage.get(rule.fromQuestionId)
+          : undefined);
+      if (!from) return;
+      const to = rule.toEnd
+        ? null
+        : (rule.toPageId ??
+          (rule.toQuestionId
+            ? questionToPage.get(rule.toQuestionId)
+            : undefined) ??
+          null);
+      edges.push({
+        from,
+        to,
+        kind: 'skip',
+        conditional: Boolean(rule.when),
+      });
+    });
+
+    const conditionalQuestions = (structure.logic?.display ?? [])
+      .filter((rule: DisplayRule) => rule.targetQuestionId)
+      .map((rule: DisplayRule) => rule.targetQuestionId as string);
+
+    return { nodes, edges, conditionalQuestions };
   }
 
   applyPiping(

@@ -23,6 +23,7 @@ import {
   UpdateFormDto,
 } from './dto';
 import { LogicEngineService } from './logic-engine.service';
+import type { FormStructure } from './logic-types';
 
 @Injectable()
 export class FormService {
@@ -108,6 +109,16 @@ export class FormService {
     });
     if (!latestVersion) throw new NotFoundException('نسخه فرم یافت نشد');
     return this.logicEngine.analyzeStructure(latestVersion.structure);
+  }
+
+  /** نمای فلوچارت مسیر فرم برای ویرایشگر گرافیکی. */
+  async flowGraph(id: string) {
+    const latestVersion = await this.versionRepo.findOne({
+      where: { formId: id },
+      order: { version: 'DESC' },
+    });
+    if (!latestVersion) throw new NotFoundException('نسخه فرم یافت نشد');
+    return this.logicEngine.buildFlowGraph(latestVersion.structure);
   }
 
   async update(id: string, dto: UpdateFormDto) {
@@ -244,7 +255,12 @@ export class FormService {
     pages: FormPageDto[],
   ) {
     if (!logic) return;
-    const analysis = this.logicEngine.analyzeStructure({ pages, logic });
+    // DTOها شکل بازتری از نوع‌های ساختار دارند؛ تبدیل امن است چون
+    // analyzeStructure فقط شناسه‌ها را می‌خواند.
+    const analysis = this.logicEngine.analyzeStructure({
+      pages,
+      logic,
+    } as unknown as FormStructure);
     if (!analysis.isValid) {
       throw new BadRequestException(analysis.errors.join(' | '));
     }
