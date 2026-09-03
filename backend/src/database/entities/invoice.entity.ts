@@ -5,6 +5,12 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
@@ -18,24 +24,28 @@ export class InvoiceEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 80, unique: true })
+  @Column({ type: 'varchar', length: 80, unique: true })
   invoiceNo: string;
 
-  @Column({ type: 'enum', enum: InvoiceStatus, default: InvoiceStatus.DRAFT })
+  @Column({
+    type: ENUM_COLUMN,
+    enum: InvoiceStatus,
+    default: InvoiceStatus.DRAFT,
+  })
   status: InvoiceStatus;
 
   @Column({ type: 'bigint', default: 0 })
   amount: string;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   metadata: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

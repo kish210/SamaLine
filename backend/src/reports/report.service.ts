@@ -5,6 +5,7 @@ import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
+import { LIKE_OPERATOR } from '../database/column-types';
 
 @Injectable()
 export class ReportService {
@@ -90,7 +91,7 @@ export class ReportService {
         });
       }
       if (filter.valueText) {
-        qb.andWhere('answerFlat.valueText ILIKE :valueText', {
+        qb.andWhere(`answerFlat.valueText ${LIKE_OPERATOR} :valueText`, {
           valueText: `%${filter.valueText}%`,
         });
       }

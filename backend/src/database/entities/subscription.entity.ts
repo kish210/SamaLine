@@ -9,31 +9,37 @@ import {
 } from 'typeorm';
 import { OrganizationEntity } from './organization.entity';
 import { PlanCode } from './plan-policy.entity';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 @Entity('subscriptions')
 export class SubscriptionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ type: 'enum', enum: PlanCode, default: PlanCode.FREE })
+  @Column({ type: ENUM_COLUMN, enum: PlanCode, default: PlanCode.FREE })
   planCode: PlanCode;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   expiresAt: Date | null;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   overrides: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @ManyToOne(

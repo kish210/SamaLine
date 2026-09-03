@@ -7,25 +7,26 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { OrganizationUserEntity } from './organization-user.entity';
+import { TIMESTAMP_COLUMN } from '../column-types';
 
 @Entity('users')
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   fullName: string;
 
-  @Column({ unique: true, length: 120 })
+  @Column({ type: 'varchar', unique: true, length: 120 })
   email: string;
 
-  @Column({ length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   passwordHash: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @OneToMany(() => OrganizationUserEntity, (member) => member.user)

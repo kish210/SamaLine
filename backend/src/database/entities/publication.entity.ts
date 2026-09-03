@@ -9,6 +9,12 @@ import {
 } from 'typeorm';
 import { ResponseEntity } from './response.entity';
 import { FormEntity } from './form.entity';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 export enum PublicationType {
   LINK = 'link',
@@ -39,45 +45,45 @@ export class PublicationEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   formId: string;
 
   @Column({
-    type: 'enum',
+    type: ENUM_COLUMN,
     enum: PublicationType,
     default: PublicationType.LINK,
   })
   type: PublicationType;
 
   @Column({
-    type: 'enum',
+    type: ENUM_COLUMN,
     enum: PublicationAuthMode,
     default: PublicationAuthMode.NONE,
   })
   authMode: PublicationAuthMode;
 
-  @Column({ unique: true, length: 80 })
+  @Column({ type: 'varchar', unique: true, length: 80 })
   token: string;
 
-  @Column({ type: 'jsonb', default: [] })
+  @Column({ type: JSON_COLUMN, default: [] })
   tags: string[];
 
-  @Column({ length: 240, nullable: true })
+  @Column({ type: 'varchar', length: 240, nullable: true })
   customDomain: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   expiresAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
   quota: number | null;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   config: Record<string, unknown>;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
   @ManyToOne(() => FormEntity, (form) => form.publications, {

@@ -6,16 +6,17 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ResponseEntity } from './response.entity';
+import { UUID_COLUMN } from '../column-types';
 
 @Entity('answer_flat')
 export class AnswerFlatEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   responseId: string;
 
-  @Column({ length: 80 })
+  @Column({ type: 'varchar', length: 80 })
   questionId: string;
 
   @Column({ type: 'text', nullable: true })

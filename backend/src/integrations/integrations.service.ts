@@ -12,7 +12,7 @@ export class IntegrationsService {
     private readonly webhookRepo: Repository<WebhookEntity>,
   ) {}
 
-  createWebhook(dto: CreateWebhookDto) {
+  createWebhook(dto: CreateWebhookDto & { organizationId: string }) {
     return this.webhookRepo.save(this.webhookRepo.create(dto));
   }
 

@@ -5,30 +5,31 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('webhooks')
 export class WebhookEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   event: string;
 
-  @Column({ length: 500 })
+  @Column({ type: 'varchar', length: 500 })
   targetUrl: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   secret: string;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

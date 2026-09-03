@@ -5,10 +5,10 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { OrganizationId } from '../common/current-user.decorator';
 import { BillingService } from './billing.service';
 import {
   CreateInvoiceDto,
@@ -25,17 +25,21 @@ export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 
   @Post('invoices')
-  createInvoice(@Body() dto: CreateInvoiceDto) {
-    return this.billingService.createInvoice(dto);
+  createInvoice(
+    @Body() dto: CreateInvoiceDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.billingService.createInvoice({ ...dto, organizationId });
   }
 
   @Get('invoices')
-  listInvoices(@Query('organizationId') organizationId: string) {
+  listInvoices(@OrganizationId() organizationId: string) {
     return this.billingService.listInvoices(organizationId);
   }
 
   @Post('payments')
   createPayment(@Body() dto: CreatePaymentDto) {
+    // سازمان از روی فاکتور مرجع تعیین می‌شود، نه از ورودی کلاینت.
     return this.billingService.createPayment(dto);
   }
 
@@ -45,18 +49,24 @@ export class BillingController {
   }
 
   @Post('subscriptions')
-  updateSubscription(@Body() dto: UpdateSubscriptionDto) {
-    return this.billingService.updateSubscription(dto);
+  updateSubscription(
+    @Body() dto: UpdateSubscriptionDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.billingService.updateSubscription({ ...dto, organizationId });
   }
 
   @Get('subscriptions')
-  listSubscriptions(@Query('organizationId') organizationId: string) {
+  listSubscriptions(@OrganizationId() organizationId: string) {
     return this.billingService.listSubscriptions(organizationId);
   }
 
   @Post('licenses')
-  createLicense(@Body() dto: CreateLicenseDto) {
-    return this.billingService.createLicense(dto);
+  createLicense(
+    @Body() dto: CreateLicenseDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.billingService.createLicense({ ...dto, organizationId });
   }
 
   @Post('licenses/validate')
@@ -65,7 +75,7 @@ export class BillingController {
   }
 
   @Get('licenses')
-  listLicenses(@Query('organizationId') organizationId: string) {
+  listLicenses(@OrganizationId() organizationId: string) {
     return this.billingService.listLicenses(organizationId);
   }
 }

@@ -10,8 +10,9 @@ import {
 import { PlanCode } from '../database/entities/plan-policy.entity';
 
 export class CreateInvoiceDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsInt()
   @Min(0)
@@ -44,8 +45,9 @@ export class VerifyPaymentDto {
 }
 
 export class UpdateSubscriptionDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsIn(Object.values(PlanCode))
   planCode: PlanCode;
@@ -56,8 +58,9 @@ export class UpdateSubscriptionDto {
 }
 
 export class CreateLicenseDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsObject()
   capabilities: Record<string, unknown>;

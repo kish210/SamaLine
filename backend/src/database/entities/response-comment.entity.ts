@@ -7,22 +7,23 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ResponseEntity } from './response.entity';
+import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('response_comments')
 export class ResponseCommentEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   responseId: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   authorName: string;
 
   @Column({ type: 'text' })
   body: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
   @ManyToOne(() => ResponseEntity, (response) => response.comments, {

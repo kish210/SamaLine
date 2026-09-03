@@ -160,7 +160,10 @@ export class LogicEngineService {
       return JSON.stringify(value);
     };
 
-    return text.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, token: string) => {
+    return text.replace(/\{\{([^}]+)\}\}/g, (_, rawToken: string) => {
+      // `[^}]+` فاصله‌های اطراف را هم می‌بلعد، پس توکن باید trim شود
+      // تا `{{ q1 }}` معادل `{{q1}}` باشد.
+      const token = rawToken.trim();
       if (token.startsWith('param.')) {
         const key = token.slice('param.'.length);
         return normalizeTokenValue(params[key]);

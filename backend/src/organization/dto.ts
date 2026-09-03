@@ -1,16 +1,10 @@
-import {
-  IsArray,
-  IsIn,
-  IsNotEmpty,
-  IsObject,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsArray, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { IdentityProviderType } from '../database/entities/identity-provider.entity';
 
 export class CreateApiKeyDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsString()
   name: string;
@@ -21,8 +15,9 @@ export class CreateApiKeyDto {
 }
 
 export class CreateIdentityProviderDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsIn(Object.values(IdentityProviderType))
   type: IdentityProviderType;

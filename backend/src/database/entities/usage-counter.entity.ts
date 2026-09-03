@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { OrganizationEntity } from './organization.entity';
+import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('usage_counters')
 @Unique('uq_usage_org_period_metric', ['organizationId', 'periodKey', 'metric'])
@@ -16,13 +17,13 @@ export class UsageCounterEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 20 })
+  @Column({ type: 'varchar', length: 20 })
   periodKey: string;
 
-  @Column({ length: 60 })
+  @Column({ type: 'varchar', length: 60 })
   metric: string;
 
   @Column({ type: 'int', default: 0 })
@@ -31,10 +32,10 @@ export class UsageCounterEntity {
   @Column({ type: 'int', default: 0 })
   limitValue: number;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @ManyToOne(

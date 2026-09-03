@@ -5,10 +5,10 @@ import {
   Get,
   Param,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { OrganizationId } from '../common/current-user.decorator';
 import { CreateApiKeyDto, CreateIdentityProviderDto } from './dto';
 import { OrganizationService } from './organization.service';
 
@@ -18,12 +18,15 @@ export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
   @Post('api-keys')
-  createApiKey(@Body() dto: CreateApiKeyDto) {
-    return this.organizationService.createApiKey(dto);
+  createApiKey(
+    @Body() dto: CreateApiKeyDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.organizationService.createApiKey({ ...dto, organizationId });
   }
 
   @Get('api-keys')
-  listApiKeys(@Query('organizationId') organizationId: string) {
+  listApiKeys(@OrganizationId() organizationId: string) {
     return this.organizationService.listApiKeys(organizationId);
   }
 
@@ -33,12 +36,18 @@ export class OrganizationController {
   }
 
   @Post('identity-providers')
-  createIdentityProvider(@Body() dto: CreateIdentityProviderDto) {
-    return this.organizationService.createIdentityProvider(dto);
+  createIdentityProvider(
+    @Body() dto: CreateIdentityProviderDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.organizationService.createIdentityProvider({
+      ...dto,
+      organizationId,
+    });
   }
 
   @Get('identity-providers')
-  listIdentityProviders(@Query('organizationId') organizationId: string) {
+  listIdentityProviders(@OrganizationId() organizationId: string) {
     return this.organizationService.listIdentityProviders(organizationId);
   }
 }

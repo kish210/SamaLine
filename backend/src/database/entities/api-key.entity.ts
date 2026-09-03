@@ -5,33 +5,34 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('api_keys')
 export class ApiKeyEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   name: string;
 
-  @Column({ length: 120, unique: true })
+  @Column({ type: 'varchar', length: 120, unique: true })
   keyPrefix: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   keyHash: string;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   scopes: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

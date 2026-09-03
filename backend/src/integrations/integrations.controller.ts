@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { OrganizationId } from '../common/current-user.decorator';
 import { CreateWebhookDto } from './dto';
 import { IntegrationsService } from './integrations.service';
 
@@ -14,7 +15,7 @@ export class IntegrationsController {
   }
 
   @Get('webhooks')
-  list(@Query('organizationId') organizationId: string) {
+  list(@OrganizationId() organizationId: string) {
     return this.integrationsService.listWebhooks(organizationId);
   }
 

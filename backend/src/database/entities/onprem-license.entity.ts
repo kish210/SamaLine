@@ -5,30 +5,31 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('onprem_licenses')
 export class OnPremLicenseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 120, unique: true })
+  @Column({ type: 'varchar', length: 120, unique: true })
   licenseKey: string;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   capabilities: Record<string, unknown>;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   expiresAt: Date | null;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

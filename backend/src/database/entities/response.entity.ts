@@ -11,6 +11,13 @@ import { AnswerFlatEntity } from './answer-flat.entity';
 import { FormVersionEntity } from './form-version.entity';
 import { PublicationEntity } from './publication.entity';
 import { ResponseCommentEntity } from './response-comment.entity';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  NOW_SQL,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 export enum ResponseStatus {
   PARTIAL = 'partial',
@@ -22,41 +29,41 @@ export class ResponseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   formVersionId: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   publicationId: string;
 
   @Column({ type: 'varchar', length: 120, nullable: true })
   respondentKey: string | null;
 
   @Column({
-    type: 'enum',
+    type: ENUM_COLUMN,
     enum: ResponseStatus,
     default: ResponseStatus.COMPLETED,
   })
   status: ResponseStatus;
 
-  @Column({ type: 'timestamptz', default: () => 'NOW()' })
+  @Column({ type: TIMESTAMP_COLUMN, default: () => NOW_SQL })
   startedAt: Date;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   submittedAt: Date | null;
 
   @Column({ type: 'int', nullable: true })
   durationSeconds: number | null;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   meta: Record<string, unknown>;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   answers: Record<string, unknown>;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   scores: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
   @ManyToOne(() => FormVersionEntity, (formVersion) => formVersion.responses, {

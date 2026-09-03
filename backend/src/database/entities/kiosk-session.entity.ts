@@ -5,30 +5,31 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('kiosk_sessions')
 export class KioskSessionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   publicationId: string;
 
-  @Column({ length: 80 })
+  @Column({ type: 'varchar', length: 80 })
   deviceCode: string;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isLocked: boolean;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   lastSyncPayload: Record<string, unknown>;
 
-  @Column({ type: 'timestamptz', nullable: true })
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   lastSyncedAt: Date | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

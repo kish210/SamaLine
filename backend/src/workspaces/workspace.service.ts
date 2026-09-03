@@ -18,7 +18,7 @@ export class WorkspaceService {
     });
   }
 
-  create(dto: CreateWorkspaceDto) {
+  create(dto: CreateWorkspaceDto & { organizationId: string }) {
     return this.workspaceRepo.save(this.workspaceRepo.create(dto));
   }
 }

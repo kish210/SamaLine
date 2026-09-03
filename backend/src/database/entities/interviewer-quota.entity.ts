@@ -5,16 +5,17 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('interviewer_quotas')
 export class InterviewerQuotaEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   publicationId: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   interviewerName: string;
 
   @Column({ type: 'int', default: 0 })
@@ -23,9 +24,9 @@ export class InterviewerQuotaEntity {
   @Column({ type: 'int', default: 0 })
   usedQuota: number;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

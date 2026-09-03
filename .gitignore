@@ -7,3 +7,6 @@ coverage/
 .vite/
 *.log
 .DS_Store
+
+# دیتابیس محلی SQLite
+backend/data/

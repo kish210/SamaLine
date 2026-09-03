@@ -1,8 +1,9 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateWorkspaceDto {
-  @IsNotEmpty()
-  organizationId: string;
+  /** از توکن پر می‌شود؛ مقدار ارسالی کلاینت نادیده گرفته می‌شود. */
+  @IsOptional()
+  organizationId?: string;
 
   @IsNotEmpty()
   name: string;

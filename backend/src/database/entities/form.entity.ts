@@ -11,6 +11,12 @@ import {
 import { FormVersionEntity } from './form-version.entity';
 import { PublicationEntity } from './publication.entity';
 import { WorkspaceEntity } from './workspace.entity';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 export enum FormStatus {
   DRAFT = 'draft',
@@ -24,25 +30,25 @@ export class FormEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   workspaceId: string;
 
-  @Column({ length: 220 })
+  @Column({ type: 'varchar', length: 220 })
   title: string;
 
-  @Column({ unique: true, length: 220 })
+  @Column({ type: 'varchar', unique: true, length: 220 })
   slug: string;
 
-  @Column({ type: 'enum', enum: FormStatus, default: FormStatus.DRAFT })
+  @Column({ type: ENUM_COLUMN, enum: FormStatus, default: FormStatus.DRAFT })
   status: FormStatus;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   settings: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.forms, {

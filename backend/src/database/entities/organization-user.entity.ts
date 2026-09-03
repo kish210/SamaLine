@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { OrganizationEntity } from './organization.entity';
 import { UserEntity } from './user.entity';
+import { ENUM_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 export enum OrganizationRole {
   OWNER = 'owner',
@@ -24,20 +25,20 @@ export class OrganizationUserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   userId: string;
 
   @Column({
-    type: 'enum',
+    type: ENUM_COLUMN,
     enum: OrganizationRole,
     default: OrganizationRole.OWNER,
   })
   role: OrganizationRole;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
   @ManyToOne(() => OrganizationEntity, (organization) => organization.users, {

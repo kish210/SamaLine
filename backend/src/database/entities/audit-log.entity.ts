@@ -4,27 +4,28 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('audit_logs')
 export class AuditLogEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   action: string;
 
-  @Column({ length: 120 })
+  @Column({ type: 'varchar', length: 120 })
   actorType: string;
 
-  @Column({ length: 120, nullable: true })
+  @Column({ type: 'varchar', length: 120, nullable: true })
   actorId: string | null;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   payload: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 }

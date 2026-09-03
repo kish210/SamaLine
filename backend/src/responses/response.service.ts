@@ -6,6 +6,7 @@ import { FormEntity } from '../database/entities/form.entity';
 import { ResponseCommentEntity } from '../database/entities/response-comment.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
+import { LIKE_OPERATOR } from '../database/column-types';
 
 @Injectable()
 export class ResponseService {
@@ -52,7 +53,7 @@ export class ResponseService {
         });
       }
       if (filter.valueText) {
-        qb.andWhere('answerFlat.valueText ILIKE :valueText', {
+        qb.andWhere(`answerFlat.valueText ${LIKE_OPERATOR} :valueText`, {
           valueText: `%${filter.valueText}%`,
         });
       }

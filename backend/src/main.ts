@@ -1,13 +1,33 @@
+// باید پیش از هر import دیگری اجرا شود تا DB_DRIVER هنگام ساخت موجودیت‌ها موجود باشد.
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { DB_DRIVER } from './database/column-types';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  await app.listen(process.env.PORT ?? 3000);
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('SamaLine API')
+    .setDescription('سامانه نظرسنجی و فرم‌ساز آنلاین')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  SwaggerModule.setup(
+    'api/docs',
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
+  );
+
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`SamaLine backend روی پورت ${port} (دیتابیس: ${DB_DRIVER})`);
+  console.log(`مستندات: http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();

@@ -10,19 +10,20 @@ import { SubscriptionEntity } from './subscription.entity';
 import { UsageCounterEntity } from './usage-counter.entity';
 import { OrganizationUserEntity } from './organization-user.entity';
 import { WorkspaceEntity } from './workspace.entity';
+import { TIMESTAMP_COLUMN } from '../column-types';
 
 @Entity('organizations')
 export class OrganizationEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 180 })
+  @Column({ type: 'varchar', length: 180 })
   name: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @OneToMany(() => WorkspaceEntity, (workspace) => workspace.organization)

@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ENUM_COLUMN, JSON_COLUMN, TIMESTAMP_COLUMN } from '../column-types';
 
 export enum PlanCode {
   FREE = 'free',
@@ -18,15 +19,15 @@ export class PlanPolicyEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'enum', enum: PlanCode, unique: true })
+  @Column({ type: ENUM_COLUMN, enum: PlanCode, unique: true })
   planCode: PlanCode;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: JSON_COLUMN, default: {} })
   limits: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

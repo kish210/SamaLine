@@ -10,22 +10,23 @@ import {
 } from 'typeorm';
 import { FormEntity } from './form.entity';
 import { OrganizationEntity } from './organization.entity';
+import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 
 @Entity('workspaces')
 export class WorkspaceEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ type: UUID_COLUMN })
   organizationId: string;
 
-  @Column({ length: 180 })
+  @Column({ type: 'varchar', length: 180 })
   name: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 
   @ManyToOne(
