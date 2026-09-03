@@ -12,6 +12,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import {
   CreateFormDto,
   CreatePublicationDto,
+  SetAuthModeDto,
   SetSlugDto,
   UpdateFormDto,
 } from './dto';
@@ -66,6 +67,12 @@ export class FormController {
   @Get('slug-availability/:slug')
   slugAvailability(@Param('slug') slug: string) {
     return this.formService.isSlugAvailable(slug);
+  }
+
+  /** تعیین نحوه‌ی احراز هویت پاسخ‌دهنده. */
+  @Patch(':id/auth-mode')
+  setAuthMode(@Param('id') id: string, @Body() dto: SetAuthModeDto) {
+    return this.formService.setAuthMode(id, dto.authMode, dto.password);
   }
 
   @Post(':id/publications')

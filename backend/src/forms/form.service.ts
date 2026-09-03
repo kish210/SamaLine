@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
@@ -234,6 +235,57 @@ export class FormService {
     return taken
       ? { available: false, reason: 'این نشانی قبلا استفاده شده است' }
       : { available: true, reason: null, slug: validation.normalized };
+  }
+
+  /**
+   * تعیین نحوه‌ی احراز هویت پاسخ‌دهنده روی لینک اصلی فرم.
+   * رمز عبور هش‌شده ذخیره می‌شود و هرگز به کلاینت برنمی‌گردد.
+   */
+  async setAuthMode(
+    formId: string,
+    authMode: PublicationAuthMode,
+    password?: string,
+  ) {
+    const publication = await this.publicationRepo.findOne({
+      where: { formId, type: PublicationType.LINK },
+    });
+    if (!publication) {
+      throw new NotFoundException('ابتدا لینک فرم را منتشر کنید');
+    }
+
+    if (authMode === PublicationAuthMode.PASSWORD) {
+      const config = publication.config as { passwordHash?: string };
+      if (!password && !config.passwordHash) {
+        throw new BadRequestException('برای حالت رمز عبور باید رمز تعیین کنید');
+      }
+      if (password) {
+        if (password.length < 4) {
+          throw new BadRequestException('رمز باید حداقل ۴ نویسه باشد');
+        }
+        publication.config = {
+          ...publication.config,
+          passwordHash: await bcrypt.hash(password, 10),
+        };
+      }
+    }
+
+    if (authMode !== PublicationAuthMode.PASSWORD) {
+      // رمز قدیمی نباید بعد از تغییر حالت باقی بماند.
+      const config = { ...publication.config };
+      delete config.passwordHash;
+      publication.config = config;
+    }
+
+    publication.authMode = authMode;
+    const saved = await this.publicationRepo.save(publication);
+
+    return {
+      id: saved.id,
+      authMode: saved.authMode,
+      hasPassword: Boolean(
+        (saved.config as { passwordHash?: string }).passwordHash,
+      ),
+    };
   }
 
   async createPublication(formId: string, dto: CreatePublicationDto) {

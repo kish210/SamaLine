@@ -22,6 +22,7 @@ import type { FormStructure } from '../forms/logic-types';
 import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
+import { RespondentAuthService } from './respondent-auth.service';
 
 type PublicFormPayload = {
   publicationId: string;
@@ -31,6 +32,8 @@ type PublicFormPayload = {
   formVersionId: string;
   structure: Record<string, unknown>;
   settings: Record<string, unknown>;
+  /** کلید تاییدشده در OTP، در صورت وجود. */
+  verifiedRespondentKey?: string | null;
 };
 
 @Injectable()
@@ -48,6 +51,7 @@ export class PublicService {
     private readonly scoreEngine: ScoreEngineService,
     private readonly logicEngine: LogicEngineService,
     private readonly logicRuntime: LogicRuntimeService,
+    private readonly respondentAuth: RespondentAuthService,
   ) {}
 
   /**
@@ -61,8 +65,9 @@ export class PublicService {
       answers?: Record<string, unknown>;
       params?: Record<string, unknown>;
     },
+    accessToken?: string,
   ) {
-    const formData = await this.getByToken(token);
+    const formData = await this.getByToken(token, accessToken);
     const structure = formData.structure as FormStructure;
     const answers = dto.answers ?? {};
     const params = dto.params ?? {};
@@ -102,8 +107,9 @@ export class PublicService {
       answers?: Record<string, unknown>;
       params?: Record<string, unknown>;
     },
+    accessToken?: string,
   ) {
-    const formData = await this.getByToken(token);
+    const formData = await this.getByToken(token, accessToken);
     const structure = formData.structure as FormStructure;
     const answers = dto.answers ?? {};
     const params = dto.params ?? {};
@@ -158,16 +164,11 @@ export class PublicService {
    * هر دو راه معتبرند تا لینک‌های پخش‌شده‌ی قبلی با افزودن نشانی
    * اختصاصی نشکنند.
    */
-  async getByToken(token: string): Promise<PublicFormPayload> {
-    const publication =
-      (await this.publicationRepo.findOne({
-        where: { token },
-        relations: { form: { workspace: true } },
-      })) ??
-      (await this.publicationRepo.findOne({
-        where: { slug: token.toLowerCase() },
-        relations: { form: { workspace: true } },
-      }));
+  async getByToken(
+    token: string,
+    accessToken?: string,
+  ): Promise<PublicFormPayload> {
+    const publication = await this.findPublication(token);
 
     if (!publication || !publication.isActive)
       throw new NotFoundException('لینک معتبر نیست');
@@ -175,6 +176,9 @@ export class PublicService {
     if (publication.expiresAt && publication.expiresAt < new Date()) {
       throw new BadRequestException('مهلت پاسخگویی این لینک تمام شده است');
     }
+
+    // فرم‌های رمزدار یا OTP‌دار بدون اعتبار معتبر باز نمی‌شوند.
+    const auth = this.respondentAuth.verifyAccess(publication, accessToken);
 
     const latestVersion = await this.versionRepo.findOne({
       where: { formId: publication.formId },
@@ -191,7 +195,58 @@ export class PublicService {
       formVersionId: latestVersion.id,
       structure: latestVersion.structure,
       settings: publication.form.settings,
+      // کلید تاییدشده در OTP، تا کنترل تکرار بر همان مبنا کار کند.
+      verifiedRespondentKey: auth?.respondentKey ?? null,
     };
+  }
+
+  /** انتشار را با توکن تصادفی یا نشانی اختصاصی پیدا می‌کند. */
+  private findPublication(token: string) {
+    return this.publicationRepo
+      .findOne({
+        where: { token },
+        relations: { form: { workspace: true } },
+      })
+      .then(
+        (byToken) =>
+          byToken ??
+          this.publicationRepo.findOne({
+            where: { slug: token.toLowerCase() },
+            relations: { form: { workspace: true } },
+          }),
+      );
+  }
+
+  /** اطلاعات لازم برای صفحه‌ی ورود، پیش از احراز هویت. */
+  async getAuthInfo(token: string) {
+    const publication = await this.findPublication(token);
+    if (!publication || !publication.isActive) {
+      throw new NotFoundException('لینک معتبر نیست');
+    }
+
+    return {
+      publicationId: publication.id,
+      authMode: publication.authMode,
+      requiresAuth: this.respondentAuth.requiresAuth(publication),
+    };
+  }
+
+  async loginWithPassword(token: string, password: string) {
+    const publication = await this.findPublication(token);
+    if (!publication) throw new NotFoundException('لینک معتبر نیست');
+    return this.respondentAuth.loginWithPassword(publication, password);
+  }
+
+  async requestOtp(token: string, destination: string) {
+    const publication = await this.findPublication(token);
+    if (!publication) throw new NotFoundException('لینک معتبر نیست');
+    return this.respondentAuth.requestOtp(publication, destination);
+  }
+
+  async verifyOtp(token: string, destination: string, code: string) {
+    const publication = await this.findPublication(token);
+    if (!publication) throw new NotFoundException('لینک معتبر نیست');
+    return this.respondentAuth.verifyOtp(publication, destination, code);
   }
 
   async getPortalForms(organizationId: string) {
@@ -221,8 +276,12 @@ export class PublicService {
     }));
   }
 
-  async getProgressByToken(token: string, respondentKey: string) {
-    const formData = await this.getByToken(token);
+  async getProgressByToken(
+    token: string,
+    respondentKey: string,
+    accessToken?: string,
+  ) {
+    const formData = await this.getByToken(token, accessToken);
     const response = await this.responseRepo.findOne({
       where: {
         publicationId: formData.publicationId,
@@ -240,8 +299,12 @@ export class PublicService {
     };
   }
 
-  async saveProgressByToken(token: string, dto: SaveProgressDto) {
-    const formData = await this.getByToken(token);
+  async saveProgressByToken(
+    token: string,
+    dto: SaveProgressDto,
+    accessToken?: string,
+  ) {
+    const formData = await this.getByToken(token, accessToken);
     const respondentKey = this.resolveRespondentKey(
       dto.respondentKey,
       dto.meta,
@@ -284,8 +347,12 @@ export class PublicService {
     return { id: saved.id, status: saved.status };
   }
 
-  async submitByToken(token: string, dto: SubmitResponseDto) {
-    const formData = await this.getByToken(token);
+  async submitByToken(
+    token: string,
+    dto: SubmitResponseDto,
+    accessToken?: string,
+  ) {
+    const formData = await this.getByToken(token, accessToken);
     const respondentKey = this.resolveRespondentKey(
       dto.respondentKey,
       dto.meta,

@@ -178,3 +178,13 @@ export class SetSlugDto {
   @IsString()
   slug: string;
 }
+
+export class SetAuthModeDto {
+  @IsIn(Object.values(PublicationAuthMode))
+  authMode: PublicationAuthMode;
+
+  /** فقط برای حالت رمز عبور؛ هش‌شده ذخیره می‌شود. */
+  @IsOptional()
+  @IsString()
+  password?: string;
+}

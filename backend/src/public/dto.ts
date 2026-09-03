@@ -41,3 +41,22 @@ export class NextStepDto {
   @IsObject()
   params?: Record<string, unknown>;
 }
+
+export class LoginPasswordDto {
+  @IsString()
+  password: string;
+}
+
+export class RequestOtpDto {
+  /** شماره موبایل یا ایمیل گیرنده‌ی کد. */
+  @IsString()
+  destination: string;
+}
+
+export class VerifyOtpDto {
+  @IsString()
+  destination: string;
+
+  @IsString()
+  code: string;
+}

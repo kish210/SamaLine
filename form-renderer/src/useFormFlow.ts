@@ -39,6 +39,10 @@ export function useFormFlow(token: string | undefined) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [respondentKey, setRespondentKey] = useState(urlState.respondentKey);
+  const [authMode, setAuthMode] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [authenticated, setAuthenticated] = useState(false);
   const [lang, setLang] = useState(urlState.lang ?? 'fa');
   const hiddenParams = urlState.hiddenParams;
 
@@ -52,12 +56,27 @@ export function useFormFlow(token: string | undefined) {
     (err as { response?: { data?: { message?: string } } })?.response?.data
       ?.message ?? 'خطا در ارتباط با سرور';
 
+  // نوع احراز هویت پیش از بارگذاری فرم پرسیده می‌شود؛ فرم‌های رمزدار
+  // تا پیش از ورود اصلا داده‌ای برنمی‌گردانند.
   useEffect(() => {
     if (!token) return;
+    formApi
+      .authInfo(token)
+      .then((info) => setAuthMode(info.requiresAuth ? info.authMode : null))
+      .catch(() => setAuthMode(null));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    // تا پیش از مشخص شدن نوع احراز هویت، درخواستی نمی‌زنیم؛ وگرنه
+    // پاسخ ۴۰۱ به‌عنوان خطای فرم نمایش داده می‌شود.
+    if (authMode === undefined) return;
+    if (authMode && !authenticated) return;
     setLoading(true);
     formApi
       .get(token)
       .then((data) => {
+        setError(null);
         setForm(data);
         const languages = data.settings?.languages ?? ['fa'];
         // زبان انتخاب‌شده در آدرس بر زبان پیش‌فرض فرم اولویت دارد.
@@ -68,7 +87,7 @@ export function useFormFlow(token: string | undefined) {
       })
       .catch((err) => setError(describeError(err)))
       .finally(() => setLoading(false));
-  }, [token, urlState.lang]);
+  }, [token, urlState.lang, authMode, authenticated]);
 
   // بازیابی پیشرفت ذخیره‌شده
   useEffect(() => {
@@ -210,6 +229,12 @@ export function useFormFlow(token: string | undefined) {
   return {
     form,
     page,
+    authMode,
+    authenticated,
+    markAuthenticated: (key: string | null) => {
+      if (key) setRespondentKey(key);
+      setAuthenticated(true);
+    },
     answers,
     scores,
     view,

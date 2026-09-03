@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { QuestionField } from './QuestionField';
+import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
 
 function FormPage() {
@@ -36,6 +37,18 @@ function FormPage() {
   };
 
   if (!token) return <div className="container">توکن فرم نامعتبر است.</div>;
+
+  // فرم رمزدار یا کددار تا پیش از ورود، محتوایی نشان نمی‌دهد.
+  if (flow.authMode && !flow.authenticated) {
+    return (
+      <RespondentAuth
+        token={token}
+        authMode={flow.authMode}
+        onAuthenticated={flow.markAuthenticated}
+      />
+    );
+  }
+
   if (flow.error) return <div className="container error">{flow.error}</div>;
   if (!flow.form) return <div className="container">{t('loading')}</div>;
 

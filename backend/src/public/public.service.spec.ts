@@ -6,6 +6,13 @@ jest.mock('@nestjs/typeorm', () => ({
   TypeOrmModule: { forFeature: () => ({}), forRoot: () => ({}) },
 }));
 
+// @nestjs/jwt هم خالص ESM است؛ در تست فقط امضا و بررسی لازم است.
+jest.mock('@nestjs/jwt', () =>
+  jest
+    .requireActual<typeof import('../testing/jwt.mock')>('../testing/jwt.mock')
+    .nestJwtModuleMock(),
+);
+
 import type { DataSource } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
@@ -31,7 +38,11 @@ import { LogicRuntimeService } from '../forms/logic-runtime.service';
 import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { createTestDataSource } from '../testing/test-database';
+import { JwtService } from '@nestjs/jwt';
+import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
+import type { MessagingService } from '../messaging/messaging.service';
 import { PublicService } from './public.service';
+import { RespondentAuthService } from './respondent-auth.service';
 
 /**
  * تست ادغام روی دیتابیس واقعی (SQLite در حافظه).
@@ -41,6 +52,7 @@ import { PublicService } from './public.service';
 describe('PublicService — مسیر ثبت پاسخ', () => {
   let ds: DataSource;
   let service: PublicService;
+  let respondentAuth: RespondentAuthService;
   let publicationToken: string;
   let organizationId: string;
 
@@ -135,6 +147,17 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       ds.getRepository(FormEntity),
     );
 
+    const jwt = new JwtService({ secret: 'test-secret' });
+    const messaging = {
+      send: jest.fn().mockResolvedValue({ status: 'sent' }),
+    } as unknown as MessagingService;
+
+    respondentAuth = new RespondentAuthService(
+      ds.getRepository(OtpChallengeEntity),
+      messaging,
+      jwt,
+    );
+
     service = new PublicService(
       ds.getRepository(PublicationEntity),
       ds.getRepository(FormVersionEntity),
@@ -144,6 +167,7 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       new ScoreEngineService(),
       new LogicEngineService(),
       new LogicRuntimeService(),
+      respondentAuth,
     );
   });
 

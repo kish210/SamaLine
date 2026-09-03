@@ -12,6 +12,7 @@ import { InterviewerQuotaEntity } from './interviewer-quota.entity';
 import { InvoiceEntity } from './invoice.entity';
 import { KioskSessionEntity } from './kiosk-session.entity';
 import { OnPremLicenseEntity } from './onprem-license.entity';
+import { OtpChallengeEntity } from './otp-challenge.entity';
 import { OrganizationEntity } from './organization.entity';
 import { OrganizationUserEntity } from './organization-user.entity';
 import { PaymentEntity } from './payment.entity';
@@ -55,4 +56,5 @@ export const ALL_ENTITIES = [
   ContactListEntity,
   ContactEntity,
   ContactSourceEntity,
+  OtpChallengeEntity,
 ];
