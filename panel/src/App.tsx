@@ -53,6 +53,12 @@ function App() {
   const [organizationId, setOrganizationId] = useState<string>('');
   const [activeFormId, setActiveFormId] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [pageTitlesInput, setPageTitlesInput] = useState('صفحه ۱');
+  const [preventDuplicate, setPreventDuplicate] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(true);
+  const [startPageText, setStartPageText] = useState('به نظرسنجی خوش آمدید');
+  const [endPageText, setEndPageText] = useState('از مشارکت شما سپاسگزاریم');
+  const [languagesInput, setLanguagesInput] = useState('fa');
   const [aiGoal, setAiGoal] = useState('افزایش رضایت مشتریان شعب');
   const [aiResult, setAiResult] = useState<Record<string, unknown> | null>(null);
 
@@ -173,11 +179,39 @@ function App() {
   const submitFormBuilder = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const pageTitles = pageTitlesInput
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const normalizedPageTitles = pageTitles.length ? pageTitles : ['صفحه ۱'];
+    const pages = normalizedPageTitles.map((title, index) => ({
+      id: `page_${index + 1}`,
+      title,
+      questions: [] as Question[],
+    }));
+    questions.forEach((question, index) => {
+      const pageIndex = Math.min(index, pages.length - 1);
+      pages[pageIndex].questions.push(question);
+    });
+
     createFormMutation.mutate({
       workspaceId,
       title: String(formData.get('title') ?? ''),
       slug: String(formData.get('slug') ?? ''),
-      questions,
+      pages,
+      settings: {
+        theme: 'default',
+        languages: languagesInput
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        startPageEnabled: true,
+        endPageEnabled: true,
+        startPageText,
+        endPageText,
+        preventDuplicate,
+        saveProgress,
+      },
     });
   };
 
@@ -210,6 +244,30 @@ function App() {
         <form onSubmit={submitFormBuilder}>
           <input name="title" placeholder={t('title')} required />
           <input name="slug" placeholder={t('slug')} required />
+          <textarea
+            value={pageTitlesInput}
+            onChange={(event) => setPageTitlesInput(event.target.value)}
+            placeholder="عنوان صفحه‌ها (هر خط یک صفحه)"
+          />
+          <input value={languagesInput} onChange={(event) => setLanguagesInput(event.target.value)} placeholder="fa,en,ar" />
+          <input value={startPageText} onChange={(event) => setStartPageText(event.target.value)} placeholder="متن شروع" />
+          <input value={endPageText} onChange={(event) => setEndPageText(event.target.value)} placeholder="متن پایان" />
+          <label className="row">
+            <input
+              type="checkbox"
+              checked={preventDuplicate}
+              onChange={(event) => setPreventDuplicate(event.target.checked)}
+            />
+            جلوگیری از پاسخ تکراری
+          </label>
+          <label className="row">
+            <input
+              type="checkbox"
+              checked={saveProgress}
+              onChange={(event) => setSaveProgress(event.target.checked)}
+            />
+            ذخیره پیشرفت
+          </label>
           <button type="button" className="secondary" onClick={addQuestion}>
             افزودن سوال
           </button>

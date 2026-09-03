@@ -18,6 +18,7 @@ import { PHASE1_QUESTION_TYPES } from '../types/form-types';
 import {
   CreateFormDto,
   CreatePublicationDto,
+  FormPageDto,
   FormQuestionDto,
   UpdateFormDto,
 } from './dto';
@@ -42,7 +43,8 @@ export class FormService {
   }
 
   async create(dto: CreateFormDto) {
-    this.validateQuestions(dto.questions);
+    const pages = this.resolvePages(dto.pages, dto.questions);
+    this.validatePages(pages);
     const planCheck = await this.planService.canCreateForm(dto.workspaceId);
     if (!planCheck.allowed) {
       throw new BadRequestException(
@@ -59,6 +61,11 @@ export class FormService {
         settings: dto.settings ?? {
           theme: 'default',
           languages: ['fa'],
+          startPageEnabled: true,
+          endPageEnabled: true,
+          startPageText: 'به نظرسنجی خوش آمدید',
+          endPageText: 'از مشارکت شما سپاسگزاریم',
+          allowEditAnswer: false,
           displayMode: 'single',
           preventDuplicate: false,
           saveProgress: true,
@@ -70,11 +77,7 @@ export class FormService {
       this.versionRepo.create({
         formId: form.id,
         version: 1,
-        structure: this.buildStructure(
-          dto.questions,
-          dto.logic,
-          dto.scoreConfig,
-        ),
+        structure: this.buildStructure(pages, dto.logic, dto.scoreConfig),
       }),
     );
 
@@ -104,8 +107,9 @@ export class FormService {
     form.settings = dto.settings ?? form.settings;
     await this.formRepo.save(form);
 
-    if (dto.questions) {
-      this.validateQuestions(dto.questions);
+    if (dto.questions || dto.pages) {
+      const pages = this.resolvePages(dto.pages, dto.questions);
+      this.validatePages(pages);
       const latest = await this.versionRepo.findOne({
         where: { formId: id },
         order: { version: 'DESC' },
@@ -114,11 +118,7 @@ export class FormService {
         this.versionRepo.create({
           formId: id,
           version: (latest?.version ?? 0) + 1,
-          structure: this.buildStructure(
-            dto.questions,
-            dto.logic,
-            dto.scoreConfig,
-          ),
+          structure: this.buildStructure(pages, dto.logic, dto.scoreConfig),
         }),
       );
     }
@@ -176,13 +176,32 @@ export class FormService {
       throw new BadRequestException('نوع سوال خارج از محدوده فاز ۱ است');
   }
 
+  private validatePages(pages: FormPageDto[]) {
+    pages.forEach((page) => this.validateQuestions(page.questions ?? []));
+  }
+
+  private resolvePages(
+    pages?: FormPageDto[],
+    questions?: FormQuestionDto[],
+  ): FormPageDto[] {
+    if (pages?.length) {
+      return pages;
+    }
+
+    if (questions?.length) {
+      return [{ id: 'page_1', title: 'صفحه ۱', questions }];
+    }
+
+    throw new BadRequestException('حداقل یک صفحه یا سوال لازم است');
+  }
+
   private buildStructure(
-    questions: FormQuestionDto[],
+    pages: FormPageDto[],
     logic?: Record<string, unknown>,
     scoreConfig?: Record<string, unknown>,
   ) {
     return {
-      pages: [{ id: 'page_1', title: 'صفحه ۱', questions }],
+      pages,
       logic: logic ?? { display: [], skip: [], pipe: [] },
       scoreConfig: scoreConfig ?? { indices: [] },
     };

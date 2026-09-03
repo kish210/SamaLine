@@ -27,6 +27,9 @@ export class ResponseEntity {
   @Column('uuid')
   publicationId: string;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  respondentKey: string | null;
+
   @Column({
     type: 'enum',
     enum: ResponseStatus,

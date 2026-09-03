@@ -47,6 +47,19 @@ export class FormQuestionDto {
   meta?: Record<string, unknown>;
 }
 
+export class FormPageDto {
+  @IsString()
+  id: string;
+
+  @IsString()
+  title: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FormQuestionDto)
+  questions: FormQuestionDto[];
+}
+
 export class CreateFormDto {
   @IsNotEmpty()
   workspaceId: string;
@@ -69,10 +82,17 @@ export class CreateFormDto {
   @IsObject()
   scoreConfig?: Record<string, unknown>;
 
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FormPageDto)
+  pages?: FormPageDto[];
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => FormQuestionDto)
-  questions: FormQuestionDto[];
+  questions?: FormQuestionDto[];
 }
 
 export class UpdateFormDto {
@@ -98,6 +118,12 @@ export class UpdateFormDto {
   @ValidateNested({ each: true })
   @Type(() => FormQuestionDto)
   questions?: FormQuestionDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FormPageDto)
+  pages?: FormPageDto[];
 
   @IsOptional()
   @IsObject()

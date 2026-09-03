@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { SubmitResponseDto } from './dto';
+import { SaveProgressDto, SubmitResponseDto } from './dto';
 import { PublicService } from './public.service';
 
 @Controller('public/forms')
@@ -14,5 +14,18 @@ export class PublicController {
   @Post(':token/submit')
   submit(@Param('token') token: string, @Body() dto: SubmitResponseDto) {
     return this.publicService.submitByToken(token, dto);
+  }
+
+  @Post(':token/save-progress')
+  saveProgress(@Param('token') token: string, @Body() dto: SaveProgressDto) {
+    return this.publicService.saveProgressByToken(token, dto);
+  }
+
+  @Get(':token/progress/:respondentKey')
+  getProgress(
+    @Param('token') token: string,
+    @Param('respondentKey') respondentKey: string,
+  ) {
+    return this.publicService.getProgressByToken(token, respondentKey);
   }
 }
