@@ -12,6 +12,8 @@ import {
   ResponseEntity,
   ResponseStatus,
 } from '../database/entities/response.entity';
+import { LogicEngineService } from '../forms/logic-engine.service';
+import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
 
@@ -37,6 +39,8 @@ export class PublicService {
     @InjectRepository(AnswerFlatEntity)
     private readonly answerFlatRepo: Repository<AnswerFlatEntity>,
     private readonly planService: PlanService,
+    private readonly scoreEngine: ScoreEngineService,
+    private readonly logicEngine: LogicEngineService,
   ) {}
 
   async getByToken(token: string): Promise<PublicFormPayload> {
@@ -148,6 +152,11 @@ export class PublicService {
 
     const startedAt = new Date();
     const submittedAt = new Date();
+    const structure = formData.structure as Record<string, unknown>;
+    const scores = this.scoreEngine.calculate(
+      structure,
+      dto.answers as Record<string, unknown>,
+    );
 
     let response: ResponseEntity | null = null;
     if (respondentKey) {
@@ -173,6 +182,7 @@ export class PublicService {
       response.answers = dto.answers;
       response.meta = dto.meta ?? response.meta;
       response.respondentKey = respondentKey ?? response.respondentKey;
+      response.scores = scores;
       response = await this.responseRepo.save(response);
     } else {
       response = await this.responseRepo.save(
@@ -186,7 +196,7 @@ export class PublicService {
           durationSeconds: 0,
           meta: dto.meta ?? {},
           answers: dto.answers,
-          scores: {},
+          scores,
         }),
       );
     }
@@ -203,7 +213,7 @@ export class PublicService {
       1,
     );
 
-    return { id: response.id, status: 'completed' };
+    return { id: response.id, status: 'completed', scores };
   }
 
   private mapAnswersToFlatRows(
@@ -221,6 +231,18 @@ export class PublicService {
             choiceId: typeof item === 'string' ? item : null,
           }),
         );
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        return [
+          this.answerFlatRepo.create({
+            responseId,
+            questionId,
+            valueText: JSON.stringify(value),
+            valueNumber: null,
+            choiceId: null,
+          }),
+        ];
       }
 
       return [
@@ -268,5 +290,13 @@ export class PublicService {
     if (existing) {
       throw new BadRequestException('پاسخ تکراری مجاز نیست');
     }
+  }
+
+  applyPipingText(
+    text: string,
+    answers: Record<string, unknown>,
+    params: Record<string, unknown>,
+  ) {
+    return this.logicEngine.applyPiping(text, answers, params);
   }
 }

@@ -32,6 +32,11 @@ export class FormController {
     return this.formService.get(id);
   }
 
+  @Get(':id/logic-analysis')
+  analyzeLogic(@Param('id') id: string) {
+    return this.formService.analyzeLogic(id);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateFormDto) {
     return this.formService.update(id, dto);

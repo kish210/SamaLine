@@ -22,6 +22,7 @@ import {
   FormQuestionDto,
   UpdateFormDto,
 } from './dto';
+import { LogicEngineService } from './logic-engine.service';
 
 @Injectable()
 export class FormService {
@@ -33,6 +34,7 @@ export class FormService {
     @InjectRepository(PublicationEntity)
     private readonly publicationRepo: Repository<PublicationEntity>,
     private readonly planService: PlanService,
+    private readonly logicEngine: LogicEngineService,
   ) {}
 
   async list(workspaceId: string) {
@@ -45,7 +47,7 @@ export class FormService {
   async create(dto: CreateFormDto) {
     const pages = this.resolvePages(dto.pages, dto.questions);
     await this.validatePages(pages, dto.workspaceId);
-    this.validateLogic(dto.logic);
+    this.validateLogic(dto.logic, pages);
     const planCheck = await this.planService.canCreateForm(dto.workspaceId);
     if (!planCheck.allowed) {
       throw new BadRequestException(
@@ -99,6 +101,17 @@ export class FormService {
     return { ...form, latestVersion, publication };
   }
 
+  async analyzeLogic(id: string) {
+    const latestVersion = await this.versionRepo.findOne({
+      where: { formId: id },
+      order: { version: 'DESC' },
+    });
+    if (!latestVersion) throw new NotFoundException('نسخه فرم یافت نشد');
+    return this.logicEngine.analyzeStructure(
+      latestVersion.structure as Record<string, unknown>,
+    );
+  }
+
   async update(id: string, dto: UpdateFormDto) {
     const form = await this.formRepo.findOne({ where: { id } });
     if (!form) throw new NotFoundException('فرم یافت نشد');
@@ -108,19 +121,32 @@ export class FormService {
     form.settings = dto.settings ?? form.settings;
     await this.formRepo.save(form);
 
-    if (dto.questions || dto.pages) {
-      const pages = this.resolvePages(dto.pages, dto.questions);
-      await this.validatePages(pages, form.workspaceId);
-      this.validateLogic(dto.logic);
+    if (dto.questions || dto.pages || dto.logic || dto.scoreConfig) {
       const latest = await this.versionRepo.findOne({
         where: { formId: id },
         order: { version: 'DESC' },
       });
+      const existing = (latest?.structure ?? {}) as Record<string, unknown>;
+      const existingPages = (existing.pages as FormPageDto[] | undefined) ?? [];
+      const nextPages =
+        dto.pages || dto.questions
+          ? this.resolvePages(dto.pages, dto.questions)
+          : existingPages;
+      await this.validatePages(nextPages, form.workspaceId);
+      this.validateLogic(
+        dto.logic ?? (existing.logic as Record<string, unknown> | undefined),
+        nextPages,
+      );
       await this.versionRepo.save(
         this.versionRepo.create({
           formId: id,
           version: (latest?.version ?? 0) + 1,
-          structure: this.buildStructure(pages, dto.logic, dto.scoreConfig),
+          structure: this.buildStructure(
+            nextPages,
+            dto.logic ?? (existing.logic as Record<string, unknown> | undefined),
+            dto.scoreConfig ??
+              (existing.scoreConfig as Record<string, unknown> | undefined),
+          ),
         }),
       );
     }
@@ -214,24 +240,11 @@ export class FormService {
     throw new BadRequestException('حداقل یک صفحه یا سوال لازم است');
   }
 
-  private validateLogic(logic?: Record<string, unknown>) {
+  private validateLogic(logic: Record<string, unknown> | undefined, pages: FormPageDto[]) {
     if (!logic) return;
-    const skipRules = Array.isArray(logic.skip)
-      ? (logic.skip as Array<Record<string, unknown>>)
-      : [];
-
-    const invalidSelfLoop = skipRules.find((rule) => {
-      const fromId = rule.fromQuestionId;
-      const toId = rule.toQuestionId;
-      return (
-        typeof fromId === 'string' &&
-        typeof toId === 'string' &&
-        fromId === toId
-      );
-    });
-
-    if (invalidSelfLoop) {
-      throw new BadRequestException('قانون پرش با حلقه مستقیم مجاز نیست');
+    const analysis = this.logicEngine.analyzeStructure({ pages, logic });
+    if (!analysis.isValid) {
+      throw new BadRequestException(analysis.errors.join(' | '));
     }
   }
 
@@ -240,10 +253,15 @@ export class FormService {
     logic?: Record<string, unknown>,
     scoreConfig?: Record<string, unknown>,
   ) {
+    const scoreIndexes = Array.isArray(scoreConfig?.indices)
+      ? scoreConfig.indices
+      : [];
+
     return {
       pages,
       logic: logic ?? { display: [], skip: [], pipe: [] },
       scoreConfig: scoreConfig ?? { indices: [] },
+      scoreIndexes,
     };
   }
 }

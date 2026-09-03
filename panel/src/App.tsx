@@ -45,6 +45,8 @@ type Question = {
     | 'location';
   options?: string[];
   required?: boolean;
+  weight?: number;
+  meta?: Record<string, unknown>;
 };
 
 const QUESTION_TYPES: Question['type'][] = [
@@ -110,6 +112,18 @@ function App() {
   const [translateTarget, setTranslateTarget] = useState('en');
   const [invoiceAmount, setInvoiceAmount] = useState('1000000');
   const [licenseCaps, setLicenseCaps] = useState('{"offline":true,"maxUsers":500}');
+  const [logicJson, setLogicJson] = useState('{\n  "display": [],\n  "skip": [],\n  "pipe": []\n}');
+  const [scoreJson, setScoreJson] = useState('{\n  "indices": []\n}');
+  const [logicAnalysis, setLogicAnalysis] = useState<Record<string, unknown> | null>(null);
+
+  const parseJsonSafe = (value: string, fallback: Record<string, unknown>) => {
+    try {
+      const parsed = JSON.parse(value) as Record<string, unknown>;
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const registerMutation = useMutation({
     mutationFn: (payload: Record<string, string>) => api.post<AuthPayload>('/auth/register', payload),
@@ -435,6 +449,8 @@ function App() {
         preventDuplicate,
         saveProgress,
       },
+      logic: parseJsonSafe(logicJson, { display: [], skip: [], pipe: [] }),
+      scoreConfig: parseJsonSafe(scoreJson, { indices: [] }),
     });
   };
 
@@ -494,6 +510,18 @@ function App() {
           <button type="button" className="secondary" onClick={addQuestion}>
             افزودن سوال
           </button>
+          <textarea
+            value={logicJson}
+            onChange={(event) => setLogicJson(event.target.value)}
+            placeholder="JSON منطق (display/skip/pipe)"
+            rows={8}
+          />
+          <textarea
+            value={scoreJson}
+            onChange={(event) => setScoreJson(event.target.value)}
+            placeholder="JSON شاخص‌ها (scoreConfig.indices)"
+            rows={6}
+          />
           {questions.map((q, idx) => (
             <div key={q.id} className="row">
               <input
@@ -592,6 +620,29 @@ function App() {
         <h4>لاگ ارسال</h4>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(distributionLogsQuery.data ?? [], null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
+        <h3>تحلیل منطق فرم (فاز ۵)</h3>
+        <div className="row">
+          <input
+            value={activeFormId}
+            onChange={(event) => setActiveFormId(event.target.value)}
+            placeholder="formId"
+          />
+          <button
+            onClick={async () => {
+              if (!activeFormId) return;
+              const result = await api.get(`/forms/${activeFormId}/logic-analysis`);
+              setLogicAnalysis(result.data);
+            }}
+          >
+            اجرای تحلیل
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(logicAnalysis ?? {}, null, 2)}
         </pre>
       </div>
 

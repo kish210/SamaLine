@@ -6,6 +6,8 @@ import { PublicationEntity } from '../database/entities/publication.entity';
 import { PlanModule } from '../plans/plan.module';
 import { FormController } from './form.controller';
 import { FormService } from './form.service';
+import { LogicEngineService } from './logic-engine.service';
+import { ScoreEngineService } from './score-engine.service';
 
 @Module({
   imports: [
@@ -16,8 +18,8 @@ import { FormService } from './form.service';
     ]),
     PlanModule,
   ],
-  providers: [FormService],
+  providers: [FormService, LogicEngineService, ScoreEngineService],
   controllers: [FormController],
-  exports: [FormService],
+  exports: [FormService, LogicEngineService, ScoreEngineService],
 })
 export class FormModule {}
