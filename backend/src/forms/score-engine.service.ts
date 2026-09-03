@@ -32,11 +32,21 @@ export class ScoreEngineService {
 
     const buckets = new Map<
       string,
-      { values: number[]; weightedSum: number; weightSum: number; maxPossible: number }
+      {
+        values: number[];
+        weightedSum: number;
+        weightSum: number;
+        maxPossible: number;
+      }
     >();
 
     for (const idx of indexes) {
-      buckets.set(idx.id, { values: [], weightedSum: 0, weightSum: 0, maxPossible: idx.maxScore ?? 100 });
+      buckets.set(idx.id, {
+        values: [],
+        weightedSum: 0,
+        weightSum: 0,
+        maxPossible: idx.maxScore ?? 100,
+      });
     }
 
     for (const q of questions) {
@@ -80,7 +90,10 @@ export class ScoreEngineService {
     return output;
   }
 
-  private resolveNumericValue(raw: unknown, question: QuestionLike): number | null {
+  private resolveNumericValue(
+    raw: unknown,
+    question: QuestionLike,
+  ): number | null {
     if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
     if (typeof raw === 'boolean') return raw ? 1 : 0;
     if (typeof raw === 'string') {

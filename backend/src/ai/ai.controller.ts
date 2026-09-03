@@ -32,6 +32,11 @@ class AiChatDto {
   context?: Record<string, unknown>;
 }
 
+class AiMetricsDto {
+  @IsObject()
+  metrics: Record<string, number>;
+}
+
 class AiTranslateDto {
   @IsObject()
   structure: Record<string, unknown>;
@@ -63,6 +68,11 @@ export class AiController {
   @Post('chat-with-data')
   chat(@Body() dto: AiChatDto) {
     return this.aiService.chatWithData(dto.question, dto.context);
+  }
+
+  @Post('summarize-metrics')
+  summarizeMetrics(@Body() dto: AiMetricsDto) {
+    return this.aiService.summarizeMetrics(dto.metrics);
   }
 
   @Post('translate-form')

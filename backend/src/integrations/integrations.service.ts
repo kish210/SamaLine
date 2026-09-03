@@ -29,6 +29,18 @@ export class IntegrationsService {
       .digest('hex');
   }
 
+  verifySignature(
+    secret: string,
+    payload: Record<string, unknown>,
+    signature: string,
+  ) {
+    const expected = this.signPayload(secret, payload);
+    return {
+      valid: expected === signature,
+      expectedSignature: expected,
+    };
+  }
+
   async buildDispatch(
     event: string,
     organizationId: string,

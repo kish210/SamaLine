@@ -127,6 +127,23 @@ export class BillingService {
     );
   }
 
+  async validateLicense(licenseKey: string) {
+    const license = await this.licenseRepo.findOne({ where: { licenseKey } });
+    if (!license || !license.isActive) {
+      return { valid: false, reason: 'لایسنس معتبر نیست' };
+    }
+
+    if (license.expiresAt && license.expiresAt < new Date()) {
+      return { valid: false, reason: 'لایسنس منقضی شده است' };
+    }
+
+    return {
+      valid: true,
+      organizationId: license.organizationId,
+      capabilities: license.capabilities,
+      expiresAt: license.expiresAt,
+    };
+  }
   listLicenses(organizationId: string) {
     return this.licenseRepo.find({
       where: { organizationId },

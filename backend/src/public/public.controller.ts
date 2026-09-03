@@ -6,6 +6,11 @@ import { PublicService } from './public.service';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
+  @Get('portal/:organizationId')
+  getPortal(@Param('organizationId') organizationId: string) {
+    return this.publicService.getPortalForms(organizationId);
+  }
+
   @Get(':token')
   getForm(@Param('token') token: string) {
     return this.publicService.getByToken(token);

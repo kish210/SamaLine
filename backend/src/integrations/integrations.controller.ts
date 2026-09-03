@@ -18,6 +18,22 @@ export class IntegrationsController {
     return this.integrationsService.listWebhooks(organizationId);
   }
 
+  @Post('webhooks/verify-signature')
+  verifySignature(
+    @Body()
+    body: {
+      secret: string;
+      signature: string;
+      payload: Record<string, unknown>;
+    },
+  ) {
+    return this.integrationsService.verifySignature(
+      body.secret,
+      body.payload ?? {},
+      body.signature,
+    );
+  }
+
   @Post('webhooks/simulate-dispatch')
   simulate(
     @Body()

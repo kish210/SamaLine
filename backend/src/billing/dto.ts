@@ -66,3 +66,8 @@ export class CreateLicenseDto {
   @IsString()
   expiresAt?: string;
 }
+
+export class ValidateLicenseDto {
+  @IsString()
+  licenseKey: string;
+}

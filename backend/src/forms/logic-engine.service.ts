@@ -89,7 +89,8 @@ export class LogicEngineService {
     skipRules.forEach((rule) => {
       const fromPage = questionToPage.get(rule.fromQuestionId);
       const toPage =
-        rule.toPageId ?? (rule.toQuestionId ? questionToPage.get(rule.toQuestionId) : undefined);
+        rule.toPageId ??
+        (rule.toQuestionId ? questionToPage.get(rule.toQuestionId) : undefined);
       if (fromPage && toPage) {
         if (!pageGraph.has(fromPage)) pageGraph.set(fromPage, new Set());
         pageGraph.get(fromPage)?.add(toPage);
@@ -142,13 +143,29 @@ export class LogicEngineService {
     return false;
   }
 
-  applyPiping(text: string, answers: Record<string, unknown>, params: Record<string, unknown> = {}) {
+  applyPiping(
+    text: string,
+    answers: Record<string, unknown>,
+    params: Record<string, unknown> = {},
+  ) {
+    const normalizeTokenValue = (value: unknown) => {
+      if (value == null) return '';
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      ) {
+        return String(value);
+      }
+      return JSON.stringify(value);
+    };
+
     return text.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_, token: string) => {
       if (token.startsWith('param.')) {
         const key = token.slice('param.'.length);
-        return String(params[key] ?? '');
+        return normalizeTokenValue(params[key]);
       }
-      return String(answers[token] ?? '');
+      return normalizeTokenValue(answers[token]);
     });
   }
 }

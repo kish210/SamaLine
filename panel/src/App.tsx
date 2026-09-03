@@ -115,6 +115,22 @@ function App() {
   const [logicJson, setLogicJson] = useState('{\n  "display": [],\n  "skip": [],\n  "pipe": []\n}');
   const [scoreJson, setScoreJson] = useState('{\n  "indices": []\n}');
   const [logicAnalysis, setLogicAnalysis] = useState<Record<string, unknown> | null>(null);
+  const [portalForms, setPortalForms] = useState<Record<string, unknown>[]>([]);
+  const [webhookSecret, setWebhookSecret] = useState('test-secret');
+  const [webhookPayload, setWebhookPayload] = useState('{"event":"response.completed"}');
+  const [webhookSignature, setWebhookSignature] = useState('');
+  const [webhookVerifyResult, setWebhookVerifyResult] = useState<Record<string, unknown> | null>(null);
+  const [licenseKeyToValidate, setLicenseKeyToValidate] = useState('');
+  const [licenseValidation, setLicenseValidation] = useState<Record<string, unknown> | null>(null);
+  const [aiMetricsInput, setAiMetricsInput] = useState('{"satisfaction":72,"nps":41}');
+
+  const parseUnknownJson = (value: string) => {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return null;
+    }
+  };
 
   const parseJsonSafe = (value: string, fallback: Record<string, unknown>) => {
     try {
@@ -123,6 +139,12 @@ function App() {
     } catch {
       return fallback;
     }
+  };
+
+  const refreshPortalForms = async () => {
+    if (!organizationId) return;
+    const res = await api.get(`/public/forms/portal/${organizationId}`);
+    setPortalForms(res.data ?? []);
   };
 
   const registerMutation = useMutation({
@@ -190,8 +212,10 @@ function App() {
   });
 
   const exportUrl = useMemo(() => {
-    if (!activeFormId) return '#';
-    return `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'}/responses/form/${activeFormId}/export`;
+    const isSafeId = /^[a-zA-Z0-9_-]+$/.test(activeFormId);
+    if (!activeFormId || !isSafeId) return null;
+    const base = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
+    return new URL(`/api/v1/responses/form/${activeFormId}/export`, base).toString();
   }, [activeFormId]);
 
   const summaryQuery = useQuery({
@@ -715,9 +739,14 @@ function App() {
             ),
           )}
         </div>
-        <a href={exportUrl} target="_blank" rel="noreferrer">
-          <button>{t('exportExcel')}</button>
-        </a>
+        <button
+          onClick={() => {
+            if (exportUrl) window.open(exportUrl, '_blank', 'noopener,noreferrer');
+          }}
+          disabled={!exportUrl}
+        >
+          {t('exportExcel')}
+        </button>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(responsesQuery.data ?? [], null, 2)}
         </pre>
@@ -850,6 +879,78 @@ function App() {
       </div>
 
       <div className="card">
+        <h3>تکمیل فاز ۶ تا ۸</h3>
+        <div className="row">
+          <input
+            value={aiMetricsInput}
+            onChange={(event) => setAiMetricsInput(event.target.value)}
+            placeholder='{"satisfaction":72}'
+          />
+          <button
+            onClick={async () => {
+              const metrics = parseUnknownJson(aiMetricsInput);
+              const result = await api.post('/ai/summarize-metrics', {
+                metrics:
+                  metrics && typeof metrics === 'object'
+                    ? (metrics as Record<string, number>)
+                    : {},
+              });
+              setAiResult(result.data);
+            }}
+          >
+            خلاصه شاخص‌ها با AI
+          </button>
+        </div>
+        <div className="row">
+          <button onClick={() => void refreshPortalForms()}>
+            بارگیری پرتال نظرسنجی
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(portalForms ?? [], null, 2)}
+        </pre>
+        <div className="row">
+          <input
+            value={webhookSecret}
+            onChange={(event) => setWebhookSecret(event.target.value)}
+            placeholder="Webhook secret"
+          />
+          <input
+            value={webhookPayload}
+            onChange={(event) => setWebhookPayload(event.target.value)}
+            placeholder="Webhook payload JSON"
+          />
+          <input
+            value={webhookSignature}
+            onChange={(event) => setWebhookSignature(event.target.value)}
+            placeholder="Webhook signature"
+          />
+          <button
+            onClick={async () => {
+              const payload = parseUnknownJson(webhookPayload);
+              const result = await api.post(
+                '/integrations/webhooks/verify-signature',
+                {
+                  secret: webhookSecret,
+                  signature: webhookSignature,
+                  payload:
+                    payload && typeof payload === 'object'
+                      ? (payload as Record<string, unknown>)
+                      : {},
+                },
+              );
+              setWebhookVerifyResult(result.data);
+            }}
+          >
+            بررسی امضای وبهوک
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(webhookVerifyResult ?? {}, null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
         <h3>تجاری‌سازی و لایسنس (فاز ۹)</h3>
         <div className="row">
           <input
@@ -874,6 +975,27 @@ function App() {
             ایجاد لایسنس On-Prem
           </button>
         </div>
+        <div className="row">
+          <input
+            value={licenseKeyToValidate}
+            onChange={(event) => setLicenseKeyToValidate(event.target.value)}
+            placeholder="License key"
+          />
+          <button
+            onClick={async () => {
+              if (!licenseKeyToValidate.trim()) return;
+              const result = await api.post('/billing/licenses/validate', {
+                licenseKey: licenseKeyToValidate.trim(),
+              });
+              setLicenseValidation(result.data);
+            }}
+          >
+            اعتبارسنجی لایسنس
+          </button>
+        </div>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(licenseValidation ?? {}, null, 2)}
+        </pre>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(licensesQuery.data ?? [], null, 2)}
         </pre>

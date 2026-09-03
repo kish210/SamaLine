@@ -4,10 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { PublicationEntity } from '../database/entities/publication.entity';
+import { FormStatus } from '../database/entities/form.entity';
+import {
+  PublicationEntity,
+  PublicationType,
+} from '../database/entities/publication.entity';
 import {
   ResponseEntity,
   ResponseStatus,
@@ -72,6 +76,33 @@ export class PublicService {
       structure: latestVersion.structure,
       settings: publication.form.settings,
     };
+  }
+
+  async getPortalForms(organizationId: string) {
+    const publications = await this.publicationRepo.find({
+      where: {
+        type: In([PublicationType.PORTAL, PublicationType.LINK]),
+        isActive: true,
+        form: {
+          status: FormStatus.ACTIVE,
+          workspace: { organizationId },
+        },
+      },
+      relations: { form: { workspace: true } },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+
+    return publications.map((publication) => ({
+      publicationId: publication.id,
+      formId: publication.formId,
+      formTitle: publication.form.title,
+      type: publication.type,
+      token: publication.token,
+      url: `/f/${publication.token}`,
+      tags: publication.tags ?? [],
+      expiresAt: publication.expiresAt,
+    }));
   }
 
   async getProgressByToken(token: string, respondentKey: string) {
@@ -152,11 +183,8 @@ export class PublicService {
 
     const startedAt = new Date();
     const submittedAt = new Date();
-    const structure = formData.structure as Record<string, unknown>;
-    const scores = this.scoreEngine.calculate(
-      structure,
-      dto.answers as Record<string, unknown>,
-    );
+    const structure = formData.structure;
+    const scores = this.scoreEngine.calculate(structure, dto.answers);
 
     let response: ResponseEntity | null = null;
     if (respondentKey) {

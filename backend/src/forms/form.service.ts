@@ -107,9 +107,7 @@ export class FormService {
       order: { version: 'DESC' },
     });
     if (!latestVersion) throw new NotFoundException('نسخه فرم یافت نشد');
-    return this.logicEngine.analyzeStructure(
-      latestVersion.structure as Record<string, unknown>,
-    );
+    return this.logicEngine.analyzeStructure(latestVersion.structure);
   }
 
   async update(id: string, dto: UpdateFormDto) {
@@ -126,7 +124,7 @@ export class FormService {
         where: { formId: id },
         order: { version: 'DESC' },
       });
-      const existing = (latest?.structure ?? {}) as Record<string, unknown>;
+      const existing = latest?.structure ?? {};
       const existingPages = (existing.pages as FormPageDto[] | undefined) ?? [];
       const nextPages =
         dto.pages || dto.questions
@@ -143,7 +141,8 @@ export class FormService {
           version: (latest?.version ?? 0) + 1,
           structure: this.buildStructure(
             nextPages,
-            dto.logic ?? (existing.logic as Record<string, unknown> | undefined),
+            dto.logic ??
+              (existing.logic as Record<string, unknown> | undefined),
             dto.scoreConfig ??
               (existing.scoreConfig as Record<string, unknown> | undefined),
           ),
@@ -240,7 +239,10 @@ export class FormService {
     throw new BadRequestException('حداقل یک صفحه یا سوال لازم است');
   }
 
-  private validateLogic(logic: Record<string, unknown> | undefined, pages: FormPageDto[]) {
+  private validateLogic(
+    logic: Record<string, unknown> | undefined,
+    pages: FormPageDto[],
+  ) {
     if (!logic) return;
     const analysis = this.logicEngine.analyzeStructure({ pages, logic });
     if (!analysis.isValid) {

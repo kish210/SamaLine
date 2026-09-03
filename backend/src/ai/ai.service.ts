@@ -21,6 +21,20 @@ export class AiService {
     return this.provider.chatWithData({ question, context });
   }
 
+  summarizeMetrics(metrics: Record<string, number>) {
+    const entries = Object.entries(metrics);
+    const sorted = entries.sort((a, b) => b[1] - a[1]);
+    return {
+      topMetric: sorted[0] ?? null,
+      lowMetric: sorted[sorted.length - 1] ?? null,
+      count: sorted.length,
+      recommendation:
+        sorted.length > 0
+          ? `بهبود شاخص ${sorted[sorted.length - 1][0]} در اولویت باشد.`
+          : 'داده‌ای برای تحلیل وجود ندارد.',
+    };
+  }
+
   translateSurvey(
     structure: Record<string, unknown>,
     targetLanguage: 'fa' | 'en' | 'ar',

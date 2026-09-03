@@ -15,6 +15,7 @@ import {
   CreateLicenseDto,
   CreatePaymentDto,
   UpdateSubscriptionDto,
+  ValidateLicenseDto,
   VerifyPaymentDto,
 } from './dto';
 
@@ -56,6 +57,11 @@ export class BillingController {
   @Post('licenses')
   createLicense(@Body() dto: CreateLicenseDto) {
     return this.billingService.createLicense(dto);
+  }
+
+  @Post('licenses/validate')
+  validateLicense(@Body() dto: ValidateLicenseDto) {
+    return this.billingService.validateLicense(dto.licenseKey);
   }
 
   @Get('licenses')
