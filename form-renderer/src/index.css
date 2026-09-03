@@ -1,0 +1,38 @@
+:root {
+  font-family: Vazirmatn, Tahoma, sans-serif;
+  direction: rtl;
+}
+
+body {
+  margin: 0;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.container {
+  max-width: 760px;
+  margin: 24px auto;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+input,
+textarea,
+button,
+select {
+  width: 100%;
+  font: inherit;
+  padding: 10px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+button {
+  background: #111827;
+  color: white;
+  cursor: pointer;
+}
