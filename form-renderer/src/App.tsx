@@ -56,6 +56,12 @@ function FormPage() {
     return (
       <div className="container">
         <h2>{flow.form.settings?.endPageText || t('done')}</h2>
+        {flow.pendingCount > 0 && (
+          <p className="hint">
+            پاسخ شما به‌دلیل قطعی شبکه روی همین دستگاه ذخیره شد و با برقراری
+            اتصال خودکار ارسال می‌شود.
+          </p>
+        )}
         {Object.keys(flow.scores).length > 0 && (
           <ul className="scores">
             {Object.entries(flow.scores).map(([key, value]) => (

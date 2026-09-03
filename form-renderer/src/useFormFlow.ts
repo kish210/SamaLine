@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formApi } from './api';
+import { isNetworkError, offlineOutbox } from './offline-outbox';
 import type { Answers, Page, PublicForm } from './types';
 
 type View = 'start' | 'form' | 'end';
@@ -43,6 +44,7 @@ export function useFormFlow(token: string | undefined) {
     undefined,
   );
   const [authenticated, setAuthenticated] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [lang, setLang] = useState(urlState.lang ?? 'fa');
   const hiddenParams = urlState.hiddenParams;
 
@@ -188,21 +190,57 @@ export function useFormFlow(token: string | undefined) {
   const submit = useCallback(async () => {
     if (!token) return false;
     setLoading(true);
+    const payload = {
+      respondentKey: respondentKey || undefined,
+      answers: answersRef.current,
+      meta: { respondentKey, lang, params: hiddenParams },
+    };
+
     try {
-      await formApi.submit(token, {
-        respondentKey: respondentKey || undefined,
-        answers: answersRef.current,
-        meta: { respondentKey, lang, params: hiddenParams },
-      });
+      await formApi.submit(token, payload);
       setView('end');
       return true;
     } catch (err) {
+      // قطعی شبکه نباید پاسخِ پرشده را از بین ببرد؛ محلی نگه می‌داریم
+      // و با برگشت اتصال خودکار می‌فرستیم.
+      if (isNetworkError(err)) {
+        offlineOutbox.add({ token, ...payload });
+        setPendingCount(offlineOutbox.count());
+        setView('end');
+        return true;
+      }
       setError(describeError(err));
       return false;
     } finally {
       setLoading(false);
     }
   }, [token, respondentKey, lang, hiddenParams]);
+
+  /** ارسال پاسخ‌های ذخیره‌شده‌ی آفلاین. */
+  const flushOutbox = useCallback(async () => {
+    for (const item of offlineOutbox.list()) {
+      try {
+        await formApi.submit(item.token, {
+          respondentKey: item.respondentKey,
+          answers: item.answers,
+          meta: item.meta,
+        });
+        offlineOutbox.remove(item.id);
+      } catch (err) {
+        // هنوز آفلاین است؛ دفعه‌ی بعد دوباره تلاش می‌کنیم.
+        if (isNetworkError(err)) break;
+        // خطای منطقی سرور (مثل سقف پلن) با تلاش مجدد حل نمی‌شود.
+        offlineOutbox.remove(item.id);
+      }
+    }
+    setPendingCount(offlineOutbox.count());
+  }, []);
+
+  useEffect(() => {
+    void flushOutbox();
+    window.addEventListener('online', () => void flushOutbox());
+    return () => window.removeEventListener('online', () => void flushOutbox());
+  }, [flushOutbox]);
 
   const setAnswer = useCallback((questionId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -243,6 +281,7 @@ export function useFormFlow(token: string | undefined) {
     lang,
     respondentKey,
     canGoBack: history.length > 0,
+    pendingCount,
     setLang,
     setRespondentKey,
     setAnswer,

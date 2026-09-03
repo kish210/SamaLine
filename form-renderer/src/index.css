@@ -97,3 +97,13 @@ button:disabled {
   opacity: 0.6;
   cursor: default;
 }
+
+.hint {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.secondary {
+  background: #fff;
+  color: #111827;
+}
