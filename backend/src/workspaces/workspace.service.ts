@@ -6,10 +6,16 @@ import { CreateWorkspaceDto } from './dto';
 
 @Injectable()
 export class WorkspaceService {
-  constructor(@InjectRepository(WorkspaceEntity) private readonly workspaceRepo: Repository<WorkspaceEntity>) {}
+  constructor(
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepo: Repository<WorkspaceEntity>,
+  ) {}
 
   list(organizationId: string) {
-    return this.workspaceRepo.find({ where: { organizationId }, order: { createdAt: 'DESC' } });
+    return this.workspaceRepo.find({
+      where: { organizationId },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   create(dto: CreateWorkspaceDto) {

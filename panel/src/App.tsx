@@ -53,6 +53,8 @@ function App() {
   const [organizationId, setOrganizationId] = useState<string>('');
   const [activeFormId, setActiveFormId] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [aiGoal, setAiGoal] = useState('افزایش رضایت مشتریان شعب');
+  const [aiResult, setAiResult] = useState<Record<string, unknown> | null>(null);
 
   const registerMutation = useMutation({
     mutationFn: (payload: Record<string, string>) => api.post<AuthPayload>('/auth/register', payload),
@@ -100,6 +102,12 @@ function App() {
     if (!activeFormId) return '#';
     return `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'}/responses/form/${activeFormId}/export`;
   }, [activeFormId]);
+
+  const summaryQuery = useQuery({
+    queryKey: ['summary', activeFormId, token],
+    queryFn: async () => (await api.get(`/reports/forms/${activeFormId}/summary`)).data,
+    enabled: Boolean(token && activeFormId),
+  });
 
   if (!token) {
     return (
@@ -189,6 +197,15 @@ function App() {
       </div>
 
       <div className="card">
+        <h3>{t('phaseStatus')}</h3>
+        <ul>
+          <li>فاز ۱: انجام شد</li>
+          <li>فاز ۲ تا ۱۰: زیرساخت اولیه API اضافه شد</li>
+          <li>یادداشت ممیزی: ایرادها در todo.md ثبت می‌شود</li>
+        </ul>
+      </div>
+
+      <div className="card">
         <h3>{t('createForm')}</h3>
         <form onSubmit={submitFormBuilder}>
           <input name="title" placeholder={t('title')} required />
@@ -252,6 +269,26 @@ function App() {
         </a>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(responsesQuery.data ?? [], null, 2)}
+        </pre>
+        <h4>{t('reports')}</h4>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(summaryQuery.data ?? {}, null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
+        <h3>{t('aiTools')}</h3>
+        <input value={aiGoal} onChange={(event) => setAiGoal(event.target.value)} />
+        <button
+          onClick={async () => {
+            const result = await api.post('/ai/generate-form', { goal: aiGoal, language: 'fa' });
+            setAiResult(result.data);
+          }}
+        >
+          ساخت فرم با AI
+        </button>
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(aiResult ?? {}, null, 2)}
         </pre>
       </div>
     </div>

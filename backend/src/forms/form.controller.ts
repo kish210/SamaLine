@@ -1,6 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
-import { CreateFormDto, UpdateFormDto } from './dto';
+import { CreateFormDto, CreatePublicationDto, UpdateFormDto } from './dto';
 import { FormService } from './form.service';
 
 @Controller('forms')
@@ -31,5 +40,13 @@ export class FormController {
   @Post(':id/publish-link')
   publish(@Param('id') id: string) {
     return this.formService.publishLink(id);
+  }
+
+  @Post(':id/publications')
+  createPublication(
+    @Param('id') id: string,
+    @Body() dto: CreatePublicationDto,
+  ) {
+    return this.formService.createPublication(id, dto);
   }
 }

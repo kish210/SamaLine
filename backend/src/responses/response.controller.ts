@@ -14,10 +14,16 @@ export class ResponseController {
   }
 
   @Get('form/:formId/export')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
   async export(@Param('formId') formId: string, @Res() res: ExpressResponse) {
     const result = await this.responseService.exportByForm(formId);
-    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.filename}"`,
+    );
     return res.send(result.buffer);
   }
 }

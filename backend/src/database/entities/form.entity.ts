@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { FormVersionEntity } from './form-version.entity';
 import { PublicationEntity } from './publication.entity';
 import { WorkspaceEntity } from './workspace.entity';
@@ -36,7 +45,9 @@ export class FormEntity {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
-  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.forms, { onDelete: 'CASCADE' })
+  @ManyToOne(() => WorkspaceEntity, (workspace) => workspace.forms, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'workspaceId' })
   workspace: WorkspaceEntity;
 

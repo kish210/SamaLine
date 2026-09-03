@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ResponseEntity } from './response.entity';
 
 @Entity('answer_flat')
@@ -21,7 +27,9 @@ export class AnswerFlatEntity {
   @Column({ type: 'varchar', length: 80, nullable: true })
   choiceId: string | null;
 
-  @ManyToOne(() => ResponseEntity, (response) => response.answerFlat, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ResponseEntity, (response) => response.answerFlat, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'responseId' })
   response: ResponseEntity;
 }

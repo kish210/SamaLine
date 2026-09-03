@@ -4,21 +4,34 @@ import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
-import { ResponseEntity, ResponseStatus } from '../database/entities/response.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
+import { PlanService } from '../plans/plan.service';
 import { SubmitResponseDto } from './dto';
 
 @Injectable()
 export class PublicService {
   constructor(
-    @InjectRepository(PublicationEntity) private readonly publicationRepo: Repository<PublicationEntity>,
-    @InjectRepository(FormVersionEntity) private readonly versionRepo: Repository<FormVersionEntity>,
-    @InjectRepository(ResponseEntity) private readonly responseRepo: Repository<ResponseEntity>,
-    @InjectRepository(AnswerFlatEntity) private readonly answerFlatRepo: Repository<AnswerFlatEntity>,
+    @InjectRepository(PublicationEntity)
+    private readonly publicationRepo: Repository<PublicationEntity>,
+    @InjectRepository(FormVersionEntity)
+    private readonly versionRepo: Repository<FormVersionEntity>,
+    @InjectRepository(ResponseEntity)
+    private readonly responseRepo: Repository<ResponseEntity>,
+    @InjectRepository(AnswerFlatEntity)
+    private readonly answerFlatRepo: Repository<AnswerFlatEntity>,
+    private readonly planService: PlanService,
   ) {}
 
   async getByToken(token: string) {
-    const publication = await this.publicationRepo.findOne({ where: { token }, relations: { form: true } });
-    if (!publication || !publication.isActive) throw new NotFoundException('لینک معتبر نیست');
+    const publication = await this.publicationRepo.findOne({
+      where: { token },
+      relations: { form: { workspace: true } },
+    });
+    if (!publication || !publication.isActive)
+      throw new NotFoundException('لینک معتبر نیست');
 
     const latestVersion = await this.versionRepo.findOne({
       where: { formId: publication.formId },
@@ -29,6 +42,7 @@ export class PublicService {
     return {
       publicationId: publication.id,
       formId: publication.formId,
+      organizationId: publication.form.workspace.organizationId,
       formTitle: publication.form.title,
       formVersionId: latestVersion.id,
       structure: latestVersion.structure,
@@ -81,6 +95,11 @@ export class PublicService {
     if (rows.length) {
       await this.answerFlatRepo.save(rows);
     }
+    await this.planService.trackUsage(
+      formData.organizationId,
+      'response_submitted',
+      1,
+    );
 
     return { id: response.id, status: 'completed' };
   }

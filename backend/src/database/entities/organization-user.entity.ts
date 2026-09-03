@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
 import { OrganizationEntity } from './organization.entity';
 import { UserEntity } from './user.entity';
 
@@ -22,17 +30,25 @@ export class OrganizationUserEntity {
   @Column('uuid')
   userId: string;
 
-  @Column({ type: 'enum', enum: OrganizationRole, default: OrganizationRole.OWNER })
+  @Column({
+    type: 'enum',
+    enum: OrganizationRole,
+    default: OrganizationRole.OWNER,
+  })
   role: OrganizationRole;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => OrganizationEntity, (organization) => organization.users, { onDelete: 'CASCADE' })
+  @ManyToOne(() => OrganizationEntity, (organization) => organization.users, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'organizationId' })
   organization: OrganizationEntity;
 
-  @ManyToOne(() => UserEntity, (user) => user.organizations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserEntity, (user) => user.organizations, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'userId' })
   user: UserEntity;
 }

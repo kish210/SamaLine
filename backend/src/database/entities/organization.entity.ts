@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { SubscriptionEntity } from './subscription.entity';
+import { UsageCounterEntity } from './usage-counter.entity';
 import { OrganizationUserEntity } from './organization-user.entity';
 import { WorkspaceEntity } from './workspace.entity';
 
@@ -21,4 +30,13 @@ export class OrganizationEntity {
 
   @OneToMany(() => OrganizationUserEntity, (member) => member.organization)
   users: OrganizationUserEntity[];
+
+  @OneToMany(
+    () => SubscriptionEntity,
+    (subscription) => subscription.organization,
+  )
+  subscriptions: SubscriptionEntity[];
+
+  @OneToMany(() => UsageCounterEntity, (usage) => usage.organization)
+  usageCounters: UsageCounterEntity[];
 }

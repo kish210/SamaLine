@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { AnswerFlatEntity } from './answer-flat.entity';
 import { FormVersionEntity } from './form-version.entity';
 import { PublicationEntity } from './publication.entity';
@@ -19,7 +27,11 @@ export class ResponseEntity {
   @Column('uuid')
   publicationId: string;
 
-  @Column({ type: 'enum', enum: ResponseStatus, default: ResponseStatus.COMPLETED })
+  @Column({
+    type: 'enum',
+    enum: ResponseStatus,
+    default: ResponseStatus.COMPLETED,
+  })
   status: ResponseStatus;
 
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
@@ -43,11 +55,15 @@ export class ResponseEntity {
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => FormVersionEntity, (formVersion) => formVersion.responses, { onDelete: 'CASCADE' })
+  @ManyToOne(() => FormVersionEntity, (formVersion) => formVersion.responses, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'formVersionId' })
   formVersion: FormVersionEntity;
 
-  @ManyToOne(() => PublicationEntity, (publication) => publication.responses, { onDelete: 'CASCADE' })
+  @ManyToOne(() => PublicationEntity, (publication) => publication.responses, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'publicationId' })
   publication: PublicationEntity;
 

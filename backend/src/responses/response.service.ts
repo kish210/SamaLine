@@ -8,8 +8,10 @@ import { ResponseEntity } from '../database/entities/response.entity';
 @Injectable()
 export class ResponseService {
   constructor(
-    @InjectRepository(ResponseEntity) private readonly responseRepo: Repository<ResponseEntity>,
-    @InjectRepository(FormEntity) private readonly formRepo: Repository<FormEntity>,
+    @InjectRepository(ResponseEntity)
+    private readonly responseRepo: Repository<ResponseEntity>,
+    @InjectRepository(FormEntity)
+    private readonly formRepo: Repository<FormEntity>,
   ) {}
 
   async listByForm(formId: string) {
