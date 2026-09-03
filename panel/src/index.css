@@ -657,3 +657,21 @@ code {
   text-align: start;
   word-break: break-all;
 }
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.section-head h3 {
+  margin: 0;
+}
+
+.section-head label.checkbox {
+  margin: 0;
+  white-space: nowrap;
+}

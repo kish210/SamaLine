@@ -123,6 +123,28 @@ export const reportsApi = {
       .get<ResponseRow[]>(`/reports/forms/${formId}/responses`, { params })
       .then((r) => r.data),
 
+  /**
+   * دانلود خروجی. چون اندپوینت با هدر Authorization محافظت می‌شود،
+   * فایل را به‌صورت blob می‌گیریم و در مرورگر ذخیره می‌کنیم.
+   */
+  download: async (
+    formId: string,
+    format: 'xlsx' | 'csv',
+    advanced: boolean,
+  ) => {
+    const response = await api.get<Blob>(
+      `/reports/forms/${formId}/export.${format}`,
+      { params: { advanced }, responseType: 'blob' },
+    );
+
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `responses-${formId}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
   breakdown: (questionId: string, formId: string) =>
     api
       .get<Array<{ label: string; count: number }>>(

@@ -9,6 +9,7 @@ interface Props {
 /** داشبورد فرم و جدول پاسخ‌نامه‌ها (بند ۸ سند). */
 export function ResponsesPanel({ formId }: Props) {
   const [selectedQuestion, setSelectedQuestion] = useState('');
+  const [advancedExport, setAdvancedExport] = useState(false);
 
   const summary = useQuery({
     queryKey: ['summary', formId],
@@ -96,7 +97,37 @@ export function ResponsesPanel({ formId }: Props) {
       )}
 
       <section className="card">
-        <h3>پاسخ‌نامه‌ها</h3>
+        <div className="section-head">
+          <h3>پاسخ‌نامه‌ها</h3>
+          <div className="inline-form">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={advancedExport}
+                onChange={(e) => setAdvancedExport(e.target.checked)}
+              />
+              خروجی پیشرفته (متادیتا)
+            </label>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                void reportsApi.download(formId, 'xlsx', advancedExport)
+              }
+            >
+              اکسل
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                void reportsApi.download(formId, 'csv', advancedExport)
+              }
+            >
+              CSV
+            </button>
+          </div>
+        </div>
         {responses.isLoading && <p>در حال بارگذاری…</p>}
         {responses.data?.length === 0 && (
           <p className="empty">هنوز پاسخی ثبت نشده است.</p>
