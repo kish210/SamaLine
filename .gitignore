@@ -10,3 +10,6 @@ coverage/
 
 # دیتابیس محلی SQLite
 backend/data/
+
+# صندوق خروجی محلی پیام‌ها
+backend/data/outbox/

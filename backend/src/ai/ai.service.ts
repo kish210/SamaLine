@@ -1,12 +1,37 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import type { AiProvider } from './ai.types';
+import { validateGeneratedForm } from './form-schema.validator';
 import { MockAiProvider } from './mock-ai.provider';
+import { OpenAiCompatibleProvider } from './openai-compatible.provider';
 
 @Injectable()
 export class AiService {
-  private readonly provider = new MockAiProvider();
+  private readonly logger = new Logger(AiService.name);
+  private readonly provider: AiProvider = AiService.resolveProvider();
 
-  createSurvey(goal: string, language?: 'fa' | 'en' | 'ar') {
-    return this.provider.createForm({ goal, language });
+  /** نام سرویس‌دهنده‌ی فعال — برای نمایش در پنل. */
+  get providerName() {
+    return this.provider instanceof MockAiProvider ? 'mock' : 'openai';
+  }
+
+  /**
+   * ساخت پرسشنامه با AI.
+   * خروجی مدل پیش از بازگشت با schema اعتبارسنجی می‌شود؛ ساختار نامعتبر
+   * هرگز به فرم‌ساز نمی‌رسد (بند ۱۰ سند).
+   */
+  async createSurvey(goal: string, language?: 'fa' | 'en' | 'ar') {
+    const raw = await this.provider.createForm({ goal, language });
+    const validation = validateGeneratedForm(raw);
+
+    if (!validation.valid) {
+      this.logger.warn(`خروجی نامعتبر مدل: ${validation.errors.join(' | ')}`);
+      throw new BadRequestException({
+        message: 'خروجی هوش مصنوعی با ساختار فرم سازگار نبود',
+        errors: validation.errors,
+      });
+    }
+
+    return { ...validation.normalized, aiProvider: this.providerName };
   }
 
   reviewSurvey(structure: Record<string, unknown>) {
@@ -40,5 +65,20 @@ export class AiService {
     targetLanguage: 'fa' | 'en' | 'ar',
   ) {
     return this.provider.translateForm({ structure, targetLanguage });
+  }
+
+  /**
+   * انتخاب سرویس‌دهنده از متغیر محیطی.
+   * پیش‌فرض ماک است تا سامانه بدون کلید و بدون اینترنت کار کند.
+   */
+  private static resolveProvider(): AiProvider {
+    const choice = (process.env.AI_PROVIDER ?? 'mock').toLowerCase();
+    const apiKey = process.env.AI_API_KEY;
+
+    if (choice === 'openai' && apiKey) {
+      return new OpenAiCompatibleProvider(apiKey);
+    }
+
+    return new MockAiProvider();
   }
 }
