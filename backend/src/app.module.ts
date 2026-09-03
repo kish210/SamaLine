@@ -15,6 +15,7 @@ import { DistributionModule } from './distribution/distribution.module';
 import { OrganizationModule } from './organization/organization.module';
 import { ChannelsModule } from './channels/channels.module';
 import { BillingModule } from './billing/billing.module';
+import { SpecializedModule } from './specialized/specialized.module';
 import { ApiKeyEntity } from './database/entities/api-key.entity';
 import { AuditLogEntity } from './database/entities/audit-log.entity';
 import { AnswerFlatEntity } from './database/entities/answer-flat.entity';
@@ -91,6 +92,7 @@ import { WorkspaceEntity } from './database/entities/workspace.entity';
     OrganizationModule,
     ChannelsModule,
     BillingModule,
+    SpecializedModule,
   ],
 })
 export class AppModule {}

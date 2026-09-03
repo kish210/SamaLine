@@ -123,6 +123,17 @@ function App() {
   const [licenseKeyToValidate, setLicenseKeyToValidate] = useState('');
   const [licenseValidation, setLicenseValidation] = useState<Record<string, unknown> | null>(null);
   const [aiMetricsInput, setAiMetricsInput] = useState('{"satisfaction":72,"nps":41}');
+  const [quizStructureJson, setQuizStructureJson] = useState(
+    '{"pages":[{"questions":[{"id":"q1","meta":{"correctAnswer":"A","score":2}},{"id":"q2","meta":{"correctAnswer":5,"score":3}}]}]}',
+  );
+  const [quizAnswersJson, setQuizAnswersJson] = useState('{"q1":"A","q2":4}');
+  const [eval360Json, setEval360Json] = useState(
+    '{"evaluations":[{"role":"self","scores":{"leadership":4,"teamwork":5}},{"role":"manager","scores":{"leadership":3,"teamwork":4}},{"role":"peer","scores":{"leadership":4,"teamwork":4}}]}',
+  );
+  const [experienceMetricType, setExperienceMetricType] = useState<'nps' | 'csat' | 'ces' | 'enps'>('nps');
+  const [experienceScoresJson, setExperienceScoresJson] = useState('[10,9,8,6,5]');
+  const [templateCategory, setTemplateCategory] = useState<'mbti' | 'herzberg' | 'cx' | 'hr' | 'all'>('all');
+  const [phase10Result, setPhase10Result] = useState<Record<string, unknown> | unknown[] | null>(null);
 
   const parseUnknownJson = (value: string) => {
     try {
@@ -998,6 +1009,139 @@ function App() {
         </pre>
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(licensesQuery.data ?? [], null, 2)}
+        </pre>
+      </div>
+
+      <div className="card">
+        <h3>ماژول‌های تخصصی (فاز ۱۰)</h3>
+
+        <h4>آزمون‌ساز: تصحیح پاسخ</h4>
+        <textarea
+          value={quizStructureJson}
+          onChange={(event) => setQuizStructureJson(event.target.value)}
+          rows={4}
+          placeholder="Quiz structure JSON"
+        />
+        <textarea
+          value={quizAnswersJson}
+          onChange={(event) => setQuizAnswersJson(event.target.value)}
+          rows={3}
+          placeholder="Quiz answers JSON"
+        />
+        <button
+          onClick={async () => {
+            const structure = parseUnknownJson(quizStructureJson);
+            const answers = parseUnknownJson(quizAnswersJson);
+            const result = await api.post('/specialized/quiz/grade', {
+              structure:
+                structure && typeof structure === 'object'
+                  ? (structure as Record<string, unknown>)
+                  : {},
+              answers:
+                answers && typeof answers === 'object'
+                  ? (answers as Record<string, unknown>)
+                  : {},
+            });
+            setPhase10Result(result.data);
+          }}
+        >
+          محاسبه نمره آزمون
+        </button>
+
+        <h4>ارزیابی ۳۶۰: تجمیع نقش‌ها</h4>
+        <textarea
+          value={eval360Json}
+          onChange={(event) => setEval360Json(event.target.value)}
+          rows={4}
+          placeholder="360 JSON"
+        />
+        <button
+          onClick={async () => {
+            const payload = parseUnknownJson(eval360Json);
+            const result = await api.post('/specialized/evaluation-360/aggregate', {
+              evaluations:
+                payload &&
+                typeof payload === 'object' &&
+                Array.isArray((payload as { evaluations?: unknown[] }).evaluations)
+                  ? (payload as { evaluations: unknown[] }).evaluations
+                  : [],
+            });
+            setPhase10Result(result.data);
+          }}
+        >
+          تجمیع ارزیابی ۳۶۰
+        </button>
+
+        <h4>NPS / CSAT / CES / eNPS</h4>
+        <div className="row">
+          <select
+            value={experienceMetricType}
+            onChange={(event) =>
+              setExperienceMetricType(
+                event.target.value as 'nps' | 'csat' | 'ces' | 'enps',
+              )
+            }
+          >
+            <option value="nps">nps</option>
+            <option value="csat">csat</option>
+            <option value="ces">ces</option>
+            <option value="enps">enps</option>
+          </select>
+          <input
+            value={experienceScoresJson}
+            onChange={(event) => setExperienceScoresJson(event.target.value)}
+            placeholder="[10,9,8,6,5]"
+          />
+          <button
+            onClick={async () => {
+              const scoresParsed = parseUnknownJson(experienceScoresJson);
+              const scores = Array.isArray(scoresParsed)
+                ? scoresParsed.map((item) => Number(item)).filter((n) => Number.isFinite(n))
+                : [];
+              const result = await api.post('/specialized/experience-metrics/calculate', {
+                type: experienceMetricType,
+                scores,
+              });
+              setPhase10Result(result.data);
+            }}
+          >
+            محاسبه شاخص
+          </button>
+        </div>
+
+        <h4>کتابخانه قالب‌ها</h4>
+        <div className="row">
+          <select
+            value={templateCategory}
+            onChange={(event) =>
+              setTemplateCategory(
+                event.target.value as 'mbti' | 'herzberg' | 'cx' | 'hr' | 'all',
+              )
+            }
+          >
+            <option value="all">all</option>
+            <option value="mbti">mbti</option>
+            <option value="herzberg">herzberg</option>
+            <option value="cx">cx</option>
+            <option value="hr">hr</option>
+          </select>
+          <button
+            onClick={async () => {
+              const result = await api.get('/specialized/templates', {
+                params:
+                  templateCategory === 'all'
+                    ? {}
+                    : { category: templateCategory },
+              });
+              setPhase10Result(result.data);
+            }}
+          >
+            دریافت قالب‌ها
+          </button>
+        </div>
+
+        <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+          {JSON.stringify(phase10Result ?? {}, null, 2)}
         </pre>
       </div>
     </div>
