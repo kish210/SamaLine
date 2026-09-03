@@ -2,11 +2,18 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
+import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
 import { ReportController } from './report.controller';
 import { ReportService } from './report.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ResponseEntity, AnswerFlatEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      ResponseEntity,
+      AnswerFlatEntity,
+      SavedFilterEntity,
+    ]),
+  ],
   controllers: [ReportController],
   providers: [ReportService],
 })

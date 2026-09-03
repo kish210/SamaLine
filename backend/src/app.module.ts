@@ -19,7 +19,9 @@ import { OrganizationEntity } from './database/entities/organization.entity';
 import { OrganizationUserEntity } from './database/entities/organization-user.entity';
 import { PlanPolicyEntity } from './database/entities/plan-policy.entity';
 import { PublicationEntity } from './database/entities/publication.entity';
+import { ResponseCommentEntity } from './database/entities/response-comment.entity';
 import { ResponseEntity } from './database/entities/response.entity';
+import { SavedFilterEntity } from './database/entities/saved-filter.entity';
 import { SubscriptionEntity } from './database/entities/subscription.entity';
 import { UserEntity } from './database/entities/user.entity';
 import { UsageCounterEntity } from './database/entities/usage-counter.entity';
@@ -49,6 +51,8 @@ import { WorkspaceEntity } from './database/entities/workspace.entity';
           UsageCounterEntity,
           WebhookEntity,
           AuditLogEntity,
+          ResponseCommentEntity,
+          SavedFilterEntity,
         ],
         synchronize: false,
       }),

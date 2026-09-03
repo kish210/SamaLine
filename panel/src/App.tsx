@@ -61,6 +61,16 @@ function App() {
   const [languagesInput, setLanguagesInput] = useState('fa');
   const [aiGoal, setAiGoal] = useState('افزایش رضایت مشتریان شعب');
   const [aiResult, setAiResult] = useState<Record<string, unknown> | null>(null);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterRespondentKey, setFilterRespondentKey] = useState('');
+  const [filterQuestionId, setFilterQuestionId] = useState('');
+  const [filterValueText, setFilterValueText] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [savedFilterName, setSavedFilterName] = useState('فیلتر پیش‌فرض');
+  const [selectedResponseId, setSelectedResponseId] = useState('');
+  const [commentAuthorName, setCommentAuthorName] = useState('تحلیلگر');
+  const [commentBody, setCommentBody] = useState('');
 
   const registerMutation = useMutation({
     mutationFn: (payload: Record<string, string>) => api.post<AuthPayload>('/auth/register', payload),
@@ -89,8 +99,30 @@ function App() {
   });
 
   const responsesQuery = useQuery({
-    queryKey: ['responses', activeFormId, token],
-    queryFn: async () => (await api.get(`/responses/form/${activeFormId}`)).data,
+    queryKey: [
+      'responses',
+      activeFormId,
+      token,
+      filterStatus,
+      filterRespondentKey,
+      filterQuestionId,
+      filterValueText,
+      filterDateFrom,
+      filterDateTo,
+    ],
+    queryFn: async () =>
+      (
+        await api.get(`/responses/form/${activeFormId}`, {
+          params: {
+            status: filterStatus || undefined,
+            respondentKey: filterRespondentKey || undefined,
+            questionId: filterQuestionId || undefined,
+            valueText: filterValueText || undefined,
+            dateFrom: filterDateFrom || undefined,
+            dateTo: filterDateTo || undefined,
+          },
+        })
+      ).data,
     enabled: Boolean(token && activeFormId),
   });
 
@@ -113,6 +145,53 @@ function App() {
     queryKey: ['summary', activeFormId, token],
     queryFn: async () => (await api.get(`/reports/forms/${activeFormId}/summary`)).data,
     enabled: Boolean(token && activeFormId),
+  });
+
+  const savedFiltersQuery = useQuery({
+    queryKey: ['saved-filters', workspaceId, token],
+    queryFn: async () =>
+      (
+        await api.get('/reports/filters', {
+          params: { workspaceId },
+        })
+      ).data,
+    enabled: Boolean(token && workspaceId),
+  });
+
+  const commentsQuery = useQuery({
+    queryKey: ['comments', selectedResponseId, token],
+    queryFn: async () =>
+      (await api.get(`/responses/${selectedResponseId}/comments`)).data,
+    enabled: Boolean(token && selectedResponseId),
+  });
+
+  const saveFilterMutation = useMutation({
+    mutationFn: () =>
+      api.post('/reports/filters', {
+        workspaceId,
+        name: savedFilterName,
+        definition: {
+          status: filterStatus,
+          respondentKey: filterRespondentKey,
+          questionId: filterQuestionId,
+          valueText: filterValueText,
+          dateFrom: filterDateFrom,
+          dateTo: filterDateTo,
+        },
+      }),
+    onSuccess: () => savedFiltersQuery.refetch(),
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/responses/${selectedResponseId}/comments`, {
+        authorName: commentAuthorName,
+        body: commentBody,
+      }),
+    onSuccess: () => {
+      setCommentBody('');
+      commentsQuery.refetch();
+    },
   });
 
   if (!token) {
@@ -322,6 +401,73 @@ function App() {
 
       <div className="card">
         <h3>{t('responses')}</h3>
+        <div className="grid2">
+          <select
+            value={filterStatus}
+            onChange={(event) => setFilterStatus(event.target.value)}
+          >
+            <option value="">همه وضعیت‌ها</option>
+            <option value="partial">partial</option>
+            <option value="completed">completed</option>
+          </select>
+          <input
+            value={filterRespondentKey}
+            onChange={(event) => setFilterRespondentKey(event.target.value)}
+            placeholder="respondent key"
+          />
+          <input
+            value={filterQuestionId}
+            onChange={(event) => setFilterQuestionId(event.target.value)}
+            placeholder="question id"
+          />
+          <input
+            value={filterValueText}
+            onChange={(event) => setFilterValueText(event.target.value)}
+            placeholder="متن پاسخ"
+          />
+          <input
+            value={filterDateFrom}
+            onChange={(event) => setFilterDateFrom(event.target.value)}
+            placeholder="dateFrom ISO"
+          />
+          <input
+            value={filterDateTo}
+            onChange={(event) => setFilterDateTo(event.target.value)}
+            placeholder="dateTo ISO"
+          />
+        </div>
+        <div className="row">
+          <input
+            value={savedFilterName}
+            onChange={(event) => setSavedFilterName(event.target.value)}
+            placeholder="نام فیلتر ذخیره‌شده"
+          />
+          <button onClick={() => saveFilterMutation.mutate()}>ذخیره فیلتر</button>
+        </div>
+        <div>
+          {(savedFiltersQuery.data ?? []).map(
+            (saved: {
+              id: string;
+              name: string;
+              definition: Record<string, string>;
+            }) => (
+              <button
+                key={saved.id}
+                className="secondary"
+                onClick={() => {
+                  setFilterStatus(saved.definition.status ?? '');
+                  setFilterRespondentKey(saved.definition.respondentKey ?? '');
+                  setFilterQuestionId(saved.definition.questionId ?? '');
+                  setFilterValueText(saved.definition.valueText ?? '');
+                  setFilterDateFrom(saved.definition.dateFrom ?? '');
+                  setFilterDateTo(saved.definition.dateTo ?? '');
+                }}
+              >
+                {saved.name}
+              </button>
+            ),
+          )}
+        </div>
         <a href={exportUrl} target="_blank" rel="noreferrer">
           <button>{t('exportExcel')}</button>
         </a>
@@ -332,6 +478,36 @@ function App() {
         <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
           {JSON.stringify(summaryQuery.data ?? {}, null, 2)}
         </pre>
+        <h4>کامنت تیم روی پاسخ</h4>
+        <select
+          value={selectedResponseId}
+          onChange={(event) => setSelectedResponseId(event.target.value)}
+        >
+          <option value="">انتخاب پاسخ</option>
+          {(responsesQuery.data ?? []).map((item: { id: string }) => (
+            <option key={item.id} value={item.id}>
+              {item.id}
+            </option>
+          ))}
+        </select>
+        {!!selectedResponseId && (
+          <>
+            <input
+              value={commentAuthorName}
+              onChange={(event) => setCommentAuthorName(event.target.value)}
+              placeholder="نام نویسنده کامنت"
+            />
+            <textarea
+              value={commentBody}
+              onChange={(event) => setCommentBody(event.target.value)}
+              placeholder="متن کامنت"
+            />
+            <button onClick={() => addCommentMutation.mutate()}>ثبت کامنت</button>
+            <pre style={{ overflow: 'auto', background: '#f3f4f6', padding: 12 }}>
+              {JSON.stringify(commentsQuery.data ?? [], null, 2)}
+            </pre>
+          </>
+        )}
       </div>
 
       <div className="card">

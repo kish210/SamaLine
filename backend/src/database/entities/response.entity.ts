@@ -10,6 +10,7 @@ import {
 import { AnswerFlatEntity } from './answer-flat.entity';
 import { FormVersionEntity } from './form-version.entity';
 import { PublicationEntity } from './publication.entity';
+import { ResponseCommentEntity } from './response-comment.entity';
 
 export enum ResponseStatus {
   PARTIAL = 'partial',
@@ -72,4 +73,7 @@ export class ResponseEntity {
 
   @OneToMany(() => AnswerFlatEntity, (answerFlat) => answerFlat.response)
   answerFlat: AnswerFlatEntity[];
+
+  @OneToMany(() => ResponseCommentEntity, (comment) => comment.response)
+  comments: ResponseCommentEntity[];
 }

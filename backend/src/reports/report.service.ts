@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
+import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
+import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 
 @Injectable()
 export class ReportService {
@@ -11,6 +13,8 @@ export class ReportService {
     private readonly responseRepo: Repository<ResponseEntity>,
     @InjectRepository(AnswerFlatEntity)
     private readonly answerFlatRepo: Repository<AnswerFlatEntity>,
+    @InjectRepository(SavedFilterEntity)
+    private readonly savedFilterRepo: Repository<SavedFilterEntity>,
   ) {}
 
   async formSummary(formId: string) {
@@ -50,5 +54,64 @@ export class ReportService {
     return Object.entries(counts)
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count);
+  }
+
+  async filteredResponses(formId: string, filter: ReportResponseFilterDto) {
+    const qb = this.responseRepo
+      .createQueryBuilder('response')
+      .innerJoin('response.formVersion', 'formVersion')
+      .where('formVersion.formId = :formId', { formId });
+
+    if (filter.status) {
+      qb.andWhere('response.status = :status', { status: filter.status });
+    }
+
+    if (filter.respondentKey) {
+      qb.andWhere('response.respondentKey = :respondentKey', {
+        respondentKey: filter.respondentKey,
+      });
+    }
+
+    if (filter.dateFrom) {
+      qb.andWhere('response.createdAt >= :dateFrom', {
+        dateFrom: filter.dateFrom,
+      });
+    }
+
+    if (filter.dateTo) {
+      qb.andWhere('response.createdAt <= :dateTo', { dateTo: filter.dateTo });
+    }
+
+    if (filter.questionId || filter.valueText) {
+      qb.innerJoin('response.answerFlat', 'answerFlat');
+      if (filter.questionId) {
+        qb.andWhere('answerFlat.questionId = :questionId', {
+          questionId: filter.questionId,
+        });
+      }
+      if (filter.valueText) {
+        qb.andWhere('answerFlat.valueText ILIKE :valueText', {
+          valueText: `%${filter.valueText}%`,
+        });
+      }
+    }
+
+    return qb.orderBy('response.createdAt', 'DESC').take(500).getMany();
+  }
+
+  saveFilter(dto: SaveFilterDto) {
+    return this.savedFilterRepo.save(this.savedFilterRepo.create(dto));
+  }
+
+  listFilters(workspaceId: string) {
+    return this.savedFilterRepo.find({
+      where: { workspaceId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async deleteFilter(id: string) {
+    await this.savedFilterRepo.delete({ id });
+    return { ok: true };
   }
 }
