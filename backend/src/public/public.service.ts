@@ -246,6 +246,15 @@ export class PublicService {
       respondentKey,
     );
 
+    const quota = await this.planService.canAcceptResponse(
+      formData.organizationId,
+    );
+    if (!quota.allowed) {
+      throw new BadRequestException(
+        quota.reason ?? 'سقف پاسخ‌نامه پلن تکمیل شده است',
+      );
+    }
+
     const startedAt = new Date();
     const submittedAt = new Date();
     const structure = formData.structure as FormStructure;

@@ -1,6 +1,8 @@
 import { AnswerFlatEntity } from './answer-flat.entity';
 import { ApiKeyEntity } from './api-key.entity';
 import { AuditLogEntity } from './audit-log.entity';
+import { ContactEntity } from './contact.entity';
+import { ContactListEntity } from './contact-list.entity';
 import { DeliveryLogEntity } from './delivery-log.entity';
 import { FormEntity } from './form.entity';
 import { FormVersionEntity } from './form-version.entity';
@@ -49,4 +51,6 @@ export const ALL_ENTITIES = [
   InvoiceEntity,
   PaymentEntity,
   OnPremLicenseEntity,
+  ContactListEntity,
+  ContactEntity,
 ];

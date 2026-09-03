@@ -68,8 +68,46 @@ export class PlanService {
     return this.getPolicyByOrganization(workspace.organizationId);
   }
 
+  /**
+   * آیا سازمان هنوز در سقف پاسخ‌نامه‌ی ماهانه‌ی پلن خود جا دارد؟
+   *
+   * سقف تا پیش از این فقط ثبت می‌شد و هرگز اعمال نمی‌شد؛ یعنی پلن رایگان
+   * عملا پاسخ نامحدود می‌پذیرفت.
+   */
+  async canAcceptResponse(organizationId: string) {
+    const limits = (await this.getPolicyByOrganization(organizationId)) as {
+      responsesPerMonth?: number;
+    };
+    const limit = Number(limits.responsesPerMonth ?? -1);
+
+    // مقدار منفی یعنی نامحدود.
+    if (!Number.isFinite(limit) || limit < 0) {
+      return { allowed: true, reason: null, used: 0, limit };
+    }
+
+    const periodKey = PlanService.currentPeriodKey();
+    const counter = await this.usageRepo.findOne({
+      where: { organizationId, periodKey, metric: 'response_submitted' },
+    });
+    const used = counter?.used ?? 0;
+
+    return used >= limit
+      ? {
+          allowed: false,
+          reason: `سقف پاسخ‌نامه ماهانه پلن شما (${limit}) تکمیل شده است`,
+          used,
+          limit,
+        }
+      : { allowed: true, reason: null, used, limit };
+  }
+
+  /** کلید دوره‌ی مصرف: سال-ماه میلادی به وقت UTC. */
+  private static currentPeriodKey() {
+    return new Date().toISOString().slice(0, 7);
+  }
+
   async trackUsage(organizationId: string, metric: string, amount = 1) {
-    const periodKey = new Date().toISOString().slice(0, 7);
+    const periodKey = PlanService.currentPeriodKey();
     const limits = await this.getPolicyByOrganization(organizationId);
     const metricLimitMap: Record<string, string> = {
       response_submitted: 'responsesPerMonth',
