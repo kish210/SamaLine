@@ -81,34 +81,75 @@ export class PublicService {
       return { ...step, page: null, scores };
     }
 
-    const page = (structure.pages ?? []).find((p) => p.id === step.nextPageId);
-    const visible = this.logicRuntime.visibleQuestionIds(structure, context);
-
     return {
       ...step,
       scores,
-      page: page
-        ? {
-            ...page,
-            questions: (page.questions ?? [])
-              .filter((q) => visible.has(q.id))
-              .map((q) => ({
-                ...q,
-                title: this.logicEngine.applyPiping(
-                  String(q.title ?? ''),
-                  answers,
-                  params,
-                ),
-                description: q.description
-                  ? this.logicEngine.applyPiping(
-                      String(q.description),
-                      answers,
-                      params,
-                    )
-                  : q.description,
-              })),
-          }
-        : null,
+      page: this.renderPage(structure, step.nextPageId, context),
+    };
+  }
+
+  /**
+   * یک صفحه‌ی مشخص با وضعیت نمایش فعلی.
+   *
+   * پاسخ‌دهنده هنگام پر کردن همان صفحه ممکن است سوالی را فعال یا غیرفعال
+   * کند؛ کلاینت با این اندپوینت صفحه‌ی جاری را تازه می‌کند بدون اینکه
+   * منطق را خودش پیاده‌سازی کند.
+   */
+  async resolvePageByToken(
+    token: string,
+    pageId: string,
+    dto: {
+      answers?: Record<string, unknown>;
+      params?: Record<string, unknown>;
+    },
+  ) {
+    const formData = await this.getByToken(token);
+    const structure = formData.structure as FormStructure;
+    const answers = dto.answers ?? {};
+    const params = dto.params ?? {};
+    const scores = this.scoreEngine.calculate(structure, answers);
+    const context = { answers, params, scores };
+
+    const page = this.renderPage(structure, pageId, context);
+    if (!page) throw new NotFoundException('صفحه یافت نشد');
+
+    const pages = structure.pages ?? [];
+    return {
+      page,
+      scores,
+      isFirstPage: pages[0]?.id === pageId,
+    };
+  }
+
+  /** صفحه را با فیلتر نمایش و Piping آماده‌ی نمایش می‌کند. */
+  private renderPage(
+    structure: FormStructure,
+    pageId: string,
+    context: {
+      answers: Record<string, unknown>;
+      params: Record<string, unknown>;
+      scores: Record<string, number>;
+    },
+  ) {
+    const page = (structure.pages ?? []).find((p) => p.id === pageId);
+    if (!page) return null;
+
+    const visible = this.logicRuntime.visibleQuestionIds(structure, context);
+    const pipe = (text: string) =>
+      this.logicEngine.applyPiping(text, context.answers, context.params);
+
+    return {
+      ...page,
+      title: pipe(String(page.title ?? '')),
+      questions: (page.questions ?? [])
+        .filter((q) => visible.has(q.id))
+        .map((q) => ({
+          ...q,
+          title: pipe(String(q.title ?? '')),
+          description: q.description
+            ? pipe(String(q.description))
+            : q.description,
+        })),
     };
   }
 

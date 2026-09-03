@@ -21,6 +21,15 @@ export class PublicController {
     return this.publicService.nextStepByToken(token, dto);
   }
 
+  @Post(':token/pages/:pageId')
+  resolvePage(
+    @Param('token') token: string,
+    @Param('pageId') pageId: string,
+    @Body() dto: NextStepDto,
+  ) {
+    return this.publicService.resolvePageByToken(token, pageId, dto);
+  }
+
   @Post(':token/submit')
   submit(@Param('token') token: string, @Body() dto: SubmitResponseDto) {
     return this.publicService.submitByToken(token, dto);

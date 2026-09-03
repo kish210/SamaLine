@@ -1,0 +1,231 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { formApi } from './api';
+import type { Answers, Page, PublicForm } from './types';
+
+type View = 'start' | 'form' | 'end';
+
+/** پارامترهای آدرس یک بار هنگام بارگذاری خوانده می‌شوند. */
+function readUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const hidden: Record<string, string> = {};
+  params.forEach((value, key) => {
+    if (!['respondentKey', 'r', 'lang'].includes(key)) hidden[key] = value;
+  });
+
+  return {
+    hiddenParams: hidden,
+    // لینک‌های کمپین کلید گیرنده را در پارامتر `r` می‌فرستند.
+    respondentKey: params.get('respondentKey') ?? params.get('r') ?? '',
+    lang: params.get('lang'),
+  };
+}
+
+/**
+ * جریان پاسخ‌دهی به فرم.
+ *
+ * تمام تصمیم‌های منطقی (کدام سوال دیده شود، صفحه‌ی بعد کدام است)
+ * از سرور می‌آید؛ اینجا فقط وضعیت رابط کاربری نگه داشته می‌شود.
+ * پیش از این، رندرر نسخه‌ی دوم و ناقصی از موتور منطق را داشت که با
+ * موتور سرور واگرا می‌شد.
+ */
+export function useFormFlow(token: string | undefined) {
+  const [urlState] = useState(readUrlState);
+  const [form, setForm] = useState<PublicForm | null>(null);
+  const [page, setPage] = useState<Page | null>(null);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [history, setHistory] = useState<string[]>([]);
+  const [view, setView] = useState<View>('start');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [respondentKey, setRespondentKey] = useState(urlState.respondentKey);
+  const [lang, setLang] = useState(urlState.lang ?? 'fa');
+  const hiddenParams = urlState.hiddenParams;
+
+  // آخرین پاسخ‌ها برای فراخوانی‌های تاخیری، بدون وابسته کردن effectها.
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  const describeError = (err: unknown) =>
+    (err as { response?: { data?: { message?: string } } })?.response?.data
+      ?.message ?? 'خطا در ارتباط با سرور';
+
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    formApi
+      .get(token)
+      .then((data) => {
+        setForm(data);
+        const languages = data.settings?.languages ?? ['fa'];
+        // زبان انتخاب‌شده در آدرس بر زبان پیش‌فرض فرم اولویت دارد.
+        if (!urlState.lang) {
+          setLang(String(languages[0] ?? 'fa'));
+        }
+        setView(data.settings?.startPageEnabled === false ? 'form' : 'start');
+      })
+      .catch((err) => setError(describeError(err)))
+      .finally(() => setLoading(false));
+  }, [token, urlState.lang]);
+
+  // بازیابی پیشرفت ذخیره‌شده
+  useEffect(() => {
+    if (!token || !respondentKey) return;
+    formApi
+      .getProgress(token, respondentKey)
+      .then((data) => {
+        if (data.exists) {
+          setAnswers(data.answers ?? {});
+          setView('form');
+        }
+      })
+      .catch(() => undefined);
+  }, [token, respondentKey]);
+
+  const loadFirstPage = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const step = await formApi.nextStep(token, {
+        answers: answersRef.current,
+        params: hiddenParams,
+      });
+      setScores(step.scores);
+      if (step.finished || !step.page) {
+        setView('end');
+      } else {
+        setPage(step.page);
+        setHistory([]);
+        setView('form');
+      }
+    } catch (err) {
+      setError(describeError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, hiddenParams]);
+
+  /** صفحه‌ی جاری را با پاسخ‌های تازه بازخوانی می‌کند (منطق نمایش درون‌صفحه‌ای). */
+  const refreshPage = useCallback(async () => {
+    if (!token || !page) return;
+    try {
+      const data = await formApi.resolvePage(token, page.id, {
+        answers: answersRef.current,
+        params: hiddenParams,
+      });
+      setPage(data.page);
+      setScores(data.scores);
+    } catch {
+      // شکست در تازه‌سازی نباید پاسخ‌دهی را متوقف کند.
+    }
+  }, [token, page, hiddenParams]);
+
+  const goNext = useCallback(async () => {
+    if (!token || !page) return null;
+    setLoading(true);
+    try {
+      const step = await formApi.nextStep(token, {
+        currentPageId: page.id,
+        answers: answersRef.current,
+        params: hiddenParams,
+      });
+      setScores(step.scores);
+
+      if (step.finished || !step.page) return { finished: true };
+
+      setHistory((prev) => [...prev, page.id]);
+      setPage(step.page);
+      return { finished: false };
+    } catch (err) {
+      setError(describeError(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [token, page, hiddenParams]);
+
+  /** بازگشت با تاریخچه‌ی واقعی مسیر، چون پرش‌ها ترتیب صفحات را می‌شکنند. */
+  const goBack = useCallback(async () => {
+    if (!token || history.length === 0) return;
+    const previousId = history[history.length - 1];
+    setLoading(true);
+    try {
+      const data = await formApi.resolvePage(token, previousId, {
+        answers: answersRef.current,
+        params: hiddenParams,
+      });
+      setPage(data.page);
+      setScores(data.scores);
+      setHistory((prev) => prev.slice(0, -1));
+    } catch (err) {
+      setError(describeError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, history, hiddenParams]);
+
+  const submit = useCallback(async () => {
+    if (!token) return false;
+    setLoading(true);
+    try {
+      await formApi.submit(token, {
+        respondentKey: respondentKey || undefined,
+        answers: answersRef.current,
+        meta: { respondentKey, lang, params: hiddenParams },
+      });
+      setView('end');
+      return true;
+    } catch (err) {
+      setError(describeError(err));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [token, respondentKey, lang, hiddenParams]);
+
+  const setAnswer = useCallback((questionId: string, value: unknown) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  }, []);
+
+  // ذخیره‌ی خودکار پیشرفت
+  useEffect(() => {
+    if (!token || !respondentKey || view !== 'form') return;
+    if (form?.settings?.saveProgress === false) return;
+
+    const timer = setTimeout(() => {
+      void formApi
+        .saveProgress(token, {
+          respondentKey,
+          answers,
+          meta: { respondentKey, lang, params: hiddenParams },
+        })
+        .catch(() => undefined);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [answers, form, hiddenParams, lang, respondentKey, token, view]);
+
+  return {
+    form,
+    page,
+    answers,
+    scores,
+    view,
+    loading,
+    error,
+    lang,
+    respondentKey,
+    canGoBack: history.length > 0,
+    setLang,
+    setRespondentKey,
+    setAnswer,
+    loadFirstPage,
+    refreshPage,
+    goNext,
+    goBack,
+    submit,
+    setView,
+  };
+}

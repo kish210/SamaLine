@@ -36,3 +36,64 @@ button {
   color: white;
   cursor: pointer;
 }
+
+/* — کلاس‌های افزوده‌ی جریان پاسخ‌دهی — */
+.question {
+  margin-bottom: 18px;
+}
+
+.question > label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.description {
+  display: block;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.static-text {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.actions button {
+  flex: 1;
+}
+
+.actions button[type='button'] {
+  background: white;
+  color: #111827;
+}
+
+.error {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+.scores {
+  list-style: none;
+  padding: 0;
+}
+
+.scores li {
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
