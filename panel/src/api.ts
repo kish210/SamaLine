@@ -116,10 +116,14 @@ export const reportsApi = {
   summary: (formId: string) =>
     api
       .get<{
-        visits: number;
+        views: number;
         started: number;
         completed: number;
+        /** درصد بازدیدهایی که به پاسخ کامل رسیده‌اند. */
+        responseRate: number;
+        /** درصد شروع‌کننده‌هایی که تا آخر رفته‌اند. */
         completionRate: number;
+        averageDurationSeconds: number | null;
       }>(`/reports/forms/${formId}/summary`)
       .then((r) => r.data),
 

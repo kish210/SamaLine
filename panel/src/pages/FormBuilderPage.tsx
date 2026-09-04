@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { describeError, formsApi } from '../api';
+import { formUrl } from '../renderer-url';
 import type { FormPage, Question, QuestionType } from '../types';
 import { CustomLinkCard } from './builder/CustomLinkCard';
 import { FlowChart } from './builder/FlowChart';
@@ -9,6 +10,7 @@ import { AddQuestionMenu } from './builder/AddQuestionMenu';
 import { AiReviewCard } from './builder/AiReviewCard';
 import { EdgePagesEditor } from './builder/EdgePagesEditor';
 import { LivePreview } from './builder/LivePreview';
+import { PublishCard } from './builder/PublishCard';
 import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
@@ -238,11 +240,19 @@ export function FormBuilderPage() {
       {error && <p className="error">{error}</p>}
 
       {form.data.publication && tab === 'build' && (
-        <CustomLinkCard
-          formId={formId}
-          token={form.data.publication.token}
-          currentSlug={form.data.publication.slug}
-        />
+        <>
+          <PublishCard
+            url={formUrl(
+              form.data.publication.slug ?? form.data.publication.token,
+            )}
+            title={form.data.title}
+          />
+          <CustomLinkCard
+            formId={formId}
+            token={form.data.publication.token}
+            currentSlug={form.data.publication.slug}
+          />
+        </>
       )}
 
       <div className="tabs">

@@ -7,6 +7,20 @@ interface Props {
 }
 
 /** داشبورد فرم و جدول پاسخ‌نامه‌ها (بند ۸ سند). */
+/**
+ * مدت زمان به شکل خوانا.
+ *
+ * ثانیه‌ی خام برای زمان‌های چنددقیقه‌ای خوانده نمی‌شود؛ «۵:۴۴» یا «۴۴ ثانیه»
+ * فوری فهمیده می‌شود.
+ */
+function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return '—';
+  if (seconds < 60) return `${Math.round(seconds)} ثانیه`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
 export function ResponsesPanel({ formId }: Props) {
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [advancedExport, setAdvancedExport] = useState(false);
@@ -43,7 +57,7 @@ export function ResponsesPanel({ formId }: Props) {
     <div className="report-tab">
       <div className="stat-row">
         <div className="stat">
-          <span className="stat-value">{summary.data?.visits ?? 0}</span>
+          <span className="stat-value">{summary.data?.views ?? 0}</span>
           <span className="stat-label">بازدید</span>
         </div>
         <div className="stat">
@@ -55,10 +69,20 @@ export function ResponsesPanel({ formId }: Props) {
           <span className="stat-label">تکمیل‌شده</span>
         </div>
         <div className="stat">
+          <span className="stat-value">{summary.data?.responseRate ?? 0}٪</span>
+          <span className="stat-label">نرخ پاسخگویی</span>
+        </div>
+        <div className="stat">
           <span className="stat-value">
             {summary.data?.completionRate ?? 0}٪
           </span>
           <span className="stat-label">نرخ تکمیل</span>
+        </div>
+        <div className="stat">
+          <span className="stat-value">
+            {formatDuration(summary.data?.averageDurationSeconds)}
+          </span>
+          <span className="stat-label">میانگین زمان پاسخ</span>
         </div>
       </div>
 

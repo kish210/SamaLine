@@ -1,3 +1,4 @@
+import { RENDERER_BASE } from '../../renderer-url';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { describeError, formsApi } from '../../api';
@@ -8,8 +9,7 @@ interface Props {
   currentSlug: string | null;
 }
 
-const rendererBase =
-  import.meta.env.VITE_RENDERER_URL ?? 'http://localhost:5173';
+
 
 /**
  * نشانی ثابت و خواندنی فرم.
@@ -46,8 +46,8 @@ export function CustomLinkCard({ formId, token, currentSlug }: Props) {
     onError: (err) => setError(describeError(err)),
   });
 
-  const tokenUrl = `${rendererBase}/f/${token}`;
-  const slugUrl = currentSlug ? `${rendererBase}/f/${currentSlug}` : null;
+  const tokenUrl = `${RENDERER_BASE}/f/${token}`;
+  const slugUrl = currentSlug ? `${RENDERER_BASE}/f/${currentSlug}` : null;
 
   return (
     <section className="card">
@@ -75,7 +75,7 @@ export function CustomLinkCard({ formId, token, currentSlug }: Props) {
       <label>
         نشانی اختصاصی — فقط حروف کوچک انگلیسی، رقم و خط تیره
         <div className="inline-form">
-          <span className="url-prefix">{rendererBase}/f/</span>
+          <span className="url-prefix">{RENDERER_BASE}/f/</span>
           <input
             value={slug}
             placeholder="nazarsanji-1405"

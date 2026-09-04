@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formUrl } from '../../renderer-url';
 
 interface Props {
   /** توکن انتشار؛ بدون آن فرم هنوز آدرس عمومی ندارد. */
@@ -11,8 +12,7 @@ interface Props {
 
 type Device = 'mobile' | 'desktop';
 
-const RENDERER_URL =
-  import.meta.env.VITE_RENDERER_URL ?? 'http://localhost:5173';
+
 
 /**
  * پیش‌نمایش زنده‌ی فرم، کنار ویرایشگر.
@@ -68,7 +68,7 @@ export function LivePreview({ token, dirty, version }: Props) {
           // با هر ذخیره، key عوض می‌شود و iframe از نو بارگذاری می‌شود.
           key={version}
           title="پیش‌نمایش فرم"
-          src={`${RENDERER_URL}/f/${token}`}
+          src={formUrl(token)}
         />
       </div>
     </aside>
