@@ -47,7 +47,9 @@ cd panel && npm install && npm run build           # خروجی در panel/dist
 cd form-renderer && npm install && npm run build   # خروجی در form-renderer/dist
 ```
 
-> پیش از انتشار، `JWT_SECRET` و `RESPONDENT_KEY_SALT` را حتما عوض کنید.
+> پیش از انتشار، `JWT_SECRET`، `RESPONDENT_KEY_SALT` و
+> `SECRET_ENCRYPTION_KEY` را حتما عوض کنید و `PAYMENT_PROVIDER` را از
+> حالت محلی خارج کنید.
 
 ### دود تست
 
@@ -58,7 +60,7 @@ cd backend && npm run smoke
 چرخه‌ی کامل سامانه را روی سرور در حال اجرا می‌سنجد: ثبت‌نام، ساخت فرم با
 منطق و شاخص، انتشار، لینک اختصاصی، Piping، پنهان شدن سوال شرطی، ثبت
 پاسخ، گزارش، خروجی، مخاطبان، کمپین، مسدودسازی SSRF و احراز هویت
-پاسخ‌دهنده — ۲۱ گام.
+پاسخ‌دهنده، داشبوردساز و پرداخت — ۲۷ گام.
 
 ## معماری
 
@@ -129,6 +131,7 @@ http://localhost:5173/f/nazarsanji-1405                    ← اختصاصی
 | پیامک | `local` — نوشتن در `data/outbox/sms.jsonl` | `kavenegar` یا `webhook` |
 | ایمیل | `local` — نوشتن در `data/outbox/email.jsonl` | `webhook` |
 | هوش مصنوعی | `mock` — بدون کلید و بدون اینترنت | `openai` (هر سرویس سازگار، شامل مدل داخلی) |
+| درگاه پرداخت | `local` — هر پرداختی موفق، فقط برای توسعه | `zarinpal` |
 | صف ارسال | صف پایدار روی دیتابیس + صف درون‌فرایندی | — (نیازی به Redis نیست) |
 
 خروجی مدل هوش مصنوعی همیشه پیش از بارگذاری در فرم‌ساز با schema
@@ -143,7 +146,7 @@ http://localhost:5173/f/nazarsanji-1405                    ← اختصاصی
 ```bash
 npm run start:dev    # اجرا با watch
 npm run typecheck    # بررسی نوع‌ها
-npm test             # ۲۱۸ تست واحد و ادغام
+npm test             # ۲۵۶ تست واحد و ادغام
 npm run smoke        # دود تست چرخه‌ی کامل روی سرور در حال اجرا
 npm run release      # بیلد + داده‌ی اولیه + اجرای تولید
 npm run lint         # اسلینت
@@ -174,7 +177,9 @@ npm run db:seed      # ساخت/به‌روزرسانی داده‌ی اولیه
 | خروجی اکسل و CSV (ساده و پیشرفته) | ✅ |
 | صف پایدار روی دیتابیس | ✅ |
 | PWA و ذخیره‌ی آفلاین پاسخ | ✅ |
-| داشبوردساز و خروجی PDF/PowerPoint | ⏳ |
+| داشبوردساز با اشتراک‌گذاری عمومی | ✅ |
+| درگاه پرداخت ایرانی (زرین‌پال) | ✅ |
+| رمزنگاری کلید API در سطح ستون | ✅ |
+| خروجی PDF و PowerPoint | ⏳ |
 | OAuth و LDAP برای پاسخ‌دهنده | ⏳ |
 | اپ موبایل و پرسشگر میدانی (React Native) | ⏳ |
-| درگاه پرداخت ایرانی | ⏳ |

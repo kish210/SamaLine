@@ -180,6 +180,59 @@ async function main() {
   });
   check('دسترسی پس از ورود', opened.status === 200);
 
+  // ── داشبوردساز ──
+  const dashboard = await call('POST', '/dashboards', { name: 'دود' });
+  const dashboardId = dashboard.data?.id;
+  check('ساخت داشبورد', Boolean(dashboardId));
+
+  await call('PATCH', `/dashboards/${dashboardId}`, {
+    widgets: [
+      {
+        id: 'w1',
+        type: 'stat',
+        title: 'تکمیل‌شده',
+        formId,
+        metric: 'completed',
+        layout: { x: 0, y: 0, w: 3, h: 2 },
+      },
+    ],
+  });
+  const rendered = await call('GET', `/dashboards/${dashboardId}/data`);
+  check('محاسبه‌ی ویجت', rendered.data?.widgets?.[0]?.value === 1);
+
+  const shared = await call('PATCH', `/dashboards/${dashboardId}/public`, {
+    isPublic: true,
+  });
+  const publicView = await call(
+    'GET',
+    `/public/dashboards/${shared.data.publicToken}`,
+  );
+  check('اشتراک عمومی داشبورد', publicView.status === 200);
+
+  // ── پرداخت ──
+  const invoice = await call('POST', '/billing/invoices', { amount: 250000 });
+  const started = await call('POST', '/billing/payments', {
+    invoiceId: invoice.data.id,
+    gateway: 'x',
+    // مبلغ ناچیز از کلاینت؛ باید نادیده گرفته شود.
+    amount: 1,
+  });
+  check('مبلغ پرداخت از فاکتور می‌آید', started.data?.amount === 250000);
+
+  const verified = await call(
+    'PATCH',
+    `/billing/payments/${started.data.paymentId}/verify`,
+  );
+  check('تایید پرداخت از درگاه', verified.data?.status === 'success');
+
+  const paidInvoice = await call('GET', '/billing/invoices');
+  check(
+    'تسویه‌ی فاکتور',
+    paidInvoice.data?.some(
+      (row) => row.id === invoice.data.id && row.status === 'paid',
+    ),
+  );
+
   const failed = results.filter((r) => !r.ok);
   console.log(
     `\n${results.length - failed.length}/${results.length} گام موفق`,
