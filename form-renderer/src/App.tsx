@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { LanguagePicker } from './LanguagePicker';
 import { PublicDashboard } from './PublicDashboard';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
@@ -14,6 +15,13 @@ function FormPage() {
   const flow = useFormFlow(token);
   const startedRef = useRef(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /*
+   * جهت آخرین جابه‌جایی، برای انیمیشن ورود.
+   *
+   * در iOS رفتن به جلو از یک سمت می‌آید و بازگشت از سمت مقابل؛ همین یک
+   * نشانه، حس «کجای مسیر هستم» را می‌دهد.
+   */
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   useTheme(flow.form?.theme);
 
   // در حالت تک‌سوالی، شماره‌ی سوال جاری درون صفحه.
@@ -53,6 +61,7 @@ function FormPage() {
 
     // در حالت تک‌سوالی، تا وقتی سوال بعدی در همین صفحه هست به سرور
     // نمی‌رویم؛ منطق پرش فقط بین صفحات معنا دارد.
+    setDirection('forward');
     if (!isLastQuestionOfPage) {
       setQuestionIndex((prev) => prev + 1);
       return;
@@ -70,6 +79,7 @@ function FormPage() {
    */
   const autoAdvance = () => {
     if (!oneAtATime || flow.loading) return;
+    setDirection('forward');
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     autoTimerRef.current = setTimeout(() => {
       if (isLastQuestionOfPage) {
@@ -92,6 +102,7 @@ function FormPage() {
   );
 
   const handleBack = async () => {
+    setDirection('back');
     if (oneAtATime && questionIndex > 0) {
       setQuestionIndex((prev) => prev - 1);
       return;
@@ -151,21 +162,13 @@ function FormPage() {
       {flow.view === 'start' && (
         <div className="start-page">
           <p>{flow.form.settings?.startPageText || 'به فرم خوش آمدید'}</p>
-          <input
-            value={flow.respondentKey}
-            onChange={(e) => flow.setRespondentKey(e.target.value)}
-            placeholder="شناسه پاسخ‌دهنده (برای ذخیره پیشرفت)"
-          />
-          <select
+
+          <LanguagePicker
+            languages={flow.form.settings?.languages ?? ['fa']}
             value={flow.lang}
-            onChange={(event) => flow.setLang(event.target.value)}
-          >
-            {(flow.form.settings?.languages ?? ['fa']).map((lng) => (
-              <option key={lng} value={lng}>
-                {lng}
-              </option>
-            ))}
-          </select>
+            onChange={flow.setLang}
+          />
+
           <button
             type="button"
             disabled={flow.loading}
@@ -200,30 +203,46 @@ function FormPage() {
             </div>
           )}
 
-          <h3>{flow.page.title}</h3>
+          {/*
+            کلید شامل صفحه و شماره‌ی سوال است؛ با هر جابه‌جایی، React این
+            بخش را از نو می‌سازد و انیمیشن ورود دوباره اجرا می‌شود.
+          */}
+          <div
+            key={`${flow.page.id}:${questionIndex}`}
+            className={`step-panel enter-${direction}`}
+          >
+            <h3>{flow.page.title}</h3>
 
-          {visibleQuestions.map((question) => (
-            <div key={question.id} className="question">
-              <label htmlFor={question.id}>
-                {question.required && (
-                  <span className="required-star" aria-hidden="true">
-                    *
-                  </span>
+            {visibleQuestions.map((question) => (
+              <div key={question.id} className="question">
+                <label htmlFor={question.id}>
+                  {question.required && (
+                    <span className="required-star" aria-hidden="true">
+                      *
+                    </span>
+                  )}
+                  {question.title}
+                </label>
+                {question.description && (
+                  <small className="description">{question.description}</small>
                 )}
-                {question.title}
-              </label>
-              {question.description && (
-                <small className="description">{question.description}</small>
-              )}
-              <QuestionField
-                question={question}
-                value={flow.answers[question.id]}
-                lang={flow.lang}
-                onChange={(value) => flow.setAnswer(question.id, value)}
-                onCommit={autoAdvance}
-              />
-            </div>
-          ))}
+                {question.meta?.imageUrl && (
+                  <img
+                    className="question-image"
+                    src={question.meta.imageUrl}
+                    alt=""
+                  />
+                )}
+                <QuestionField
+                  question={question}
+                  value={flow.answers[question.id]}
+                  lang={flow.lang}
+                  onChange={(value) => flow.setAnswer(question.id, value)}
+                  onCommit={autoAdvance}
+                />
+              </div>
+            ))}
+          </div>
 
           <div className={oneAtATime ? 'actions bottom-bar' : 'actions'}>
             {oneAtATime && flow.progress !== null && (

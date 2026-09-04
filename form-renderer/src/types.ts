@@ -7,6 +7,10 @@ export interface QuestionMeta {
   rows?: string[];
   columns?: string[];
   labels?: { start?: string; end?: string };
+  /** تصویر بالای سوال. */
+  imageUrl?: string;
+  /** سوالِ خاموش‌شده در فرم‌ساز؛ سرور آن را اصلا نمی‌فرستد. */
+  hidden?: boolean;
 }
 
 export interface Question {

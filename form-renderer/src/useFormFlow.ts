@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formApi } from './api';
 import { isNetworkError, offlineOutbox } from './offline-outbox';
+import { resolveRespondentKey } from './respondent-key';
 import type { Answers, Page, PublicForm } from './types';
 
 type View = 'start' | 'form' | 'end';
@@ -39,7 +40,15 @@ export function useFormFlow(token: string | undefined) {
   const [view, setView] = useState<View>('start');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [respondentKey, setRespondentKey] = useState(urlState.respondentKey);
+  /*
+   * شناسه‌ی پاسخ‌دهنده را سیستم می‌سازد؛ از خود پاسخ‌دهنده پرسیده نمی‌شود.
+   *
+   * setter بیرون داده نمی‌شود و فقط پس از ورود موفق (که سرور شناسه‌ی
+   * واقعی مخاطب را برمی‌گرداند) از داخل همین هوک عوض می‌شود.
+   */
+  const [respondentKey, setRespondentKey] = useState(() =>
+    resolveRespondentKey(token, urlState.respondentKey),
+  );
   const [authMode, setAuthMode] = useState<string | null | undefined>(
     undefined,
   );
@@ -305,8 +314,7 @@ export function useFormFlow(token: string | undefined) {
       ? Math.min(95, Math.round((history.length / (history.length + 2)) * 100))
       : null,
     pendingCount,
-    setLang,
-    setRespondentKey,
+    setLang,
     setAnswer,
     loadFirstPage,
     refreshPage,

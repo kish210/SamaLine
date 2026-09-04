@@ -209,6 +209,42 @@ describe('LogicRuntimeService', () => {
       ).toBe(true);
     });
 
+    it('سوال خاموش‌شده در فرم‌ساز (meta.hidden) هرگز دیده نمی‌شود', () => {
+      const s: FormStructure = {
+        pages: [
+          {
+            id: 'p1',
+            questions: [{ id: 'q1' }, { id: 'q2', meta: { hidden: true } }],
+          },
+        ],
+      };
+      const visible = rt.visibleQuestionIds(s, ctx({}));
+      expect(visible.has('q1')).toBe(true);
+      expect(visible.has('q2')).toBe(false);
+    });
+
+    it('سوال خاموش‌شده حتی با برقراری قانون نمایش هم دیده نمی‌شود', () => {
+      const s: FormStructure = {
+        pages: [
+          {
+            id: 'p1',
+            questions: [{ id: 'q1' }, { id: 'q2', meta: { hidden: true } }],
+          },
+        ],
+        logic: {
+          display: [
+            {
+              targetQuestionId: 'q2',
+              sourceQuestionId: 'q1',
+              operator: 'equals',
+              value: 'بله',
+            },
+          ],
+        },
+      };
+      expect(rt.visibleQuestionIds(s, ctx({ q1: 'بله' })).has('q2')).toBe(false);
+    });
+
     it('قانون hide با برقراری شرط سوال را پنهان می‌کند', () => {
       const s: FormStructure = {
         pages: [{ id: 'p1', questions: [{ id: 'q1' }, { id: 'q2' }] }],

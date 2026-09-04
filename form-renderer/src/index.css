@@ -551,3 +551,140 @@ button:disabled {
   color: var(--form-primary);
   border: 1px solid rgba(128, 128, 128, 0.3);
 }
+
+/* انتخاب زبان با دکمه‌های کنار هم؛ فقط در فرم چندزبانه دیده می‌شود. */
+.language-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.lang-chip {
+  width: auto;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 999px;
+}
+
+.lang-chip.active {
+  background: var(--form-primary);
+  color: #fff;
+  border-color: var(--form-primary);
+}
+
+/* ── انیمیشن جابه‌جایی بین سوال‌ها ─────────────────────────────
+ *
+ * منحنی شتاب همان چیزی است که iOS برای گذارِ صفحه استفاده می‌کند:
+ * شروع سریع و توقف نرم. جابه‌جایی عمدا کوچک است (۲۴ پیکسل)، چون در
+ * موبایل حرکت بزرگ حس «پرش» می‌دهد نه روانی.
+ */
+:root {
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --step-duration: 340ms;
+}
+
+.step-panel {
+  animation: step-in var(--step-duration) var(--ease-ios) both;
+}
+
+/* در RTL، «جلو» از چپ می‌آید و «عقب» از راست. */
+.step-panel.enter-forward {
+  --step-from: -24px;
+}
+
+.step-panel.enter-back {
+  --step-from: 24px;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--step-from, -24px), 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* بازخورد لمسی: فشردن گزینه کمی جمعش می‌کند. */
+.option-card,
+.scale-step,
+.lang-chip,
+.jalali-day {
+  transition:
+    transform 140ms var(--ease-ios),
+    border-color 160ms var(--ease-ios),
+    background 160ms var(--ease-ios);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.option-card:active,
+.scale-step:active,
+.lang-chip:active,
+.jalali-day:active {
+  transform: scale(0.97);
+}
+
+.bottom-bar button:active {
+  transform: scale(0.98);
+}
+
+.bottom-bar button {
+  transition: transform 140ms var(--ease-ios);
+}
+
+/* باز شدن تقویم، مثل شیت iOS از پایین بالا می‌آید. */
+.jalali-popup {
+  animation: sheet-in 240ms var(--ease-ios) both;
+  transform-origin: top center;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* نوار پیشرفت هم با همان منحنی پر می‌شود. */
+.progress-fill {
+  transition: width var(--step-duration) var(--ease-ios);
+}
+
+/*
+ * احترام به تنظیم سیستمی «کاهش حرکت».
+ * کاربرانی که این را روشن کرده‌اند اغلب با انیمیشن دچار سرگیجه می‌شوند؛
+ * محتوا باید همچنان کامل دیده شود، فقط بدون حرکت.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .step-panel,
+  .jalali-popup {
+    animation: none;
+  }
+
+  .option-card,
+  .scale-step,
+  .lang-chip,
+  .jalali-day,
+  .bottom-bar button,
+  .progress-fill {
+    transition: none;
+  }
+
+  .option-card:active,
+  .scale-step:active,
+  .lang-chip:active,
+  .jalali-day:active,
+  .bottom-bar button:active {
+    transform: none;
+  }
+}

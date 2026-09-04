@@ -130,6 +130,9 @@ export class LogicRuntimeService {
     for (const page of structure.pages ?? []) {
       if (hiddenPages.has(page.id)) continue;
       for (const question of page.questions ?? []) {
+        // خاموش کردن دستی سوال در فرم‌ساز؛ اینجا اعمال می‌شود نه فقط در پنل،
+        // وگرنه سوالِ خاموش همچنان به پاسخ‌دهنده نشان داده می‌شد.
+        if (question.meta?.hidden === true) continue;
         if (this.isQuestionVisible(question.id, rules, context)) {
           visible.add(question.id);
         }

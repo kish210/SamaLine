@@ -119,6 +119,28 @@ describe('resolveTheme — ظاهر فرم', () => {
       expect(theme.primaryColor).toBe('#3ebfea');
     });
 
+    it('نام‌های قدیمی تم به تم متناظر جدید نگاشت می‌شوند', () => {
+      // فرم‌های موجود این نام‌ها را ذخیره کرده‌اند؛ نباید به پیش‌فرض بیفتند.
+      const pairs: Array<[string, string]> = [
+        ['sky', 'aseman'],
+        ['ocean', 'oghyanus'],
+        ['forest', 'jangal'],
+        ['sunset', 'ghorub'],
+        ['night', 'shab'],
+      ];
+      for (const [legacy, current] of pairs) {
+        expect(resolveTheme({ theme: { preset: legacy } })).toEqual(
+          resolveTheme({ theme: { preset: current } }),
+        );
+      }
+    });
+
+    it('تم ناشناس به پیش‌فرض برمی‌گردد', () => {
+      expect(resolveTheme({ theme: { preset: 'وجود-ندارد' } })).toEqual(
+        resolveTheme({}),
+      );
+    });
+
     it('تصویر پس‌زمینه را هم پاک‌سازی می‌کند', () => {
       expect(
         resolveTheme({ theme: { backgroundImageUrl: 'javascript:x' } })

@@ -92,6 +92,8 @@ export interface FormQuestionNode {
   weight?: number;
   scoring?: { indexId?: string; weight?: number };
   choices?: FormChoiceNode[];
+  /** فراداده‌ی سوال؛ `hidden` سوال را از جریان پاسخ‌دهی کنار می‌گذارد. */
+  meta?: { hidden?: boolean; [key: string]: unknown };
   [key: string]: unknown;
 }
 

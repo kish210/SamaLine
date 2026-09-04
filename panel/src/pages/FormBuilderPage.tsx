@@ -2,21 +2,42 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { describeError, formsApi } from '../api';
-import type { FormPage, Question } from '../types';
+import type { FormPage, Question, QuestionType } from '../types';
 import { CustomLinkCard } from './builder/CustomLinkCard';
 import { FlowChart } from './builder/FlowChart';
+import { AddQuestionMenu } from './builder/AddQuestionMenu';
+import { AiReviewCard } from './builder/AiReviewCard';
+import { EdgePagesEditor } from './builder/EdgePagesEditor';
+import { LivePreview } from './builder/LivePreview';
 import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
 
 type Tab = 'build' | 'design' | 'flow' | 'report';
 
-const newQuestion = (index: number): Question => ({
+const newQuestion = (
+  index: number,
+  type: QuestionType = 'short_text',
+): Question => ({
   id: `q${index}`,
-  type: 'short_text',
+  type,
   title: 'سوال جدید',
   required: false,
 });
+
+/**
+ * شناسه‌ی یکتا برای سوال کپی‌شده.
+ *
+ * شناسه در منطق پرش و Piping مرجع است، پس کپی نباید شناسه‌ی سوال اصلی را
+ * تکرار کند وگرنه قوانین به سوال اشتباه اشاره می‌کنند.
+ */
+function uniqueQuestionId(base: string, taken: Set<string>): string {
+  const stem = base.replace(/_copy\d*$/, '');
+  for (let i = 1; ; i += 1) {
+    const candidate = i === 1 ? `${stem}_copy` : `${stem}_copy${i}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
 
 export function FormBuilderPage() {
   const { formId = '' } = useParams();
@@ -25,6 +46,14 @@ export function FormBuilderPage() {
   const [pages, setPages] = useState<FormPage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  /*
+   * پیش‌نمایش، فرمِ منتشرشده روی سرور را نشان می‌دهد؛ پس تا وقتی ذخیره
+   * نشده باشد با آنچه در ویرایشگر است فرق دارد. این دو مقدار همان تفاوت
+   * را به کاربر می‌گویند و بعد از هر ذخیره iframe را تازه می‌کنند.
+   */
+  const [dirty, setDirty] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   const form = useQuery({
     queryKey: ['form', formId],
@@ -38,6 +67,7 @@ export function FormBuilderPage() {
   useEffect(() => {
     if (form.data?.latestVersion?.structure.pages) {
       setPages(form.data.latestVersion.structure.pages);
+      setDirty(false);
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
@@ -48,6 +78,8 @@ export function FormBuilderPage() {
     onSuccess: async () => {
       setError(null);
       setSaved(true);
+      setDirty(false);
+      setPreviewVersion((prev) => prev + 1);
       setTimeout(() => setSaved(false), 2500);
       await queryClient.invalidateQueries({ queryKey: ['form', formId] });
       await queryClient.invalidateQueries({ queryKey: ['flow', formId] });
@@ -75,16 +107,22 @@ export function FormBuilderPage() {
     enabled: Boolean(formId) && tab === 'flow',
   });
 
-  const updatePage = (pageIndex: number, patch: Partial<FormPage>) =>
+  /** هر ویرایش محلی، فرم را نسبت به نسخه‌ی ذخیره‌شده «تغییریافته» می‌کند. */
+  const markDirty = () => setDirty(true);
+
+  const updatePage = (pageIndex: number, patch: Partial<FormPage>) => {
+    markDirty();
     setPages((prev) =>
       prev.map((page, i) => (i === pageIndex ? { ...page, ...patch } : page)),
     );
+  };
 
   const updateQuestion = (
     pageIndex: number,
     questionIndex: number,
     patch: Partial<Question>,
-  ) =>
+  ) => {
+    markDirty();
     setPages((prev) =>
       prev.map((page, i) =>
         i !== pageIndex
@@ -97,12 +135,59 @@ export function FormBuilderPage() {
             },
       ),
     );
+  };
+
+  /** همه‌ی شناسه‌های سوال در کل فرم؛ برای ساخت شناسه‌ی یکتا. */
+  const allQuestionIds = () =>
+    new Set(pages.flatMap((page) => page.questions.map((q) => q.id)));
+
+  /** کوچک‌ترین شماره‌ی آزاد برای شناسه‌ی سوال جدید. */
+  const nextQuestionNumber = () => {
+    const taken = allQuestionIds();
+    for (let i = 1; ; i += 1) if (!taken.has(`q${i}`)) return i;
+  };
+
+  /**
+   * سوال‌هایی که پیش از این سوال پرسیده می‌شوند.
+   *
+   * فقط پاسخ همین‌ها را می‌توان در عنوان درج کرد؛ ارجاع به سوالی که هنوز
+   * پرسیده نشده، در زمان پاسخ‌دهی خالی درمی‌آید.
+   */
+  const earlierQuestions = (pageIndex: number, questionIndex: number) =>
+    pages
+      .slice(0, pageIndex + 1)
+      .flatMap((page, pi) =>
+        page.questions
+          .filter((_, qi) => pi < pageIndex || qi < questionIndex)
+          .map((q) => ({ id: q.id, title: q.title })),
+      );
+
+  const duplicateQuestion = (pageIndex: number, questionIndex: number) => {
+    markDirty();
+    setPages((prev) => {
+      const taken = new Set(
+        prev.flatMap((page) => page.questions.map((q) => q.id)),
+      );
+      return prev.map((page, i) => {
+        if (i !== pageIndex) return page;
+        const source = page.questions[questionIndex];
+        const copy: Question = {
+          ...structuredClone(source),
+          id: uniqueQuestionId(source.id, taken),
+        };
+        const questions = [...page.questions];
+        questions.splice(questionIndex + 1, 0, copy);
+        return { ...page, questions };
+      });
+    });
+  };
 
   const moveQuestion = (
     pageIndex: number,
     questionIndex: number,
     direction: -1 | 1,
-  ) =>
+  ) => {
+    markDirty();
     setPages((prev) =>
       prev.map((page, i) => {
         if (i !== pageIndex) return page;
@@ -116,6 +201,7 @@ export function FormBuilderPage() {
         return { ...page, questions };
       }),
     );
+  };
 
   if (form.isLoading) return <div className="page">در حال بارگذاری…</div>;
   if (!form.data) return <div className="page">فرم یافت نشد.</div>;
@@ -191,7 +277,8 @@ export function FormBuilderPage() {
       </div>
 
       {tab === 'build' && (
-        <div className="builder">
+        <div className="builder-layout">
+          <div className="builder">
           {pages.map((page, pageIndex) => (
             <section key={page.id} className="page-section">
               <div className="page-title-row">
@@ -206,9 +293,12 @@ export function FormBuilderPage() {
                   <button
                     type="button"
                     className="danger"
-                    onClick={() =>
-                      setPages((prev) => prev.filter((_, i) => i !== pageIndex))
-                    }
+                    onClick={() => {
+                      markDirty();
+                      setPages((prev) =>
+                        prev.filter((_, i) => i !== pageIndex),
+                      );
+                    }}
                   >
                     حذف صفحه
                   </button>
@@ -222,12 +312,14 @@ export function FormBuilderPage() {
                   index={questionIndex}
                   total={page.questions.length}
                   scoreIndexKeys={scoreIndexes}
+                  earlierQuestions={earlierQuestions(pageIndex, questionIndex)}
                   onChange={(patch) =>
                     updateQuestion(pageIndex, questionIndex, patch)
                   }
                   onMove={(direction) =>
                     moveQuestion(pageIndex, questionIndex, direction)
                   }
+                  onDuplicate={() => duplicateQuestion(pageIndex, questionIndex)}
                   onRemove={() =>
                     updatePage(pageIndex, {
                       questions: page.questions.filter(
@@ -238,44 +330,54 @@ export function FormBuilderPage() {
                 />
               ))}
 
-              <button
-                type="button"
-                className="secondary"
-                onClick={() =>
+              <AddQuestionMenu
+                onPick={(type) =>
                   updatePage(pageIndex, {
                     questions: [
                       ...page.questions,
-                      newQuestion(page.questions.length + 1),
+                      newQuestion(nextQuestionNumber(), type),
                     ],
                   })
                 }
-              >
-                + افزودن سوال
-              </button>
+              />
             </section>
           ))}
 
           <button
             type="button"
             className="secondary"
-            onClick={() =>
+            onClick={() => {
+              markDirty();
               setPages((prev) => [
                 ...prev,
                 {
                   id: `p${prev.length + 1}`,
                   title: `صفحه ${prev.length + 1}`,
-                  questions: [newQuestion(1)],
+                  questions: [newQuestion(nextQuestionNumber())],
                 },
-              ])
-            }
+              ]);
+            }}
           >
             + افزودن صفحه
           </button>
+          </div>
+
+          <div className="side-column">
+            <LivePreview
+              token={form.data.publication?.token}
+              dirty={dirty}
+              version={previewVersion}
+            />
+            <AiReviewCard pages={pages} />
+          </div>
         </div>
       )}
 
       {tab === 'design' && (
-        <ThemeEditor formId={formId} settings={form.data.settings} />
+        <div className="design-tab">
+          <ThemeEditor formId={formId} settings={form.data.settings} />
+          <EdgePagesEditor formId={formId} settings={form.data.settings} />
+        </div>
       )}
 
       {tab === 'flow' && (

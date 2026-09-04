@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { describeError, formsApi } from '../../api';
+import {
+  THEME_PRESETS,
+  canonicalPreset,
+  presetBackground,
+} from '../../theme-presets';
 
 interface Props {
   formId: string;
@@ -21,14 +26,6 @@ interface ThemeValue {
   oneQuestionPerStep: boolean;
 }
 
-const PRESETS: Array<{ value: string; label: string; swatch: string }> = [
-  { value: 'default', label: 'پیش‌فرض', swatch: '#111827' },
-  { value: 'ocean', label: 'دریایی', swatch: '#0369a1' },
-  { value: 'sky', label: 'آسمانی', swatch: '#3ebfea' },
-  { value: 'forest', label: 'جنگلی', swatch: '#047857' },
-  { value: 'sunset', label: 'غروب', swatch: '#c2410c' },
-  { value: 'night', label: 'شب', swatch: '#818cf8' },
-];
 
 const EMPTY: ThemeValue = {
   preset: 'default',
@@ -51,15 +48,69 @@ export function ThemeEditor({ formId, settings }: Props) {
   const [saved, setSaved] = useState(false);
 
   const stored = (settings.theme ?? {}) as Partial<ThemeValue> | string;
-  const initial: ThemeValue =
-    typeof stored === 'string'
-      ? { ...EMPTY, preset: stored }
-      : { ...EMPTY, ...stored };
+  // سازگاری با داده‌ی قدیمی که تم را رشته ذخیره می‌کرد.
+  const storedObject: Partial<ThemeValue> =
+    typeof stored === 'string' ? { preset: stored } : stored;
+
+  /*
+   * پایه‌ی رنگ‌ها، خودِ تم انتخاب‌شده است نه پیش‌فرض سیاه.
+   *
+   * تم آماده معمولا فقط با نام ذخیره می‌شود و رنگ‌هایش را سرور اعمال
+   * می‌کند. اگر ویرایشگر رنگ‌ها را از EMPTY بخواند، سلکتورها رنگی را نشان
+   * می‌دهند که فرم واقعی ندارد و اولین «ذخیره» همان رنگِ اشتباه را روی فرم
+   * می‌نویسد — یعنی ظاهر فرم بدون اینکه کاربر چیزی عوض کرده باشد خراب می‌شود.
+   */
+  const presetBase = THEME_PRESETS.find(
+    (item) => item.key === canonicalPreset(storedObject.preset ?? 'default'),
+  );
+
+  const initial: ThemeValue = {
+    ...EMPTY,
+    ...(presetBase
+      ? {
+          primaryColor: presetBase.primaryColor,
+          backgroundColor: presetBase.backgroundColor,
+          surfaceColor: presetBase.surfaceColor ?? EMPTY.surfaceColor,
+          textColor: presetBase.textColor,
+          cornerRadius: presetBase.cornerRadius ?? EMPTY.cornerRadius,
+          gradientColor: presetBase.gradientColor ?? '',
+        }
+      : {}),
+    // مقدارِ صریحِ ذخیره‌شده بر تم اولویت دارد.
+    ...storedObject,
+  };
 
   const [theme, setTheme] = useState<ThemeValue>(initial);
 
   const set = <K extends keyof ThemeValue>(key: K, value: ThemeValue[K]) =>
     setTheme((prev) => ({ ...prev, [key]: value }));
+
+  /**
+   * انتخاب یک تم آماده.
+   *
+   * رنگ‌ها هم واقعا نوشته می‌شوند، نه فقط نام تم: اگر کاربر قبلا رنگی را
+   * دستی عوض کرده باشد، آن رنگ بر تمِ تازه‌انتخاب‌شده اولویت پیدا می‌کند و
+   * نتیجه با بندانگشتی‌ای که کلیک شده فرق می‌کند.
+   */
+  const applyPreset = (key: string) => {
+    const preset = THEME_PRESETS.find((item) => item.key === key);
+    if (!preset) return;
+    setTheme({
+      ...EMPTY,
+      preset: key,
+      primaryColor: preset.primaryColor,
+      backgroundColor: preset.backgroundColor,
+      surfaceColor: preset.surfaceColor ?? EMPTY.surfaceColor,
+      textColor: preset.textColor,
+      cornerRadius: preset.cornerRadius ?? EMPTY.cornerRadius,
+      gradientColor: preset.gradientColor ?? '',
+      // مواردی که به تم ربط ندارند حفظ می‌شوند.
+      logoUrl: theme.logoUrl,
+      backgroundImageUrl: theme.backgroundImageUrl,
+      oneQuestionPerStep: theme.oneQuestionPerStep,
+      gradientAngle: theme.gradientAngle,
+    });
+  };
 
   const save = useMutation({
     mutationFn: () =>
@@ -91,27 +142,48 @@ export function ThemeEditor({ formId, settings }: Props) {
 
       {error && <p className="error-line">{error}</p>}
 
-      <label>
-        تم آماده
-        <div className="preset-row">
-          {PRESETS.map((preset) => (
+      <div className="preset-block">
+        <span className="field-label">تم آماده</span>
+        <div className="preset-grid">
+          {THEME_PRESETS.map((preset) => (
             <button
-              key={preset.value}
+              key={preset.key}
               type="button"
+              title={preset.label}
               className={
-                theme.preset === preset.value ? 'preset active' : 'preset'
+                canonicalPreset(theme.preset) === preset.key
+                  ? 'preset-card active'
+                  : 'preset-card'
               }
-              onClick={() => set('preset', preset.value)}
+              onClick={() => applyPreset(preset.key)}
             >
+              {/* بندانگشتی، همان ترکیب رنگی فرم واقعی را نشان می‌دهد. */}
               <span
-                className="preset-swatch"
-                style={{ background: preset.swatch }}
-              />
+                className="preset-thumb"
+                style={{ background: presetBackground(preset) }}
+              >
+                <span
+                  className="preset-thumb-card"
+                  style={{
+                    background: preset.surfaceColor ?? '#ffffff',
+                    borderRadius: (preset.cornerRadius ?? 14) / 2,
+                  }}
+                >
+                  <span
+                    className="preset-thumb-line"
+                    style={{ background: preset.textColor, opacity: 0.5 }}
+                  />
+                  <span
+                    className="preset-thumb-button"
+                    style={{ background: preset.primaryColor }}
+                  />
+                </span>
+              </span>
               {preset.label}
             </button>
           ))}
         </div>
-      </label>
+      </div>
 
       <div className="grid-2">
         <label>
