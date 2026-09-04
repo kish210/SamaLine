@@ -41,7 +41,15 @@ body {
  */
 .app-shell {
   display: grid;
-  grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  /*
+   * سایدبار پیش‌فرض باز است.
+   *
+   * سند طراحی هر دو عرض را دارد (۶۰px جمع و ۲۲۰px باز). حالت جمع در ERP
+   * مرجع با یک ست آیکون واقعی کار می‌کند؛ اینجا آیکون تصویری نداریم و
+   * نماد تک‌کاراکتری بدون لیبل خوانا نیست، پس حالت باز پیش‌فرض است و
+   * جمع‌شدن فقط در نمایشگر باریک اتفاق می‌افتد.
+   */
+  grid-template-columns: var(--sidebar-w) 1fr;
   grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
   grid-template-areas:
     'topbar topbar'
@@ -51,9 +59,15 @@ body {
   transition: grid-template-columns var(--dur) var(--ease);
 }
 
-/* سایدبار فقط هنگام هاور باز می‌شود؛ فضای محتوا جابه‌جا نمی‌شود. */
-.app-shell:has(.sidebar:hover) {
-  grid-template-columns: var(--sidebar-w) 1fr;
+/* در نمایشگر باریک، سایدبار جمع می‌شود و با هاور باز. */
+@media (max-width: 1000px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  }
+
+  .app-shell:has(.sidebar:hover) {
+    grid-template-columns: var(--sidebar-w) 1fr;
+  }
 }
 
 /* ---- تاپ‌بار ---- */
@@ -189,14 +203,20 @@ body {
   font-size: var(--text-md);
 }
 
-/* لیبل فقط وقتی سایدبار باز است دیده می‌شود. */
 .nav-label {
-  opacity: 0;
+  opacity: 1;
   transition: opacity var(--dur-fast) var(--ease);
 }
 
-.sidebar:hover .nav-label {
-  opacity: 1;
+/* در حالت جمع، لیبل فقط با هاور روی سایدبار ظاهر می‌شود. */
+@media (max-width: 1000px) {
+  .nav-label {
+    opacity: 0;
+  }
+
+  .sidebar:hover .nav-label {
+    opacity: 1;
+  }
 }
 
 /* ---- نوار وضعیت ---- */
@@ -1486,4 +1506,19 @@ input[type='color'] {
   background: #1f2937;
   color: #e5e7eb;
   border-radius: 8px;
+}
+
+/* آیکن سایدبار: SVG درون‌خطی، هم‌تراز با متن. */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+}
+
+/* جداکننده‌ی بخش سوپرادمین از منوی عادی. */
+.nav-item.platform-item {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }

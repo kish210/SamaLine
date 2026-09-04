@@ -1,29 +1,30 @@
 import { useQuery } from '@tanstack/react-query';
 import { NavLink, Outlet } from 'react-router-dom';
 import { platformApi } from './api';
+import { NavIcon } from './NavIcon';
 import { useAuth } from './auth';
 
 /**
  * آیتم‌های سایدبار.
  *
- * هر آیتم یک آیکون تک‌کاراکتری دارد، چون سایدبار در حالت جمع فقط ۶۰px
- * عرض دارد و لیبل‌ها تنها با هاور باز می‌شوند (الگوی پوسته‌ی سماع).
+ * سایدبار پیش‌فرض باز است (۲۲۰px) و در نمایشگر باریک جمع می‌شود؛ آنجا
+ * فقط آیکون دیده می‌شود، پس هر آیتم آیکون اختصاصی دارد.
  */
 const NAV = [
-  { to: '/forms', label: 'فرم‌ها', icon: '▤' },
-  { to: '/dashboards', label: 'داشبوردها', icon: '▦' },
-  { to: '/contacts', label: 'مخاطبان', icon: '☰' },
-  { to: '/sources', label: 'اتصال به CRM', icon: '⇄' },
-  { to: '/campaigns', label: 'ارسال گروهی', icon: '✉' },
-  { to: '/ai', label: 'هوش مصنوعی', icon: '✧' },
-  { to: '/settings', label: 'تنظیمات', icon: '⚙' },
+  { to: '/forms', label: 'فرم‌ها', icon: 'forms' },
+  { to: '/dashboards', label: 'داشبوردها', icon: 'dashboards' },
+  { to: '/contacts', label: 'مخاطبان', icon: 'contacts' },
+  { to: '/sources', label: 'اتصال به CRM', icon: 'crm' },
+  { to: '/campaigns', label: 'ارسال گروهی', icon: 'campaigns' },
+  { to: '/ai', label: 'هوش مصنوعی', icon: 'ai' },
+  { to: '/settings', label: 'تنظیمات', icon: 'settings' },
 ];
 
 /** آیتم ویژه‌ی سوپرادمین؛ فقط برای مدیر کل سامانه. */
 const PLATFORM_NAV = {
   to: '/platform',
   label: 'تنظیمات سامانه',
-  icon: '⌘',
+  icon: 'platform',
 };
 
 /** حرف اول نام، برای آواتار. */
@@ -80,11 +81,18 @@ export function Layout() {
               to={item.to}
               title={item.label}
               className={({ isActive }) =>
-                isActive ? 'nav-item active' : 'nav-item'
+                [
+                  'nav-item',
+                  isActive ? 'active' : '',
+                  // بخش سوپرادمین با یک خط از منوی عادی جدا می‌شود.
+                  item.to === PLATFORM_NAV.to ? 'platform-item' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
               }
             >
-              <span className="nav-icon" aria-hidden="true">
-                {item.icon}
+              <span className="nav-icon">
+                <NavIcon name={item.icon} />
               </span>
               <span className="nav-label">{item.label}</span>
             </NavLink>
