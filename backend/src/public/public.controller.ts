@@ -53,7 +53,7 @@ export class PublicController {
     @Param('token') token: string,
     @Headers(RESPONDENT_HEADER) accessToken?: string,
   ) {
-    return this.publicService.getByToken(token, accessToken);
+    return this.publicService.openForm(token, accessToken);
   }
 
   @Post(':token/next')

@@ -112,6 +112,7 @@ describe('DashboardService — داشبوردساز', () => {
       ds.getRepository(ResponseEntity),
       ds.getRepository(AnswerFlatEntity),
       ds.getRepository(SavedFilterEntity),
+      ds.getRepository(PublicationEntity),
     );
 
     service = new DashboardService(

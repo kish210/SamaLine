@@ -213,6 +213,27 @@ export class PublicService {
     };
   }
 
+  /**
+   * فرم را برمی‌گرداند و باز شدنش را می‌شمارد.
+   *
+   * شمارش عمدا اینجاست نه در getByToken: آن متد را مسیرهای دیگر (گام بعد،
+   * ثبت پاسخ، ذخیره‌ی پیشرفت) هم صدا می‌زنند و بازدید چند برابر می‌شد.
+   */
+  async openForm(token: string, accessToken?: string) {
+    const payload = await this.getByToken(token, accessToken);
+    /*
+     * منتظر نوشتن شمارنده نمی‌مانیم.
+     *
+     * این یک آمار است نه یک تعهد؛ اگر نوشتنش شکست بخورد نباید نمایش فرم
+     * به پاسخ‌دهنده کند یا خراب شود.
+     */
+    void this.publicationRepo
+      .increment({ id: payload.publicationId }, 'viewCount', 1)
+      .catch(() => undefined);
+
+    return payload;
+  }
+
   /** انتشار را با توکن تصادفی یا نشانی اختصاصی پیدا می‌کند. */
   private findPublication(token: string) {
     return this.publicationRepo

@@ -88,6 +88,15 @@ export class PublicationEntity {
 
   @Column({ type: JSON_COLUMN, default: {} })
   config: Record<string, unknown>;
+  /**
+   * تعداد دفعاتی که فرم عمومی باز شده است.
+   *
+   * مبنای «نرخ پاسخگویی» است. پیش از این، بازدید با تعداد پاسخ یکی گرفته
+   * می‌شد و نرخ همیشه صد درصد درمی‌آمد.
+   */
+  @Column({ type: 'int', default: 0 })
+  viewCount: number;
+
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

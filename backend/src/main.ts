@@ -1,5 +1,7 @@
 // باید پیش از هر import دیگری اجرا شود تا DB_DRIVER هنگام ساخت موجودیت‌ها موجود باشد.
 import 'dotenv/config';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -7,6 +9,74 @@ import { uploadDirectory } from './uploads/upload.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { DB_DRIVER } from './database/column-types';
+
+const RENDERER_DIR = resolve(process.cwd(), '../form-renderer/dist');
+const PANEL_DIR = resolve(process.cwd(), '../panel/dist');
+
+/** آیا این اپ build شده است؟ */
+function isBuilt(dir: string): boolean {
+  return existsSync(join(dir, 'index.html'));
+}
+
+/** سرو کردن فایل‌های استاتیک یک اپ ساخته‌شده. */
+function serveStaticIfBuilt(
+  app: NestExpressApplication,
+  dir: string,
+  prefix: string,
+): void {
+  if (isBuilt(dir)) app.useStaticAssets(dir, { prefix });
+}
+
+/**
+ * مسیر پوششی SPA.
+ *
+ * هر دو اپ React‌اند و مسیرهای داخلی‌شان فایل واقعی نیستند، پس مسیر ناشناخته
+ * باید index.html بگیرد.
+ *
+ * عمدا میان‌افزار است نه route: Nest در پایان init یک هندلر ۴۰۴ ثبت می‌کند و
+ * هر route‌ای که بعد از آن اضافه شود هرگز اجرا نمی‌شود. میان‌افزار پیش از
+ * مسیرها می‌نشیند، پس خودش باید مسیرهای API را کنار بگذارد.
+ */
+function useSpaFallback(
+  app: NestExpressApplication,
+  dir: string,
+  prefix: string,
+): void {
+  if (!isBuilt(dir)) return;
+
+  app.use((req: SpaRequest, res: SpaResponse, next: () => void) => {
+    const path = req.path ?? '';
+
+    // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های غیر GET رد می‌شوند.
+    const isApiPath =
+      path.startsWith('/api') || path.startsWith('/uploads');
+    const inScope = prefix === '/' ? true : path.startsWith(prefix);
+    const wantsHtml = (req.headers?.accept ?? '').includes('text/html');
+
+    if (req.method !== 'GET' || isApiPath || !inScope || !wantsHtml) {
+      next();
+      return;
+    }
+
+    // درخواست فایل واقعی (js/css/تصویر) را به میان‌افزار استاتیک می‌سپاریم.
+    if (/\.[a-zA-Z0-9]{2,5}$/.test(path)) {
+      next();
+      return;
+    }
+
+    res.sendFile(join(dir, 'index.html'));
+  });
+}
+
+interface SpaRequest {
+  method: string;
+  path?: string;
+  headers?: { accept?: string };
+}
+
+interface SpaResponse {
+  sendFile: (path: string) => void;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -18,6 +88,17 @@ async function bootstrap() {
    * نیازی به توکن برای دیدنش نباشد — لوگو روی فرم عمومی نمایش داده می‌شود.
    */
   app.useStaticAssets(uploadDirectory(), { prefix: '/uploads/' });
+
+  /*
+   * در استقرار تک‌پورتی، خودِ بک‌اند فایل‌های ساخته‌شده‌ی پنل و فرم را هم
+   * سرو می‌کند: یک پورت و یک پروسه، بدون nginx یا سرویس جانبی.
+   */
+  serveStaticIfBuilt(app, RENDERER_DIR, '/');
+  serveStaticIfBuilt(app, PANEL_DIR, '/panel');
+  // ترتیب مهم است: پنل پیش از ریشه، وگرنه ریشه مسیرهای پنل را هم می‌گیرد.
+  useSpaFallback(app, PANEL_DIR, '/panel');
+  useSpaFallback(app, RENDERER_DIR, '/');
+
   app.setGlobalPrefix('api/v1');
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

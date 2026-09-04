@@ -15,7 +15,12 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      {/*
+        مسیر پایه از همان base ساخت می‌آید (BASE_URL).
+        در استقرار تک‌پورتی پنل زیر /panel است؛ بدون این، مسیرهای داخلی
+        به ریشه می‌روند و به فرم‌رندرر می‌خورند نه پنل.
+      */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

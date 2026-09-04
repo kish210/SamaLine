@@ -7,6 +7,7 @@ import { FormVersionEntity } from '../database/entities/form-version.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import { ReportController } from './report.controller';
 import {
   DashboardController,
@@ -26,6 +27,7 @@ import { ReportService } from './report.service';
       DashboardEntity,
       FormEntity,
       WorkspaceEntity,
+      PublicationEntity,
     ]),
   ],
   controllers: [

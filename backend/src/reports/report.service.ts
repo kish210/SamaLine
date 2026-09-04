@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 import { LIKE_OPERATOR } from '../database/column-types';
 
@@ -16,28 +17,56 @@ export class ReportService {
     private readonly answerFlatRepo: Repository<AnswerFlatEntity>,
     @InjectRepository(SavedFilterEntity)
     private readonly savedFilterRepo: Repository<SavedFilterEntity>,
+    @InjectRepository(PublicationEntity)
+    private readonly publicationRepo: Repository<PublicationEntity>,
   ) {}
 
+  /**
+   * شاخص‌های کلی یک فرم.
+   *
+   * «بازدید» از شمارنده‌ی انتشار می‌آید نه از تعداد پاسخ؛ پیش از این این
+   * دو یکی گرفته می‌شدند و نرخ پاسخگویی همیشه صد درصد درمی‌آمد.
+   */
   async formSummary(formId: string) {
-    const completed = await this.responseRepo
-      .createQueryBuilder('response')
-      .innerJoin('response.formVersion', 'version')
-      .where('version.formId = :formId', { formId })
+    const base = () =>
+      this.responseRepo
+        .createQueryBuilder('response')
+        .innerJoin('response.formVersion', 'version')
+        .where('version.formId = :formId', { formId });
+
+    const started = await base().getCount();
+    const completed = await base()
       .andWhere("response.status = 'completed'")
       .getCount();
 
-    const started = await this.responseRepo
-      .createQueryBuilder('response')
-      .innerJoin('response.formVersion', 'version')
-      .where('version.formId = :formId', { formId })
-      .getCount();
+    const { total } = (await this.publicationRepo
+      .createQueryBuilder('publication')
+      .select('COALESCE(SUM(publication.viewCount), 0)', 'total')
+      .where('publication.formId = :formId', { formId })
+      .getRawOne<{ total: string }>()) ?? { total: '0' };
+
+    const views = Number(total) || 0;
+
+    const { avg } = (await base()
+      .andWhere("response.status = 'completed'")
+      .andWhere('response.durationSeconds IS NOT NULL')
+      .select('AVG(response.durationSeconds)', 'avg')
+      .getRawOne<{ avg: string | null }>()) ?? { avg: null };
+
+    const percent = (part: number, whole: number) =>
+      whole > 0 ? Number(((part / whole) * 100).toFixed(2)) : 0;
 
     return {
-      visits: started,
+      views,
       started,
       completed,
-      completionRate:
-        started > 0 ? Number(((completed / started) * 100).toFixed(2)) : 0,
+      /** چند درصد از بازدیدها به پاسخ کامل رسیده‌اند. */
+      responseRate: percent(completed, views),
+      /** چند درصد از شروع‌کننده‌ها تا آخر رفته‌اند. */
+      completionRate: percent(completed, started),
+      /** میانگین زمان پاسخ‌دهی بر حسب ثانیه. */
+      averageDurationSeconds:
+        avg === null ? null : Number(Number(avg).toFixed(1)),
     };
   }
 
