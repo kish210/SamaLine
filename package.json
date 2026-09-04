@@ -1,0 +1,13 @@
+{
+  "name": "samaline",
+  "private": true,
+  "version": "1.1.0",
+  "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "install:all": "npm --prefix backend install && npm --prefix form-renderer install && npm --prefix panel install",
+    "build": "npm --prefix backend run build && npm --prefix form-renderer run build && npm --prefix panel run build",
+    "test": "npm --prefix backend test && npm --prefix form-renderer run test:jalali",
+    "smoke": "npm --prefix backend run smoke"
+  }
+}

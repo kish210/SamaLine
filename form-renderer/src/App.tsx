@@ -8,6 +8,7 @@ import { PublicDashboard } from './PublicDashboard';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
+import { firstInvalid, validateAnswer } from './validate';
 import { useTheme } from './useTheme';
 
 /**
@@ -45,6 +46,13 @@ function FormBody({ token, flow }: FormBodyProps) {
    * نشانه، حس «کجای مسیر هستم» را می‌دهد.
    */
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  /*
+   * خطای اعتبارسنجی سوال‌های همین گام.
+   *
+   * فقط بعد از تلاش برای رفتن به گام بعد نشان داده می‌شود؛ نشان دادن خطا
+   * حین تایپ، پیش از آنکه کاربر تمام کند، آزاردهنده است.
+   */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useTheme(flow.form?.theme);
 
   // در حالت تک‌سوالی، شماره‌ی سوال جاری درون صفحه.
@@ -79,11 +87,26 @@ function FormBody({ token, flow }: FormBodyProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answersKey]);
 
+  /**
+   * رفتن به گام بعد.
+   *
+   * فرم `noValidate` است تا اعتبارسنجی بومی مرورگر جلوی submit را نگیرد؛
+   * وگرنه این تابع اصلا اجرا نمی‌شود و به‌جای پیام فارسی ما، یک تولتیپ
+   * انگلیسی مرورگر نشان داده می‌شود.
+   */
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
     // در حالت تک‌سوالی، تا وقتی سوال بعدی در همین صفحه هست به سرور
     // نمی‌رویم؛ منطق پرش فقط بین صفحات معنا دارد.
+    // سوال‌های همین گام پیش از رفتن جلو سنجیده می‌شوند.
+    const invalid = firstInvalid(visibleQuestions, flow.answers);
+    if (invalid) {
+      setFieldErrors({ [invalid.questionId]: invalid.message });
+      return;
+    }
+    setFieldErrors({});
+
     setDirection('forward');
     if (!isLastQuestionOfPage) {
       setQuestionIndex((prev) => prev + 1);
@@ -102,6 +125,8 @@ function FormBody({ token, flow }: FormBodyProps) {
    */
   const autoAdvance = () => {
     if (!oneAtATime || flow.loading) return;
+    // مقدار نامعتبر نباید با رفتن خودکار از قلم بیفتد.
+    if (firstInvalid(visibleQuestions, flow.answers)) return;
     setDirection('forward');
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     autoTimerRef.current = setTimeout(() => {
@@ -125,6 +150,7 @@ function FormBody({ token, flow }: FormBodyProps) {
   );
 
   const handleBack = async () => {
+    setFieldErrors({});
     setDirection('back');
     if (oneAtATime && questionIndex > 0) {
       setQuestionIndex((prev) => prev - 1);
@@ -203,7 +229,7 @@ function FormBody({ token, flow }: FormBodyProps) {
       )}
 
       {flow.view === 'form' && flow.page && (
-        <form onSubmit={handleSubmit}>
+        <form noValidate onSubmit={handleSubmit}>
           {flow.progress !== null && !oneAtATime && (
             <div className="progress-row">
               <div
@@ -260,9 +286,27 @@ function FormBody({ token, flow }: FormBodyProps) {
                   question={question}
                   value={flow.answers[question.id]}
                   lang={flow.lang}
-                  onChange={(value) => flow.setAnswer(question.id, value)}
+                  onChange={(value) => {
+                    flow.setAnswer(question.id, value);
+                    // به‌محض درست شدن مقدار، خطا برداشته می‌شود.
+                    if (
+                      fieldErrors[question.id] &&
+                      !validateAnswer(question, value)
+                    ) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next[question.id];
+                        return next;
+                      });
+                    }
+                  }}
                   onCommit={autoAdvance}
                 />
+                {fieldErrors[question.id] && (
+                  <p className="field-error" role="alert">
+                    {fieldErrors[question.id]}
+                  </p>
+                )}
               </div>
             ))}
           </div>

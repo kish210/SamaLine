@@ -24,6 +24,7 @@ import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
 import { RespondentAuthService } from './respondent-auth.service';
+import { validateAnswers } from './answer-validator';
 import {
   PlatformSettingsService,
   type PublicFooter,
@@ -404,6 +405,29 @@ export class PublicService {
     );
     // شاخص نهایی روی پاسخ‌های پاک‌سازی‌شده محاسبه می‌شود.
     const scores = this.scoreEngine.calculate(structure, answers);
+
+    /*
+     * اعتبارسنجی سمت سرور.
+     *
+     * اعتبارسنجی مرورگر با یک درخواست مستقیم به API کاملا دور زده می‌شود،
+     * پس تنها جای قابل اتکا همین‌جاست. فقط سوال‌هایی سنجیده می‌شوند که
+     * پس از اعمال منطق شرطی واقعا به پاسخ‌دهنده نشان داده شده‌اند.
+     */
+    const visible = this.logicRuntime.visibleQuestionIds(structure, {
+      answers,
+      params,
+      scores,
+    });
+    const allQuestions = (structure.pages ?? []).flatMap(
+      (page) => page.questions ?? [],
+    );
+    const problems = validateAnswers(allQuestions, answers, visible);
+    if (problems.length > 0) {
+      throw new BadRequestException({
+        message: problems[0].message,
+        errors: problems,
+      });
+    }
 
     let response: ResponseEntity | null = null;
     if (respondentKey) {

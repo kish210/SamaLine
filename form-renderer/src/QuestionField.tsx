@@ -1,3 +1,11 @@
+import { EmojiChoice, ImageChoice, Ranking } from './fields/ChoiceFields';
+import {
+  AudioField,
+  FileField,
+  LocationField,
+  SignatureField,
+} from './fields/MediaFields';
+import { StarRating } from './fields/StarRating';
 import { JalaliDatePicker } from './JalaliDatePicker';
 import { QuestionIcon } from './QuestionIcon';
 import { hasIcon } from './question-icons';
@@ -82,6 +90,26 @@ export function QuestionField({
         required={q.required}
         value={asText(value)}
         onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  if (q.type === 'emoji') {
+    return (
+      <EmojiChoice
+        options={q.options ?? []}
+        value={value}
+        onChange={(next) => commit(next)}
+      />
+    );
+  }
+
+  if (q.type === 'image_choice') {
+    return (
+      <ImageChoice
+        options={q.options ?? []}
+        value={value}
+        onChange={(next) => commit(next)}
       />
     );
   }
@@ -186,8 +214,32 @@ export function QuestionField({
     );
   }
 
-  // NPS و امتیازی به‌صورت دکمه‌های عددی نمایش داده می‌شوند نه اسلایدر:
-  // پاسخ‌دهنده با یک ضربه انتخاب می‌کند و مقدار انتخابی پیداست.
+  /*
+   * امتیازی با ستاره نشان داده می‌شود، مگر بازه بزرگ باشد.
+   *
+   * بالای هفت ستاره، شمردن ستاره‌ها از خودِ عدد سخت‌تر است؛ آنجا به
+   * دکمه‌های عددی برمی‌گردیم. با meta.style هم می‌شود صریح انتخاب کرد.
+   */
+  if (q.type === 'rating') {
+    const min = q.meta?.min ?? 1;
+    const max = q.meta?.max ?? 5;
+    const useStars =
+      q.meta?.style === 'star' || (q.meta?.style !== 'number' && max - min <= 6);
+
+    if (useStars) {
+      return (
+        <StarRating
+          value={value}
+          min={min}
+          max={max}
+          labels={q.meta?.labels}
+          onChange={(next) => commit(next)}
+        />
+      );
+    }
+  }
+
+  // NPS و امتیازیِ بازه‌بزرگ با دکمه‌های عددی: یک ضربه و مقدار پیداست.
   if (q.type === 'nps' || q.type === 'rating') {
     const min = q.type === 'nps' ? 0 : (q.meta?.min ?? 1);
     const max = q.type === 'nps' ? 10 : (q.meta?.max ?? 5);
@@ -265,19 +317,7 @@ export function QuestionField({
 
   if (q.type === 'ranking') {
     return (
-      <textarea
-        required={q.required}
-        value={Array.isArray(value) ? value.join('، ') : asText(value)}
-        placeholder="گزینه‌ها را به ترتیب اولویت و با ویرگول وارد کنید"
-        onChange={(e) =>
-          onChange(
-            e.target.value
-              .split(/[،,]/)
-              .map((item) => item.trim())
-              .filter(Boolean),
-          )
-        }
-      />
+      <Ranking options={q.options ?? []} value={value} onChange={onChange} />
     );
   }
 
@@ -291,19 +331,39 @@ export function QuestionField({
     );
   }
 
-  if (
-    ['file_upload', 'camera', 'audio_record', 'signature', 'location'].includes(
-      q.type,
-    )
-  ) {
+  if (q.type === 'file_upload') {
     return (
-      <textarea
-        required={q.required}
-        value={asText(value)}
-        placeholder="نشانی یا مقدار JSON این فیلد را وارد کنید"
-        onChange={(e) => onChange(e.target.value)}
+      <FileField
+        value={value}
+        onChange={onChange}
+        accept="image/*,application/pdf"
+        label="انتخاب فایل"
       />
     );
+  }
+
+  if (q.type === 'camera') {
+    return (
+      <FileField
+        value={value}
+        onChange={onChange}
+        accept="image/*"
+        capture
+        label="گرفتن عکس"
+      />
+    );
+  }
+
+  if (q.type === 'signature') {
+    return <SignatureField value={value} onChange={onChange} />;
+  }
+
+  if (q.type === 'location') {
+    return <LocationField value={value} onChange={onChange} />;
+  }
+
+  if (q.type === 'audio_record') {
+    return <AudioField value={value} onChange={onChange} />;
   }
 
   // شماره‌ی موبایل: فقط رقم پذیرفته می‌شود و با فاصله گروه‌بندی می‌شود،

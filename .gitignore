@@ -13,3 +13,7 @@ backend/data/
 
 # صندوق خروجی محلی پیام‌ها
 backend/data/outbox/
+
+# لاگ سرورهای توسعه
+*.dev.log
+.dev-backend.log

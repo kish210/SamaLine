@@ -7,6 +7,8 @@ export interface QuestionMeta {
   rows?: string[];
   columns?: string[];
   labels?: { start?: string; end?: string };
+  /** نمایش امتیاز: ستاره یا دکمه‌ی عددی. پیش‌فرض از بازه تصمیم می‌گیرد. */
+  style?: 'star' | 'number';
   /** تصویر بالای سوال. */
   imageUrl?: string;
   /** سوالِ خاموش‌شده در فرم‌ساز؛ سرور آن را اصلا نمی‌فرستد. */

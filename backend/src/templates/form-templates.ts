@@ -83,7 +83,13 @@ function hotelTemplate(): FormTemplate {
       title: 'نام و نام خانوادگی',
       required: true,
     },
-    { id: 'h_room', type: 'short_text', title: 'شماره اتاق', required: false },
+    {
+      id: 'h_room',
+      type: 'number',
+      title: 'شماره اتاق',
+      required: false,
+      meta: { min: 1, max: 9999 },
+    },
     { id: 'h_checkin', type: 'date', title: 'تاریخ ورود', required: false },
     { id: 'h_checkout', type: 'date', title: 'تاریخ خروج', required: false },
     { id: 'h_mobile', type: 'mobile', title: 'شماره تماس', required: false },
@@ -301,6 +307,160 @@ export const FORM_TEMPLATES: FormTemplate[] = [
       ],
     },
     settings: { theme: { preset: 'khakestar' } },
+  },
+
+  {
+    key: 'all-types',
+    title: 'نمونه‌ی همه‌ی انواع سوال',
+    summary:
+      'هر ۲۴ نوع سوال در یک فرم، برای دیدن ظاهر و رفتار هرکدام پیش از ساخت فرم واقعی.',
+    category: 'عمومی',
+    icon: '🧪',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'متن و اطلاعات تماس',
+          questions: [
+            {
+              id: 't_short',
+              type: 'short_text',
+              title: 'متن کوتاه — نام شما',
+              required: true,
+            },
+            {
+              id: 't_long',
+              type: 'long_text',
+              title: 'متن بلند — درباره‌ی خودتان بنویسید',
+            },
+            {
+              id: 't_static',
+              type: 'static_text',
+              title:
+                'متن ثابت — این یک توضیح است و پاسخی نمی‌گیرد.',
+            },
+            { id: 't_email', type: 'email', title: 'ایمیل' },
+            { id: 't_url', type: 'url', title: 'وب‌سایت' },
+            { id: 't_mobile', type: 'mobile', title: 'موبایل' },
+            { id: 't_phone', type: 'phone', title: 'تلفن ثابت' },
+            {
+              id: 't_number',
+              type: 'number',
+              title: 'عدد — سن',
+              meta: { min: 1, max: 120 },
+            },
+            { id: 't_date', type: 'date', title: 'تاریخ (تقویم شمسی)' },
+          ],
+        },
+        {
+          id: 'p2',
+          title: 'انتخابی',
+          questions: [
+            { id: 't_bool', type: 'boolean', title: 'دو گزینه‌ای — موافقید؟' },
+            {
+              id: 't_choice',
+              type: 'multiple_choice',
+              title: 'چندگزینه‌ای (تک‌انتخابی)',
+              options: ['گزینه اول', 'گزینه دوم', 'گزینه سوم'],
+            },
+            {
+              id: 't_multi',
+              type: 'multiple_choice',
+              title: 'چندگزینه‌ای (چندانتخابی)',
+              options: ['قرمز', 'آبی', 'سبز', 'زرد'],
+              meta: { multiple: true },
+            },
+            {
+              id: 't_dropdown',
+              type: 'dropdown',
+              title: 'لیست بازشو — استان',
+              options: ['هرمزگان', 'تهران', 'فارس', 'اصفهان'],
+            },
+            {
+              id: 't_emoji',
+              type: 'emoji',
+              title: 'ایموجی — حس شما چیست؟',
+            },
+            {
+              id: 't_image',
+              type: 'image_choice',
+              title: 'انتخابی عکس‌دار — کدام را می‌پسندید؟',
+              options: [
+                'https://dummyimage.com/300x200/3ebfea/ffffff&text=A|طرح الف',
+                'https://dummyimage.com/300x200/b18a5a/ffffff&text=B|طرح ب',
+                'https://dummyimage.com/300x200/2e7d52/ffffff&text=C|طرح ج',
+              ],
+            },
+            {
+              id: 't_rank',
+              type: 'ranking',
+              title: 'اولویت‌بندی — مهم‌ترین برای شما',
+              options: ['قیمت', 'کیفیت', 'سرعت', 'پشتیبانی'],
+            },
+          ],
+        },
+        {
+          id: 'p3',
+          title: 'سنجش و امتیاز',
+          questions: [
+            {
+              id: 't_stars',
+              type: 'rating',
+              title: 'امتیازی با ستاره (۱ تا ۵)',
+              meta: {
+                min: 1,
+                max: 5,
+                labels: { start: 'ضعیف', end: 'عالی' },
+              },
+            },
+            {
+              id: 't_stars10',
+              type: 'rating',
+              title: 'امتیازی با دکمه‌ی عددی (۱ تا ۱۰)',
+              meta: { min: 1, max: 10, style: 'number' },
+            },
+            {
+              id: 't_nps',
+              type: 'nps',
+              title: 'NPS — چقدر ما را توصیه می‌کنید؟',
+              meta: { labels: { start: 'اصلاً', end: 'حتماً' } },
+            },
+            {
+              id: 't_slider',
+              type: 'slider',
+              title: 'نوار شناور — بودجه‌ی شما',
+              meta: { min: 0, max: 100, step: 5 },
+            },
+            {
+              id: 't_matrix',
+              type: 'matrix',
+              title: 'ماتریس — هر مورد را ارزیابی کنید',
+              meta: {
+                rows: ['کیفیت', 'قیمت', 'پشتیبانی'],
+                columns: ['ضعیف', 'متوسط', 'خوب', 'عالی'],
+              },
+            },
+          ],
+        },
+        {
+          id: 'p4',
+          title: 'رسانه و فایل',
+          questions: [
+            { id: 't_file', type: 'file_upload', title: 'آپلود فایل' },
+            { id: 't_camera', type: 'camera', title: 'دوربین — یک عکس بگیرید' },
+            { id: 't_audio', type: 'audio_record', title: 'ضبط صوتی' },
+            { id: 't_sign', type: 'signature', title: 'امضا' },
+            { id: 't_location', type: 'location', title: 'موقعیت مکانی' },
+          ],
+        },
+      ],
+    },
+    settings: {
+      startPageText:
+        'این فرم نمونه‌ی همه‌ی انواع سوال است؛ برای آزمایش ظاهر و رفتار هر نوع.',
+      endPageText: 'پایان نمونه. سپاسگزاریم!',
+      theme: { preset: 'aseman', oneQuestionPerStep: true },
+    },
   },
 
   {

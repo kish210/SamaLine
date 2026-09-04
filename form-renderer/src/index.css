@@ -296,13 +296,22 @@ button:disabled {
 /* ── چیدمان تک‌سوالی: کارت وسط صفحه و نوار پایین ثابت ────────── */
 
 .container.centered {
-  min-height: 100vh;
+  /*
+   * کارت باید در فضای *باقی‌مانده* وسط بنشیند، نه وسط کل صفحه.
+   *
+   * نوار دکمه‌ها و نوار سکو هر دو ثابت‌اند و از پایین فضا می‌گیرند؛ اگر
+   * ارتفاع را ۱۰۰vh بگیریم و فقط پدینگ پایین بگذاریم، مرکز واقعی پایین‌تر
+   * از مرکز دیداری می‌افتد و فرم «خیلی پایین» دیده می‌شود.
+   */
+  --form-bar-height: 72px;
+  min-height: calc(
+    100vh - var(--form-bar-height) - var(--platform-footer-height)
+  );
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  /* فضای خالی پایین تا نوار ثابت روی محتوا نیفتد. */
-  padding-bottom: 104px;
+  padding-block: var(--space-4, 16px);
   border-radius: 0;
   box-shadow: none;
   background: transparent;
@@ -746,4 +755,247 @@ button:disabled {
 
 body {
   padding-bottom: var(--platform-footer-height);
+}
+
+/* ── امتیازدهی با ستاره ───────────────────────────────────────── */
+
+.star-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 6px 0;
+}
+
+.star {
+  width: auto;
+  margin: 0;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--form-primary);
+  /* ستاره‌ی خالی کم‌رنگ است تا انتخاب‌شده‌ها فوری دیده شوند. */
+  opacity: 0.35;
+  transition:
+    opacity 140ms var(--ease-ios),
+    transform 140ms var(--ease-ios);
+}
+
+.star.filled {
+  opacity: 1;
+}
+
+.star:active {
+  transform: scale(0.9);
+}
+
+.star svg {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+.star-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* در موبایل ستاره کوچک‌تر می‌شود تا ۱۰ ستاره هم جا شود. */
+@media (max-width: 420px) {
+  .star svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ── ایموجی ───────────────────────────────────────────────────── */
+
+.emoji-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.emoji-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 4px;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: calc(var(--form-radius) / 1.4);
+}
+
+.emoji-item.active {
+  border-color: var(--form-primary);
+  background: color-mix(in srgb, var(--form-primary) 8%, transparent);
+}
+
+.emoji-face {
+  font-size: 30px;
+  line-height: 1;
+  /* ایموجی خاکستری می‌ماند تا انتخاب‌شده برجسته شود. */
+  filter: grayscale(0.7);
+  transition: filter 160ms var(--ease-ios);
+}
+
+.emoji-item.active .emoji-face {
+  filter: none;
+}
+
+.emoji-label {
+  font-size: 12px;
+}
+
+/* ── انتخاب تصویری ────────────────────────────────────────────── */
+
+.image-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 8px 0 12px;
+}
+
+.image-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 6px;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 2px solid rgba(128, 128, 128, 0.3);
+  border-radius: calc(var(--form-radius) / 1.4);
+  font-size: 13px;
+}
+
+.image-card img {
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  border-radius: calc(var(--form-radius) / 2);
+  background: rgba(128, 128, 128, 0.12);
+}
+
+.image-card.active {
+  border-color: var(--form-primary);
+}
+
+/* ── اولویت‌بندی ──────────────────────────────────────────────── */
+
+.ranking-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+}
+
+.ranking-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: var(--form-surface);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: calc(var(--form-radius) / 1.4);
+}
+
+.rank-number {
+  flex: 0 0 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--form-primary);
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-label {
+  flex: 1;
+}
+
+.rank-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.rank-actions button {
+  width: 30px;
+  min-width: 30px;
+  margin: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+/* ── فایل، دوربین، امضا، موقعیت، صوت ─────────────────────────── */
+
+.media-field {
+  margin: 8px 0 12px;
+}
+
+.media-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.media-actions button {
+  width: auto;
+  margin: 0;
+  padding: 9px 16px;
+}
+
+/* ورودی فایل پنهان است و برچسبش نقش دکمه را دارد. */
+.media-button {
+  display: inline-block;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: var(--form-primary);
+  color: #fff;
+  border-radius: calc(var(--form-radius) / 2);
+  font-size: 14px;
+}
+
+.media-button input {
+  display: none;
+}
+
+.media-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: calc(var(--form-radius) / 1.4);
+  margin-bottom: 10px;
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  background: #fff;
+  border: 1px dashed rgba(128, 128, 128, 0.5);
+  border-radius: calc(var(--form-radius) / 1.4);
+  margin-bottom: 10px;
+}
+
+.audio-preview {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 13px;
+  margin: 6px 0 0;
 }
