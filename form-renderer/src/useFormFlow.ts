@@ -281,6 +281,11 @@ export function useFormFlow(token: string | undefined) {
     lang,
     respondentKey,
     canGoBack: history.length > 0,
+    // پیشرفت تقریبی است چون پرش‌ها طول واقعی مسیر را از پیش معلوم
+    // نمی‌کنند؛ ملاک، صفحات پیموده‌شده تا این لحظه است.
+    progress: page
+      ? Math.min(95, Math.round((history.length / (history.length + 2)) * 100))
+      : null,
     pendingCount,
     setLang,
     setRespondentKey,

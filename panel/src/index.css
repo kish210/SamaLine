@@ -732,3 +732,70 @@ code {
   color: var(--ink);
   white-space: pre-wrap;
 }
+
+/* ── ویرایشگر ظاهر ──────────────────────────────── */
+.preset-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.preset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+  padding: 6px 12px;
+}
+
+.preset.active {
+  border-color: var(--accent);
+  border-width: 2px;
+}
+
+.preset-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+input[type='color'] {
+  height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.theme-preview {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+}
+
+.theme-preview-card {
+  padding: 18px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.theme-preview-card p {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.theme-preview-logo {
+  display: block;
+  max-height: 40px;
+  margin: 0 auto 10px;
+  object-fit: contain;
+}
+
+.theme-preview-button {
+  display: inline-block;
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 13px;
+}

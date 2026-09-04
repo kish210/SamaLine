@@ -34,10 +34,22 @@ export interface FormSettings {
   saveProgress?: boolean;
 }
 
+export interface FormTheme {
+  primaryColor: string;
+  backgroundColor: string;
+  surfaceColor: string;
+  textColor: string;
+  cornerRadius: number;
+  logoUrl: string;
+  backgroundImageUrl: string;
+  fontFamily: string;
+}
+
 export interface PublicForm {
   publicationId: string;
   formTitle: string;
   settings: FormSettings;
+  theme?: FormTheme;
 }
 
 /** پاسخ اندپوینت گام بعدی؛ منطق پرش سمت سرور اعمال شده است. */

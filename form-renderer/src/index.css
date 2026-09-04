@@ -1,21 +1,68 @@
 :root {
-  font-family: Vazirmatn, Tahoma, sans-serif;
+  /* مقادیر پیش‌فرض؛ تم فرم آن‌ها را در زمان اجرا بازنویسی می‌کند. */
+  --form-primary: #111827;
+  --form-bg: #f8fafc;
+  --form-surface: #ffffff;
+  --form-ink: #111827;
+  --form-radius: 14px;
+  --form-font: Vazirmatn, Tahoma, sans-serif;
+  --form-bg-image: none;
+
+  font-family: var(--form-font);
   direction: rtl;
 }
 
 body {
   margin: 0;
-  background: #f8fafc;
-  color: #111827;
+  min-height: 100vh;
+  background-color: var(--form-bg);
+  background-image: var(--form-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: var(--form-ink);
 }
 
 .container {
   max-width: 760px;
   margin: 24px auto;
-  background: white;
-  border-radius: 14px;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border-radius: var(--form-radius);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   padding: 24px;
+}
+
+.form-logo {
+  display: block;
+  max-height: 64px;
+  max-width: 200px;
+  margin: 0 auto 16px;
+  object-fit: contain;
+}
+
+/* نوار پیشرفت فرم چندصفحه‌ای */
+.progress {
+  position: relative;
+  height: 8px;
+  background: rgba(128, 128, 128, 0.2);
+  border-radius: 999px;
+  margin-bottom: 22px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--form-primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 12px;
+  font-size: 11px;
+  opacity: 0.6;
 }
 
 input,
@@ -24,17 +71,20 @@ button,
 select {
   width: 100%;
   font: inherit;
+  color: var(--form-ink);
+  background: var(--form-surface);
   padding: 10px;
   margin-top: 6px;
   margin-bottom: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: calc(var(--form-radius) / 2);
 }
 
 button {
-  background: #111827;
+  background: var(--form-primary);
   color: white;
   cursor: pointer;
+  border-radius: calc(var(--form-radius) / 2);
 }
 
 /* — کلاس‌های افزوده‌ی جریان پاسخ‌دهی — */
@@ -71,8 +121,9 @@ button {
 }
 
 .actions button[type='button'] {
-  background: white;
-  color: #111827;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid var(--form-primary);
 }
 
 .error {

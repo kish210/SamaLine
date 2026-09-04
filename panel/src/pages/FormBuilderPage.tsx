@@ -6,9 +6,10 @@ import type { FormPage, Question } from '../types';
 import { CustomLinkCard } from './builder/CustomLinkCard';
 import { FlowChart } from './builder/FlowChart';
 import { QuestionEditor } from './builder/QuestionEditor';
+import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
 
-type Tab = 'build' | 'flow' | 'report';
+type Tab = 'build' | 'design' | 'flow' | 'report';
 
 const newQuestion = (index: number): Question => ({
   id: `q${index}`,
@@ -168,6 +169,13 @@ export function FormBuilderPage() {
         </button>
         <button
           type="button"
+          className={tab === 'design' ? 'active' : ''}
+          onClick={() => setTab('design')}
+        >
+          ظاهر فرم
+        </button>
+        <button
+          type="button"
           className={tab === 'flow' ? 'active' : ''}
           onClick={() => setTab('flow')}
         >
@@ -264,6 +272,10 @@ export function FormBuilderPage() {
             + افزودن صفحه
           </button>
         </div>
+      )}
+
+      {tab === 'design' && (
+        <ThemeEditor formId={formId} settings={form.data.settings} />
       )}
 
       {tab === 'flow' && (

@@ -6,12 +6,14 @@ import { PublicDashboard } from './PublicDashboard';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
+import { useTheme } from './useTheme';
 
 function FormPage() {
   const { token } = useParams();
   const { t } = useTranslation();
   const flow = useFormFlow(token);
   const startedRef = useRef(false);
+  useTheme(flow.form?.theme);
 
   // وقتی صفحه‌ی شروع غیرفعال است، خودکار وارد فرم می‌شویم.
   useEffect(() => {
@@ -56,6 +58,9 @@ function FormPage() {
   if (flow.view === 'end') {
     return (
       <div className="container">
+        {flow.form.theme?.logoUrl && (
+          <img className="form-logo" src={flow.form.theme.logoUrl} alt="" />
+        )}
         <h2>{flow.form.settings?.endPageText || t('done')}</h2>
         {flow.pendingCount > 0 && (
           <p className="hint">
@@ -78,6 +83,9 @@ function FormPage() {
 
   return (
     <div className="container">
+      {flow.form.theme?.logoUrl && (
+        <img className="form-logo" src={flow.form.theme.logoUrl} alt="" />
+      )}
       <h2>{flow.form.formTitle}</h2>
 
       {flow.view === 'start' && (
@@ -110,6 +118,22 @@ function FormPage() {
 
       {flow.view === 'form' && flow.page && (
         <form onSubmit={handleSubmit}>
+          {flow.progress !== null && (
+            <div
+              className="progress"
+              role="progressbar"
+              aria-valuenow={flow.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className="progress-fill"
+                style={{ width: `${flow.progress}%` }}
+              />
+              <span className="progress-label">{flow.progress}٪</span>
+            </div>
+          )}
+
           <h3>{flow.page.title}</h3>
 
           {flow.page.questions.map((question) => (

@@ -19,6 +19,7 @@ import {
 import { LogicEngineService } from '../forms/logic-engine.service';
 import { LogicRuntimeService } from '../forms/logic-runtime.service';
 import type { FormStructure } from '../forms/logic-types';
+import { type FormTheme, resolveTheme } from '../forms/theme';
 import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
@@ -34,6 +35,8 @@ type PublicFormPayload = {
   settings: Record<string, unknown>;
   /** کلید تاییدشده در OTP، در صورت وجود. */
   verifiedRespondentKey?: string | null;
+  /** ظاهر فرم؛ پاک‌سازی‌شده و آماده‌ی اعمال. */
+  theme: FormTheme;
 };
 
 @Injectable()
@@ -195,6 +198,7 @@ export class PublicService {
       formVersionId: latestVersion.id,
       structure: latestVersion.structure,
       settings: publication.form.settings,
+      theme: resolveTheme(publication.form.settings),
       // کلید تاییدشده در OTP، تا کنترل تکرار بر همان مبنا کار کند.
       verifiedRespondentKey: auth?.respondentKey ?? null,
     };
