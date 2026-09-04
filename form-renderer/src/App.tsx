@@ -13,6 +13,7 @@ function FormPage() {
   const { t } = useTranslation();
   const flow = useFormFlow(token);
   const startedRef = useRef(false);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useTheme(flow.form?.theme);
 
   // در حالت تک‌سوالی، شماره‌ی سوال جاری درون صفحه.
@@ -60,6 +61,35 @@ function FormPage() {
     const step = await flow.goNext();
     if (step?.finished) await flow.submit();
   };
+
+  /**
+   * رفتن خودکار به سوال بعد پس از یک انتخاب قطعی.
+   *
+   * فقط در حالت تک‌سوالی معنا دارد و فقط وقتی سوال اجباری نیست یا مقداری
+   * انتخاب شده؛ مکث کوتاه برای این است که پاسخ‌دهنده انتخابش را ببیند.
+   */
+  const autoAdvance = () => {
+    if (!oneAtATime || flow.loading) return;
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    autoTimerRef.current = setTimeout(() => {
+      if (isLastQuestionOfPage) {
+        void (async () => {
+          const step = await flow.goNext();
+          if (step?.finished) await flow.submit();
+        })();
+      } else {
+        setQuestionIndex((prev) => prev + 1);
+      }
+    }, 350);
+  };
+
+  // با ترک صفحه، تایمر معلق نباید اجرا شود.
+  useEffect(
+    () => () => {
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    },
+    [],
+  );
 
   const handleBack = async () => {
     if (oneAtATime && questionIndex > 0) {
@@ -112,7 +142,7 @@ function FormPage() {
   }
 
   return (
-    <div className="container">
+    <div className={oneAtATime ? 'container centered' : 'container'}>
       {flow.form.theme?.logoUrl && (
         <img className="form-logo" src={flow.form.theme.logoUrl} alt="" />
       )}
@@ -148,7 +178,7 @@ function FormPage() {
 
       {flow.view === 'form' && flow.page && (
         <form onSubmit={handleSubmit}>
-          {flow.progress !== null && (
+          {flow.progress !== null && !oneAtATime && (
             <div className="progress-row">
               <div
                 className="progress"
@@ -190,11 +220,33 @@ function FormPage() {
                 value={flow.answers[question.id]}
                 lang={flow.lang}
                 onChange={(value) => flow.setAnswer(question.id, value)}
+                onCommit={autoAdvance}
               />
             </div>
           ))}
 
-          <div className="actions">
+          <div className={oneAtATime ? 'actions bottom-bar' : 'actions'}>
+            {oneAtATime && flow.progress !== null && (
+              <div className="bottom-progress">
+                <div
+                  className="progress"
+                  role="progressbar"
+                  aria-valuenow={flow.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${flow.progress}%` }}
+                  />
+                </div>
+                {questions.length > 0 && (
+                  <span className="progress-counter">
+                    {questionIndex + 1}/{questions.length}
+                  </span>
+                )}
+              </div>
+            )}
             {(flow.canGoBack || (oneAtATime && questionIndex > 0)) && (
               <button
                 type="button"

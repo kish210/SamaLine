@@ -1,3 +1,6 @@
+import { JalaliDatePicker } from './JalaliDatePicker';
+import { QuestionIcon } from './QuestionIcon';
+import { hasIcon } from './question-icons';
 import type { Question } from './types';
 
 interface Props {
@@ -5,14 +8,55 @@ interface Props {
   value: unknown;
   lang: string;
   onChange: (value: unknown) => void;
+  /**
+   * پس از انتخاب یک گزینه‌ی قطعی (تک‌انتخابی، بله/خیر، امتیاز) صدا زده
+   * می‌شود تا فرم خودکار به سوال بعد برود. اگر داده نشود، رفتار عوض نمی‌شود.
+   */
+  onCommit?: () => void;
 }
 
 const asText = (value: unknown) => (value == null ? '' : String(value));
 
+/** ارقام فارسی و عربی را به لاتین تبدیل می‌کند. */
+function toLatinDigits(input: string): string {
+  return input.replace(/[۰-۹٠-٩]/g, (digit) =>
+    String(
+      digit.charCodeAt(0) >= 0x06f0
+        ? digit.charCodeAt(0) - 0x06f0
+        : digit.charCodeAt(0) - 0x0660,
+    ),
+  );
+}
+
+/**
+ * ماسک شماره‌ی موبایل ایران: فقط رقم، حداکثر ۱۱ رقم، با گروه‌بندی
+ * `0912 345 6789` برای خوانایی. مقدار ذخیره‌شده بدون فاصله است.
+ */
+function digitsOnly(input: string, max: number): string {
+  return toLatinDigits(input).replace(/\D/g, '').slice(0, max);
+}
+
+function formatMobile(digits: string): string {
+  const parts = [digits.slice(0, 4), digits.slice(4, 7), digits.slice(7, 11)];
+  return parts.filter(Boolean).join(' ');
+}
+
 /** رندر یک سوال بر اساس نوع آن. عنوان از سرور Piping‌شده می‌آید. */
-export function QuestionField({ question, value, lang, onChange }: Props) {
+export function QuestionField({
+  question,
+  value,
+  lang,
+  onChange,
+  onCommit,
+}: Props) {
   const q = question;
   const translated = q.meta?.translations?.[lang];
+
+  // انتخاب قطعی: مقدار را می‌نویسد و در صورت نیاز به سوال بعد می‌رود.
+  const commit = (next: unknown) => {
+    onChange(next);
+    onCommit?.();
+  };
 
   const toggleChoice = (option: string, checked: boolean) => {
     const current = Array.isArray(value) ? (value as string[]) : [];
@@ -42,29 +86,65 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
     );
   }
 
+  // چندانتخابی: کارت با تیک، نه فهرست چک‌باکس ساده.
   if (q.type === 'multiple_choice' && q.meta?.multiple) {
+    const current = Array.isArray(value) ? (value as string[]) : [];
     return (
-      <div>
+      <div className="option-cards">
+        {(q.options ?? []).map((option) => {
+          const checked = current.includes(option);
+          return (
+            <label
+              key={option}
+              className={checked ? 'option-card selected' : 'option-card'}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => toggleChoice(option, e.target.checked)}
+              />
+              <span className="option-mark" aria-hidden="true" />
+              <span className="option-label">{option}</span>
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // تک‌انتخابی: کارت‌های قابل لمس به‌جای لیست کشویی.
+  // «dropdown» عمداً همچنان select می‌ماند چون خودِ نوع سوال همین را می‌خواهد.
+  if (q.type === 'multiple_choice') {
+    const current = asText(value);
+    return (
+      <div className="option-cards">
         {(q.options ?? []).map((option) => (
-          <label key={option} className="row">
+          <label
+            key={option}
+            className={
+              current === option ? 'option-card radio selected' : 'option-card radio'
+            }
+          >
             <input
-              type="checkbox"
-              checked={Array.isArray(value) && value.includes(option)}
-              onChange={(e) => toggleChoice(option, e.target.checked)}
+              type="radio"
+              name={q.id}
+              checked={current === option}
+              onChange={() => commit(option)}
             />
-            {option}
+            <span className="option-mark" aria-hidden="true" />
+            <span className="option-label">{option}</span>
           </label>
         ))}
       </div>
     );
   }
 
-  if (q.type === 'multiple_choice' || q.type === 'dropdown') {
+  if (q.type === 'dropdown') {
     return (
       <select
         required={q.required}
         value={asText(value)}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => commit(e.target.value)}
       >
         <option value="">انتخاب کنید</option>
         {(q.options ?? []).map((option) => (
@@ -77,16 +157,32 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
   }
 
   if (q.type === 'boolean') {
+    const current = asText(value);
     return (
-      <select
-        required={q.required}
-        value={asText(value)}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">انتخاب کنید</option>
-        <option value="yes">بله</option>
-        <option value="no">خیر</option>
-      </select>
+      <div className="option-cards two">
+        {[
+          { value: 'yes', label: 'بله' },
+          { value: 'no', label: 'خیر' },
+        ].map((choice) => (
+          <label
+            key={choice.value}
+            className={
+              current === choice.value
+                ? 'option-card radio selected'
+                : 'option-card radio'
+            }
+          >
+            <input
+              type="radio"
+              name={q.id}
+              checked={current === choice.value}
+              onChange={() => commit(choice.value)}
+            />
+            <span className="option-mark" aria-hidden="true" />
+            <span className="option-label">{choice.label}</span>
+          </label>
+        ))}
+      </div>
     );
   }
 
@@ -106,7 +202,7 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
               key={step}
               type="button"
               className={selected === step ? 'scale-step active' : 'scale-step'}
-              onClick={() => onChange(step)}
+              onClick={() => commit(step)}
             >
               {step}
             </button>
@@ -187,11 +283,10 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
 
   if (q.type === 'date') {
     return (
-      <input
-        type="date"
-        required={q.required}
+      <JalaliDatePicker
         value={asText(value)}
-        onChange={(e) => onChange(e.target.value)}
+        required={q.required}
+        onChange={(iso) => onChange(iso)}
       />
     );
   }
@@ -211,6 +306,29 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
     );
   }
 
+  // شماره‌ی موبایل: فقط رقم پذیرفته می‌شود و با فاصله گروه‌بندی می‌شود،
+  // ولی مقدار ذخیره‌شده همان ۱۱ رقم پیوسته است.
+  if (q.type === 'mobile' || q.type === 'phone') {
+    const digits = digitsOnly(asText(value), q.type === 'mobile' ? 11 : 15);
+    return (
+      <div className="field-with-icon">
+        <QuestionIcon type={q.type} />
+        <input
+          type="tel"
+          required={q.required}
+          inputMode="numeric"
+          autoComplete="tel"
+          dir="ltr"
+          placeholder={q.type === 'mobile' ? '0912 345 6789' : ''}
+          value={q.type === 'mobile' ? formatMobile(digits) : digits}
+          onChange={(e) =>
+            onChange(digitsOnly(e.target.value, q.type === 'mobile' ? 11 : 15))
+          }
+        />
+      </div>
+    );
+  }
+
   const inputType =
     q.type === 'number'
       ? 'number'
@@ -218,23 +336,29 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
         ? 'email'
         : q.type === 'url'
           ? 'url'
-          : q.type === 'mobile' || q.type === 'phone'
-            ? 'tel'
-            : 'text';
+          : 'text';
 
-  return (
+  const input = (
     <input
       type={inputType}
       required={q.required}
       min={q.meta?.min}
       max={q.meta?.max}
       step={q.meta?.step}
-      inputMode={q.type === 'mobile' || q.type === 'phone' ? 'numeric' : undefined}
-      pattern={q.type === 'mobile' ? '09[0-9]{9}' : undefined}
+      dir={q.type === 'email' || q.type === 'url' ? 'ltr' : undefined}
       value={asText(value)}
       onChange={(e) =>
         onChange(q.type === 'number' ? Number(e.target.value) : e.target.value)
       }
     />
+  );
+
+  return hasIcon(q.type) ? (
+    <div className="field-with-icon">
+      <QuestionIcon type={q.type} />
+      {input}
+    </div>
+  ) : (
+    input
   );
 }

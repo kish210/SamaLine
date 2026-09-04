@@ -1,3 +1,13 @@
+/*
+ * پدینگ و حاشیه داخل عرض عنصر حساب شود؛ بدون این، کارتی که عرض ۱۰۰٪ دارد
+ * به‌اندازه‌ی پدینگش از صفحه بیرون می‌زند و نوار افقی می‌آورد.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   /* مقادیر پیش‌فرض؛ تم فرم آن‌ها را در زمان اجرا بازنویسی می‌کند. */
   --form-primary: #111827;
@@ -281,4 +291,263 @@ button:disabled {
 
 .bar-count {
   color: #6b7280;
+}
+
+/* ── چیدمان تک‌سوالی: کارت وسط صفحه و نوار پایین ثابت ────────── */
+
+.container.centered {
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* فضای خالی پایین تا نوار ثابت روی محتوا نیفتد. */
+  padding-bottom: 104px;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.container.centered > * {
+  width: 100%;
+}
+
+.container.centered form {
+  background: var(--form-surface);
+  border-radius: var(--form-radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+.bottom-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  /* پس‌زمینه‌ی نوار از رنگ کارت می‌آید تا با تم هماهنگ بماند. */
+  background: var(--form-surface);
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.bottom-bar .bottom-progress {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bottom-bar button {
+  /* قاعده‌ی سراسری به همه‌ی دکمه‌ها width:100% می‌دهد؛ در نوار افقی باید
+     عرض دکمه از محتوایش بیاید وگرنه دکمه‌ها از نوار بیرون می‌زنند. */
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 120px;
+  margin: 0;
+  padding-inline: 20px;
+}
+
+/* ── گزینه‌های کارتی ──────────────────────────────────────────── */
+
+.option-cards {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.option-cards.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.option-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: calc(var(--form-radius) / 1.4);
+  background: var(--form-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+/* ورودی واقعی پنهان است؛ خود کارت نقش کنترل را بازی می‌کند. */
+.option-card input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.option-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(128, 128, 128, 0.5);
+  border-radius: 6px;
+  position: relative;
+}
+
+.option-card.radio .option-mark {
+  border-radius: 50%;
+}
+
+.option-card.selected {
+  border-color: var(--form-primary);
+  background: color-mix(in srgb, var(--form-primary) 8%, transparent);
+}
+
+.option-card.selected .option-mark {
+  border-color: var(--form-primary);
+  background: var(--form-primary);
+}
+
+/* تیک داخل مربع/دایره‌ی انتخاب‌شده. */
+.option-card.selected .option-mark::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.option-label {
+  flex: 1;
+}
+
+/* ── آیکن کنار ورودی ──────────────────────────────────────────── */
+
+.field-with-icon {
+  position: relative;
+  display: block;
+}
+
+.field-with-icon .field-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.field-with-icon input {
+  padding-inline-start: 42px;
+}
+
+/* ── تقویم شمسی ───────────────────────────────────────────────── */
+
+.jalali-wrap {
+  position: relative;
+}
+
+.jalali-input {
+  text-align: start;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.jalali-input .placeholder {
+  opacity: 0.5;
+}
+
+.jalali-popup {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 6px);
+  inset-inline-start: 0;
+  width: 280px;
+  padding: 12px;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: calc(var(--form-radius) / 1.4);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+.jalali-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.jalali-nav {
+  width: 32px;
+  min-width: 32px;
+  padding: 4px 0;
+  margin: 0;
+  background: transparent;
+  color: var(--form-ink);
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.jalali-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.jalali-weekday {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.55;
+  padding-bottom: 4px;
+}
+
+.jalali-day {
+  padding: 7px 0;
+  margin: 0;
+  background: transparent;
+  color: var(--form-ink);
+  border: none;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.jalali-day:hover {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.jalali-day.today {
+  outline: 1px solid var(--form-primary);
+}
+
+.jalali-day.selected {
+  background: var(--form-primary);
+  color: #fff;
+}
+
+.jalali-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.jalali-foot button {
+  margin: 0;
+  padding: 6px 0;
+  font-size: 13px;
+  background: transparent;
+  color: var(--form-primary);
+  border: 1px solid rgba(128, 128, 128, 0.3);
 }

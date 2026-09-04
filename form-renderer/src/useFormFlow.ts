@@ -32,7 +32,7 @@ function readUrlState() {
 export function useFormFlow(token: string | undefined) {
   const [urlState] = useState(readUrlState);
   const [form, setForm] = useState<PublicForm | null>(null);
-  const [page, setPage] = useState<Page | null>(null);
+  const [page, setPageState] = useState<Page | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
   const [scores, setScores] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<string[]>([]);
@@ -47,6 +47,21 @@ export function useFormFlow(token: string | undefined) {
   const [pendingCount, setPendingCount] = useState(0);
   const [lang, setLang] = useState(urlState.lang ?? 'fa');
   const hiddenParams = urlState.hiddenParams;
+
+  /*
+   * شناسه‌ی صفحه‌ای که همین حالا نشان داده می‌شود.
+   *
+   * تازه‌سازی صفحه و رفتن به صفحه‌ی بعد می‌توانند هم‌زمان در راه باشند؛ اگر
+   * پاسخِ تازه‌سازی بعد از جابه‌جایی برسد، صفحه‌ی قبلی را روی صفحه‌ی جدید
+   * می‌نویسد و پاسخ‌دهنده به عقب پرت می‌شود. این ref مرجع تشخیص کهنگی است.
+   */
+  const currentPageIdRef = useRef<string | null>(null);
+
+  /** ست کردن صفحه به‌همراه به‌روزرسانی شناسه‌ی مرجع. */
+  const setCurrentPage = useCallback((next: Page | null) => {
+    currentPageIdRef.current = next?.id ?? null;
+    setPageState(next);
+  }, []);
 
   // آخرین پاسخ‌ها برای فراخوانی‌های تاخیری، بدون وابسته کردن effectها.
   const answersRef = useRef(answers);
@@ -117,7 +132,7 @@ export function useFormFlow(token: string | undefined) {
       if (step.finished || !step.page) {
         setView('end');
       } else {
-        setPage(step.page);
+        setCurrentPage(step.page);
         setHistory([]);
         setView('form');
       }
@@ -126,7 +141,7 @@ export function useFormFlow(token: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [token, hiddenParams]);
+  }, [token, hiddenParams, setCurrentPage]);
 
   /** صفحه‌ی جاری را با پاسخ‌های تازه بازخوانی می‌کند (منطق نمایش درون‌صفحه‌ای). */
   const refreshPage = useCallback(async () => {
@@ -136,12 +151,15 @@ export function useFormFlow(token: string | undefined) {
         answers: answersRef.current,
         params: hiddenParams,
       });
-      setPage(data.page);
+      // در فاصله‌ی رفت‌وبرگشت ممکن است به صفحه‌ی دیگری رفته باشیم؛
+      // در آن صورت این پاسخ کهنه است و باید دور ریخته شود.
+      if (currentPageIdRef.current !== page.id) return;
+      setCurrentPage(data.page);
       setScores(data.scores);
     } catch {
       // شکست در تازه‌سازی نباید پاسخ‌دهی را متوقف کند.
     }
-  }, [token, page, hiddenParams]);
+  }, [token, page, hiddenParams, setCurrentPage]);
 
   const goNext = useCallback(async () => {
     if (!token || !page) return null;
@@ -157,7 +175,7 @@ export function useFormFlow(token: string | undefined) {
       if (step.finished || !step.page) return { finished: true };
 
       setHistory((prev) => [...prev, page.id]);
-      setPage(step.page);
+      setCurrentPage(step.page);
       return { finished: false };
     } catch (err) {
       setError(describeError(err));
@@ -165,7 +183,7 @@ export function useFormFlow(token: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [token, page, hiddenParams]);
+  }, [token, page, hiddenParams, setCurrentPage]);
 
   /** بازگشت با تاریخچه‌ی واقعی مسیر، چون پرش‌ها ترتیب صفحات را می‌شکنند. */
   const goBack = useCallback(async () => {
@@ -177,7 +195,7 @@ export function useFormFlow(token: string | undefined) {
         answers: answersRef.current,
         params: hiddenParams,
       });
-      setPage(data.page);
+      setCurrentPage(data.page);
       setScores(data.scores);
       setHistory((prev) => prev.slice(0, -1));
     } catch (err) {
@@ -185,7 +203,7 @@ export function useFormFlow(token: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [token, history, hiddenParams]);
+  }, [token, history, hiddenParams, setCurrentPage]);
 
   const submit = useCallback(async () => {
     if (!token) return false;
