@@ -42,6 +42,13 @@ export class PaymentEntity {
   @Column({ type: 'varchar', length: 120, nullable: true })
   referenceCode: string | null;
 
+  /**
+   * شناسه‌ی تراکنش نزد درگاه.
+   * تایید پرداخت با همین شناسه از خود درگاه پرسیده می‌شود.
+   */
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  authority: string | null;
+
   @Column({ type: JSON_COLUMN, default: {} })
   metadata: Record<string, unknown>;
 

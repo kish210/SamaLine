@@ -16,7 +16,6 @@ import {
   CreatePaymentDto,
   UpdateSubscriptionDto,
   ValidateLicenseDto,
-  VerifyPaymentDto,
 } from './dto';
 
 @Controller('billing')
@@ -44,8 +43,9 @@ export class BillingController {
   }
 
   @Patch('payments/:id/verify')
-  verifyPayment(@Param('id') id: string, @Body() dto: VerifyPaymentDto) {
-    return this.billingService.verifyPayment(id, dto);
+  verifyPayment(@Param('id') id: string) {
+    // وضعیت از خود درگاه پرسیده می‌شود؛ بدنه‌ی درخواست نقشی ندارد.
+    return this.billingService.verifyPayment(id);
   }
 
   @Post('subscriptions')

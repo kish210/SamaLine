@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
@@ -17,8 +21,11 @@ import {
   CreateLicenseDto,
   CreatePaymentDto,
   UpdateSubscriptionDto,
-  VerifyPaymentDto,
 } from './dto';
+import {
+  type PaymentProvider,
+  resolvePaymentProvider,
+} from './payment-provider';
 
 @Injectable()
 export class BillingService {
@@ -32,6 +39,9 @@ export class BillingService {
     @InjectRepository(OnPremLicenseEntity)
     private readonly licenseRepo: Repository<OnPremLicenseEntity>,
   ) {}
+
+  /** درگاه فعال؛ از متغیر محیطی انتخاب می‌شود. */
+  private readonly payments: PaymentProvider = resolvePaymentProvider();
 
   async createInvoice(dto: CreateInvoiceDto) {
     const invoiceNo = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -53,32 +63,81 @@ export class BillingService {
     });
   }
 
+  /**
+   * شروع پرداخت: رکورد ساخته می‌شود و کاربر به درگاه فرستاده می‌شود.
+   * مبلغ از فاکتور خوانده می‌شود نه از ورودی کلاینت.
+   */
   async createPayment(dto: CreatePaymentDto) {
     const invoice = await this.invoiceRepo.findOne({
       where: { id: dto.invoiceId },
     });
     if (!invoice) throw new NotFoundException('فاکتور یافت نشد');
 
-    return this.paymentRepo.save(
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException('این فاکتور قبلا پرداخت شده است');
+    }
+
+    const amount = Number(invoice.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('مبلغ فاکتور معتبر نیست');
+    }
+
+    const payment = await this.paymentRepo.save(
       this.paymentRepo.create({
         invoiceId: dto.invoiceId,
-        gateway: dto.gateway,
+        gateway: this.payments.name,
         status: PaymentStatus.PENDING,
-        amount: String(Math.max(0, Math.floor(dto.amount ?? 0))),
+        amount: String(amount),
       }),
     );
+
+    const started = await this.payments.start({
+      paymentId: payment.id,
+      amount,
+      description: `پرداخت فاکتور ${invoice.invoiceNo}`,
+      callbackUrl: `${process.env.PAYMENT_CALLBACK_URL ?? 'http://localhost:5174/billing/callback'}?paymentId=${payment.id}`,
+    });
+
+    payment.authority = started.authority;
+    await this.paymentRepo.save(payment);
+
+    return {
+      paymentId: payment.id,
+      amount,
+      redirectUrl: started.redirectUrl,
+      gateway: this.payments.name,
+    };
   }
 
-  async verifyPayment(id: string, dto: VerifyPaymentDto) {
+  /**
+   * تایید پرداخت — وضعیت از خود درگاه پرسیده می‌شود.
+   *
+   * پیش از این، کلاینت وضعیت موفق/ناموفق را می‌فرستاد؛ یعنی هر کسی
+   * می‌توانست فاکتور را تسویه‌شده اعلام کند.
+   */
+  async verifyPayment(id: string) {
     const payment = await this.paymentRepo.findOne({ where: { id } });
     if (!payment) throw new NotFoundException('پرداخت یافت نشد');
 
-    payment.status =
-      dto.status === 'success' ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
-    payment.referenceCode = dto.referenceCode ?? payment.referenceCode;
+    // پرداخت تاییدشده دوباره تایید نمی‌شود تا فاکتور دوبار تسویه نشود.
+    if (payment.status === PaymentStatus.SUCCESS) {
+      return payment;
+    }
+    if (!payment.authority) {
+      throw new BadRequestException('این پرداخت هنوز به درگاه نرفته است');
+    }
+
+    const result = await this.payments.verify({
+      authority: payment.authority,
+      amount: Number(payment.amount),
+    });
+
+    payment.status = result.paid ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
+    payment.referenceCode = result.referenceCode;
+    payment.metadata = { ...payment.metadata, message: result.message };
     await this.paymentRepo.save(payment);
 
-    if (payment.status === PaymentStatus.SUCCESS) {
+    if (result.paid) {
       const invoice = await this.invoiceRepo.findOne({
         where: { id: payment.invoiceId },
       });
