@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ContactSourceEntity } from '../database/entities/contact-source.entity';
 import { ContactListEntity } from '../database/entities/contact-list.entity';
+import { decryptHeaders, encryptHeaders } from '../common/secret-box';
 import { ContactsService } from './contacts.service';
 import type { CreateContactSourceDto } from './dto';
 import { extractItems, mapRecords } from './source-mapper';
@@ -44,7 +45,8 @@ export class ContactSourceService {
         name: dto.name,
         url: dto.url,
         method: (dto.method ?? 'GET').toUpperCase(),
-        headers: dto.headers ?? {},
+        // کلید API رمز می‌شود تا نسخه‌ی پشتیبان دیتابیس آن را لو ندهد.
+        headers: encryptHeaders(dto.headers ?? {}),
         body: dto.body ?? {},
         itemsPath: dto.itemsPath ?? '',
         mapping: dto.mapping,
@@ -104,7 +106,7 @@ export class ContactSourceService {
     const fetched = await this.fetchRecords({
       url: source.url,
       method: source.method,
-      headers: source.headers ?? {},
+      headers: decryptHeaders(source.headers ?? {}),
       body: source.body ?? {},
       itemsPath: source.itemsPath ?? '',
     });
