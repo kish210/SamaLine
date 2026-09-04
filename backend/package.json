@@ -22,7 +22,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:seed:prod": "node dist/database/seed.js",
     "release": "npm run build && npm run db:seed:prod && npm run start:prod",
-    "smoke": "node scripts/smoke-test.js"
+    "smoke": "node scripts/smoke-test.js",
+    "superadmin": "node scripts/grant-superadmin.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

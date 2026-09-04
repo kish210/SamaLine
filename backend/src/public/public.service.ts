@@ -24,6 +24,10 @@ import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
 import { RespondentAuthService } from './respondent-auth.service';
+import {
+  PlatformSettingsService,
+  type PublicFooter,
+} from '../platform/platform-settings.service';
 
 type PublicFormPayload = {
   publicationId: string;
@@ -37,6 +41,8 @@ type PublicFormPayload = {
   verifiedRespondentKey?: string | null;
   /** ظاهر فرم؛ پاک‌سازی‌شده و آماده‌ی اعمال. */
   theme: FormTheme;
+  /** نوار پایین سکو؛ فقط سوپرادمین آن را تنظیم می‌کند. */
+  footer: PublicFooter;
 };
 
 @Injectable()
@@ -55,6 +61,7 @@ export class PublicService {
     private readonly logicEngine: LogicEngineService,
     private readonly logicRuntime: LogicRuntimeService,
     private readonly respondentAuth: RespondentAuthService,
+    private readonly platformSettings: PlatformSettingsService,
   ) {}
 
   /**
@@ -199,6 +206,7 @@ export class PublicService {
       structure: latestVersion.structure,
       settings: publication.form.settings,
       theme: resolveTheme(publication.form.settings),
+      footer: await this.platformSettings.publicFooter(),
       // کلید تاییدشده در OTP، تا کنترل تکرار بر همان مبنا کار کند.
       verifiedRespondentKey: auth?.respondentKey ?? null,
     };

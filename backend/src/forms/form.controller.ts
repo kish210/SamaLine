@@ -16,6 +16,7 @@ import {
   SetSlugDto,
   UpdateFormDto,
 } from './dto';
+import { FORM_TEMPLATES } from '../templates/form-templates';
 import { FormService } from './form.service';
 
 @Controller('forms')
@@ -26,6 +27,27 @@ export class FormController {
   @Get()
   list(@Query('workspaceId') workspaceId: string) {
     return this.formService.list(workspaceId);
+  }
+
+  /**
+   * فهرست قالب‌های آماده.
+   *
+   * فقط فراداده برمی‌گردد نه کل ساختار؛ ساختار هنگام ساخت فرم سمت سرور
+   * باز می‌شود و پنل نیازی به دیدنش ندارد.
+   */
+  @Get('templates')
+  templates() {
+    return FORM_TEMPLATES.map((template) => ({
+      key: template.key,
+      title: template.title,
+      summary: template.summary,
+      category: template.category,
+      icon: template.icon,
+      questionCount: template.structure.pages.reduce(
+        (total, page) => total + (page.questions?.length ?? 0),
+        0,
+      ),
+    }));
   }
 
   @Post()

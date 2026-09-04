@@ -43,6 +43,9 @@ import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import type { MessagingService } from '../messaging/messaging.service';
 import { PublicService } from './public.service';
 import { RespondentAuthService } from './respondent-auth.service';
+import { PlatformSettingsService } from '../platform/platform-settings.service';
+import { PlatformSettingsEntity } from '../database/entities/platform-settings.entity';
+import { UserEntity } from '../database/entities/user.entity';
 
 /**
  * تست ادغام روی دیتابیس واقعی (SQLite در حافظه).
@@ -168,6 +171,10 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       new LogicEngineService(),
       new LogicRuntimeService(),
       respondentAuth,
+      new PlatformSettingsService(
+        ds.getRepository(PlatformSettingsEntity),
+        ds.getRepository(UserEntity),
+      ),
     );
   });
 

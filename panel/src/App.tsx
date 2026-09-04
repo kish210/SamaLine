@@ -10,6 +10,7 @@ import { FormBuilderPage } from './pages/FormBuilderPage';
 import { FormsPage } from './pages/FormsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { PlatformSettingsPage } from './pages/PlatformSettingsPage';
 
 function App() {
   const token = useAuth((s) => s.token);
@@ -27,6 +28,7 @@ function App() {
         <Route path="/campaigns" element={<CampaignsPage />} />
         <Route path="/ai" element={<AiPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/platform" element={<PlatformSettingsPage />} />
         <Route path="*" element={<Navigate to="/forms" replace />} />
       </Route>
     </Routes>

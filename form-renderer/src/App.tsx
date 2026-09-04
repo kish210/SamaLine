@@ -3,16 +3,39 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { LanguagePicker } from './LanguagePicker';
+import { PlatformFooter } from './PlatformFooter';
 import { PublicDashboard } from './PublicDashboard';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
 import { useTheme } from './useTheme';
 
+/**
+ * صفحه‌ی فرم.
+ *
+ * جریان پاسخ‌دهی اینجا ساخته می‌شود تا نوار پایین سکو بتواند در همه‌ی
+ * حالت‌ها (شروع، فرم، پایان، خطا) دیده شود؛ بدنه‌ی فرم چند خروجی زودهنگام
+ * دارد و نوار نباید به یکی از آن‌ها گره بخورد.
+ */
 function FormPage() {
   const { token } = useParams();
-  const { t } = useTranslation();
   const flow = useFormFlow(token);
+
+  return (
+    <>
+      <FormBody token={token} flow={flow} />
+      <PlatformFooter footer={flow.form?.footer} />
+    </>
+  );
+}
+
+interface FormBodyProps {
+  token: string | undefined;
+  flow: ReturnType<typeof useFormFlow>;
+}
+
+function FormBody({ token, flow }: FormBodyProps) {
+  const { t } = useTranslation();
   const startedRef = useRef(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /*

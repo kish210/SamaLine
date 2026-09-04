@@ -12,9 +12,11 @@ import { PlanModule } from '../plans/plan.module';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
 import { RespondentAuthService } from './respondent-auth.service';
+import { PlatformModule } from '../platform/platform.module';
 
 @Module({
   imports: [
+    PlatformModule,
     TypeOrmModule.forFeature([
       PublicationEntity,
       FormVersionEntity,

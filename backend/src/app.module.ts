@@ -6,6 +6,8 @@ import { FormModule } from './forms/form.module';
 import { PublicModule } from './public/public.module';
 import { ResponseModule } from './responses/response.module';
 import { WorkspaceModule } from './workspaces/workspace.module';
+import { PlatformModule } from './platform/platform.module';
+import { UploadModule } from './uploads/upload.module';
 import { PlanModule } from './plans/plan.module';
 import { ReportModule } from './reports/report.module';
 import { AiModule } from './ai/ai.module';
@@ -30,6 +32,8 @@ import { buildDataSourceOptions } from './database/data-source';
     PublicModule,
     ResponseModule,
     PlanModule,
+    PlatformModule,
+    UploadModule,
     ReportModule,
     AiModule,
     IntegrationsModule,

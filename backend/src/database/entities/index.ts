@@ -18,6 +18,7 @@ import { QueuedJobEntity } from './queued-job.entity';
 import { OrganizationEntity } from './organization.entity';
 import { OrganizationUserEntity } from './organization-user.entity';
 import { PaymentEntity } from './payment.entity';
+import { PlatformSettingsEntity } from './platform-settings.entity';
 import { PlanPolicyEntity } from './plan-policy.entity';
 import { PublicationEntity } from './publication.entity';
 import { ResponseCommentEntity } from './response-comment.entity';
@@ -54,6 +55,7 @@ export const ALL_ENTITIES = [
   InterviewerQuotaEntity,
   InvoiceEntity,
   PaymentEntity,
+  PlatformSettingsEntity,
   OnPremLicenseEntity,
   ContactListEntity,
   ContactEntity,

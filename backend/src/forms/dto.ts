@@ -91,6 +91,16 @@ export class CreateFormDto {
   @IsNotEmpty()
   slug: string;
 
+  /**
+   * ساخت از روی یک قالب آماده.
+   *
+   * محتوای قالب سمت سرور باز می‌شود نه سمت پنل، تا کسی نتواند با دستکاری
+   * درخواست، ساختاری بفرستد که از اعتبارسنجی قالب‌ها رد نشده است.
+   */
+  @IsOptional()
+  @IsString()
+  templateKey?: string;
+
   @IsOptional()
   @IsObject()
   settings?: Record<string, unknown>;

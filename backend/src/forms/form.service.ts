@@ -23,6 +23,7 @@ import {
   FormQuestionDto,
   UpdateFormDto,
 } from './dto';
+import { findTemplate } from '../templates/form-templates';
 import { LogicEngineService } from './logic-engine.service';
 import type { FormStructure } from './logic-types';
 import { validateSlug } from './slug';
@@ -48,9 +49,18 @@ export class FormService {
   }
 
   async create(dto: CreateFormDto) {
-    const pages = this.resolvePages(dto.pages, dto.questions);
+    // قالب فقط جای خالی‌ها را پر می‌کند؛ هرچه در درخواست آمده مقدم است.
+    const template = dto.templateKey ? findTemplate(dto.templateKey) : undefined;
+    if (dto.templateKey && !template) {
+      throw new BadRequestException('قالب انتخاب‌شده وجود ندارد');
+    }
+
+    const pages = this.resolvePages(
+      dto.pages ?? (template?.structure.pages as FormPageDto[] | undefined),
+      dto.questions,
+    );
     await this.validatePages(pages, dto.workspaceId);
-    this.validateLogic(dto.logic, pages);
+    this.validateLogic(dto.logic ?? template?.structure.logic, pages);
     const planCheck = await this.planService.canCreateForm(dto.workspaceId);
     if (!planCheck.allowed) {
       throw new BadRequestException(
@@ -64,7 +74,8 @@ export class FormService {
         title: dto.title,
         slug: dto.slug,
         status: FormStatus.DRAFT,
-        settings: dto.settings ?? {
+        settings: dto.settings ??
+          template?.settings ?? {
           theme: 'default',
           languages: ['fa'],
           startPageEnabled: true,
@@ -83,7 +94,14 @@ export class FormService {
       this.versionRepo.create({
         formId: form.id,
         version: 1,
-        structure: this.buildStructure(pages, dto.logic, dto.scoreConfig),
+        structure: this.buildStructure(
+          pages,
+          dto.logic ?? template?.structure.logic,
+          dto.scoreConfig ??
+            (template?.structure.scoreIndexes
+              ? { indices: template.structure.scoreIndexes }
+              : undefined),
+        ),
       }),
     );
 

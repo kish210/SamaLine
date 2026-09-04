@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { describeError, formsApi, workspaceApi } from '../api';
+import { TemplatePicker } from './TemplatePicker';
 import type { FormPage } from '../types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -26,6 +27,8 @@ const starterPages = (): FormPage[] => [
 export function FormsPage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
+  const [templateKey, setTemplateKey] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const workspaces = useQuery({
@@ -47,10 +50,12 @@ export function FormsPage() {
         title,
         // اسلاگ یکتا بدون نیاز به ورودی کاربر.
         slug: `form-${Date.now().toString(36)}`,
-        pages: starterPages(),
+        // با قالب، ساختار سمت سرور باز می‌شود؛ بدون قالب، فرم ساده‌ی محلی.
+        ...(templateKey ? { templateKey } : { pages: starterPages() }),
       }),
     onSuccess: async () => {
       setTitle('');
+      setTemplateKey('');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['forms', workspaceId] });
     },
@@ -73,11 +78,24 @@ export function FormsPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setPickerOpen((open) => !open)}
+          >
+            {pickerOpen ? 'بستن قالب‌ها' : 'انتخاب از قالب'}
+          </button>
           <button type="submit" disabled={createForm.isPending || !workspaceId}>
             ساخت فرم
           </button>
         </form>
       </header>
+
+      {pickerOpen && (
+        <section className="card">
+          <TemplatePicker value={templateKey} onChange={setTemplateKey} />
+        </section>
+      )}
 
       {error && <p className="error">{error}</p>}
 

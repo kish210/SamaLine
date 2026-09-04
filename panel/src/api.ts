@@ -74,11 +74,16 @@ export const formsApi = {
     workspaceId: string;
     title: string;
     slug: string;
-    pages: FormPage[];
+    /** ساختار قالب سمت سرور باز می‌شود؛ با templateKey نیازی به pages نیست. */
+    pages?: FormPage[];
+    templateKey?: string;
     settings?: Record<string, unknown>;
     logic?: Record<string, unknown>;
     scoreConfig?: Record<string, unknown>;
   }) => api.post<FormDetail>('/forms', body).then((r) => r.data),
+
+  templates: () =>
+    api.get<FormTemplateSummary[]>('/forms/templates').then((r) => r.data),
 
   update: (id: string, body: Record<string, unknown>) =>
     api.patch<FormDetail>(`/forms/${id}`, body).then((r) => r.data),
@@ -349,3 +354,58 @@ export const plansApi = {
       .get<Record<string, unknown>>(`/plans/policy/${organizationId}`)
       .then((r) => r.data),
 };
+
+
+/** فراداده‌ی یک قالب آماده. */
+export interface FormTemplateSummary {
+  key: string;
+  title: string;
+  summary: string;
+  category: string;
+  icon: string;
+  questionCount: number;
+}
+
+/** تنظیمات سراسری سکو؛ فقط سوپرادمین. */
+export interface PlatformSettings {
+  footerEnabled: boolean;
+  footerText: string;
+  footerUrl: string;
+}
+
+export const platformApi = {
+  me: () =>
+    api.get<{ isSuperAdmin: boolean }>('/platform/me').then((r) => r.data),
+
+  getSettings: () =>
+    api.get<PlatformSettings>('/platform/settings').then((r) => r.data),
+
+  updateSettings: (body: Partial<PlatformSettings>) =>
+    api.patch<PlatformSettings>('/platform/settings', body).then((r) => r.data),
+};
+
+export const uploadApi = {
+  /** آپلود تصویر (لوگو) و گرفتن نشانی عمومی آن. */
+  image: async (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await api.post<{ url: string; fileName: string }>(
+      '/uploads/image',
+      form,
+    );
+    return response.data;
+  },
+};
+
+/**
+ * نشانی مطلق یک فایل آپلودشده.
+ *
+ * سرور نشانی نسبی (`/uploads/...`) می‌دهد چون خودش نمی‌داند از کجا دیده
+ * می‌شود؛ ولی این نشانی در تم فرم ذخیره و به رندرر (روی دامنه‌ی دیگر)
+ * فرستاده می‌شود، پس باید مطلق شود.
+ */
+export function absoluteUploadUrl(url: string): string {
+  if (!url || /^https?:\/\//.test(url)) return url;
+  const base = (api.defaults.baseURL ?? '').replace(/\/api\/v1\/?$/, '');
+  return `${base}${url}`;
+}

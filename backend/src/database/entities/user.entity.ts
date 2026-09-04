@@ -23,6 +23,16 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 255 })
   passwordHash: string;
 
+  /**
+   * سوپرادمین سکو (گرداننده‌ی سامانه)، نه ادمین سازمان.
+   *
+   * این نقش فرامستاجری است و فقط تنظیمات سراسری سکو را کنترل می‌کند؛
+   * عمدا در جدول کاربران است نه organization_users، چون به هیچ سازمانی
+   * تعلق ندارد.
+   */
+  @Column({ type: 'boolean', default: false })
+  isSuperAdmin: boolean;
+
   @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 

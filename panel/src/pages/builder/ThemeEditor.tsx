@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { describeError, formsApi } from '../../api';
+import { absoluteUploadUrl, describeError, formsApi, uploadApi } from '../../api';
 import {
   THEME_PRESETS,
   canonicalPreset,
@@ -110,6 +110,27 @@ export function ThemeEditor({ formId, settings }: Props) {
       oneQuestionPerStep: theme.oneQuestionPerStep,
       gradientAngle: theme.gradientAngle,
     });
+  };
+
+  const [uploading, setUploading] = useState(false);
+
+  /**
+   * آپلود لوگو و نشاندن نشانی‌اش در تم.
+   *
+   * نشانی مطلق ذخیره می‌شود چون رندرر روی دامنه‌ی دیگری اجرا می‌شود و
+   * نشانی نسبی آنجا به فایل نمی‌رسد.
+   */
+  const uploadLogo = async (file: File) => {
+    setUploading(true);
+    try {
+      const saved = await uploadApi.image(file);
+      set('logoUrl', absoluteUploadUrl(saved.url));
+      setError(null);
+    } catch (err) {
+      setError(describeError(err));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = useMutation({
@@ -272,14 +293,48 @@ export function ThemeEditor({ formId, settings }: Props) {
         </label>
       </div>
 
-      <label>
-        نشانی لوگو
-        <input
-          value={theme.logoUrl}
-          placeholder="https://example.com/logo.png"
-          onChange={(e) => set('logoUrl', e.target.value)}
-        />
-      </label>
+      <div className="logo-field">
+        <span className="field-label">لوگوی بالای فرم</span>
+
+        {theme.logoUrl && (
+          <div className="logo-preview">
+            <img src={theme.logoUrl} alt="" />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => set('logoUrl', '')}
+            >
+              حذف لوگو
+            </button>
+          </div>
+        )}
+
+        <div className="inline-form">
+          <label className="file-button">
+            {uploading ? 'در حال آپلود…' : 'انتخاب فایل لوگو'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // ورودی خالی می‌شود تا انتخاب دوباره‌ی همان فایل هم رویداد بدهد.
+                e.target.value = '';
+                if (file) void uploadLogo(file);
+              }}
+            />
+          </label>
+        </div>
+
+        <label>
+          یا نشانی مستقیم
+          <input
+            value={theme.logoUrl}
+            placeholder="https://example.com/logo.png"
+            onChange={(e) => set('logoUrl', e.target.value)}
+          />
+        </label>
+      </div>
 
       <label>
         نشانی تصویر پس‌زمینه

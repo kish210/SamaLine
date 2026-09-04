@@ -52,11 +52,19 @@ export interface FormTheme {
   oneQuestionPerStep: boolean;
 }
 
+/** نوار پایین سکو؛ تنظیمش فقط دست سوپرادمین است. */
+export interface PlatformFooterConfig {
+  enabled: boolean;
+  text: string;
+  url: string;
+}
+
 export interface PublicForm {
   publicationId: string;
   formTitle: string;
   settings: FormSettings;
   theme?: FormTheme;
+  footer?: PlatformFooterConfig;
 }
 
 /** پاسخ اندپوینت گام بعدی؛ منطق پرش سمت سرور اعمال شده است. */

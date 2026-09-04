@@ -1,0 +1,141 @@
+/**
+ * توکن‌های برند سماع رایانه کیش.
+ *
+ * منبع: D:/code/design-system — styles.css و handoff/ux-prompt.md
+ * قاعده‌ی سند: فقط سه رنگ برند + خاکستری سرد + رنگ وضعیت. هیچ رنگ جدیدی
+ * اضافه نشود. نسبت ۸۰٪ خنثی / ۱۵٪ برند / ۵٪ وضعیت و اکسنت طلایی.
+ *
+ * این فایل فقط پنل مدیریت را پوشش می‌دهد. ظاهر فرمِ پاسخ‌دهنده عمدا از این
+ * پالت پیروی نمی‌کند، چون آنجا برند مشتری نشان داده می‌شود نه برند ما.
+ */
+:root {
+  /* ---- برند (از لوگو) ---- */
+  --blue-50: #eef1f7;
+  --blue-100: #dce2ee;
+  --blue-200: #bac5dd;
+  --blue-300: #94a4c7;
+  --blue-400: #6e83ae;
+  --blue-500: #5a6fa2;
+  --blue-600: #4b5f97; /* رنگ اصلی */
+  --blue-700: #324a7a; /* تاپ‌بار و نوار وضعیت */
+  --blue-800: #283a60;
+  --blue-900: #1b2843; /* سایدبار */
+
+  /* ---- اکسنت طلایی (۵٪): نشانگر منوی فعال، آواتار ---- */
+  --gold-50: #f8f3ec;
+  --gold-100: #efe3d1;
+  --gold-300: #cdac7b;
+  --gold-500: #b18a5a;
+  --gold-600: #936f45;
+
+  /* ---- خاکستری سرد (۸۰٪ هر صفحه) ---- */
+  --white: #ffffff;
+  --gray-50: #f6f8fb;
+  --gray-100: #eef1f6;
+  --gray-150: #e7ebf2;
+  --gray-200: #e0e5ee;
+  --gray-300: #ccd4e0;
+  --gray-400: #a7b1c2;
+  --gray-500: #7b8699;
+  --gray-600: #5a6478;
+  --gray-700: #3f4859;
+  --gray-800: #29303f;
+  --gray-900: #161c2a;
+
+  /* ---- وضعیت (۵٪) ---- */
+  --success-50: #e9f5ee;
+  --success-500: #2e7d52;
+  --success-700: #1f5a3a;
+  --warning-50: #fbf1dd;
+  --warning-500: #c9881e;
+  --warning-700: #8f5f12;
+  --danger-50: #fbeceb;
+  --danger-500: #c2403a;
+  --danger-700: #8e2a26;
+  --info-50: var(--blue-50);
+  --info-500: var(--blue-600);
+
+  /* ---- نقش‌ها ---- */
+  --bg-app: var(--gray-50);
+  --bg-surface: var(--white);
+  --bg-sunken: var(--gray-100);
+  --bg-hover: var(--gray-100);
+  --bg-active: var(--blue-50);
+  --bg-sidebar: var(--blue-900);
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --bg-topbar: var(--blue-700);
+
+  --border: var(--gray-200);
+  --border-strong: var(--gray-300);
+  --border-focus: var(--blue-600);
+
+  --text-strong: var(--gray-900);
+  --text-body: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-on-brand: var(--white);
+  --text-link: var(--blue-600);
+
+  /* ---- تایپوگرافی ---- */
+  --font-sans: Vazirmatn, IRANSansX, 'Segoe UI', system-ui, sans-serif;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 25px;
+
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- فاصله (پایه ۴px) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ---- گردی ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* ---- سایه ---- */
+  --shadow-xs: 0 1px 2px rgba(21, 35, 63, 0.06);
+  --shadow-sm:
+    0 1px 3px rgba(21, 35, 63, 0.08), 0 1px 2px rgba(21, 35, 63, 0.04);
+  --shadow-md:
+    0 4px 12px rgba(21, 35, 63, 0.08), 0 2px 4px rgba(21, 35, 63, 0.04);
+  --shadow-lg:
+    0 12px 28px rgba(21, 35, 63, 0.12), 0 4px 8px rgba(21, 35, 63, 0.06);
+  --ring-focus: 0 0 0 2px rgba(75, 95, 151, 0.3);
+
+  /* ---- ابعاد ثابت چیدمان (چگالی ERP) ---- */
+  --sidebar-w: 220px;
+  --sidebar-w-collapsed: 60px;
+  --topbar-h: 56px;
+  --statusbar-h: 26px;
+  --toolbar-h: 42px;
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --row-h: 30px;
+
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* اعداد همیشه tabular تا ستون‌ها روی هم بیفتند. */
+.num,
+.tabular,
+td,
+th {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}

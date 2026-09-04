@@ -1,16 +1,25 @@
+@import './tokens.css';
+
 :root {
-  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
   direction: rtl;
 
-  --bg: #f4f6f8;
-  --surface: #ffffff;
-  --ink: #111827;
-  --muted: #6b7280;
-  --line: #e5e7eb;
-  --accent: #111827;
-  --danger: #b91c1c;
-  --warn: #b45309;
-  --ok: #047857;
+  /*
+   * نام‌های قدیمی، حالا روی توکن‌های برند می‌نشینند.
+   *
+   * صفحات موجود از همین نام‌ها استفاده می‌کنند؛ نگاشتشان به توکن‌ها یعنی
+   * کل پنل با یک تغییر هم‌راستا می‌شود، بدون بازنویسی تک‌تک قاعده‌ها.
+   */
+  --bg: var(--bg-app);
+  --surface: var(--bg-surface);
+  --ink: var(--text-strong);
+  --muted: var(--text-muted);
+  --line: var(--border);
+  --accent: var(--blue-600);
+  --danger: var(--danger-500);
+  --warn: var(--warning-500);
+  --ok: var(--success-500);
 }
 
 * {
@@ -23,64 +32,204 @@ body {
   color: var(--ink);
 }
 
-/* ── چیدمان اصلی ────────────────────────────────── */
+/* ── پوسته‌ی چگال (تاپ‌بار + سایدبار + نوار وضعیت) ──────────────
+ *
+ * ساختار از سند طراحی سماع: تاپ‌بار ۵۶px با رنگ --blue-700، سایدبار
+ * جمع‌شده ۶۰px که با هاور به ۲۲۰px باز می‌شود (--blue-900)، و نوار وضعیت
+ * ۲۶px. آیتم فعال سایدبار با نوار طلایی مشخص می‌شود — تنها جایی که رنگ
+ * طلایی استفاده می‌شود.
+ */
 .app-shell {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+  grid-template-areas:
+    'topbar topbar'
+    'sidebar content'
+    'statusbar statusbar';
   min-height: 100vh;
+  transition: grid-template-columns var(--dur) var(--ease);
 }
 
+/* سایدبار فقط هنگام هاور باز می‌شود؛ فضای محتوا جابه‌جا نمی‌شود. */
+.app-shell:has(.sidebar:hover) {
+  grid-template-columns: var(--sidebar-w) 1fr;
+}
+
+/* ---- تاپ‌بار ---- */
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-inline: var(--space-4);
+  background: var(--bg-topbar);
+  color: var(--text-on-brand);
+}
+
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  margin: 0;
+  padding: 0;
+}
+
+.topbar .brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-500);
+  color: var(--blue-900);
+  font-weight: var(--fw-bold);
+  font-size: var(--text-base);
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* آواتار کاربر — کاربرد دوم و آخر رنگ طلایی. */
+.topbar-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--gold-500);
+  color: var(--blue-900);
+  font-weight: var(--fw-semibold);
+  font-size: var(--text-sm);
+}
+
+.topbar button.link {
+  background: none;
+  border: none;
+  color: var(--blue-200);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+  margin: 0;
+}
+
+.topbar button.link:hover {
+  color: var(--white);
+  text-decoration: underline;
+}
+
+/* ---- سایدبار ---- */
 .sidebar {
-  background: var(--surface);
-  border-inline-start: 1px solid var(--line);
+  grid-area: sidebar;
+  background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
-}
-
-.brand {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 24px;
-  padding-inline: 8px;
+  padding: var(--space-2) 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   flex: 1;
 }
 
 .nav-item {
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: var(--ink);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--control-h-lg, 38px);
+  padding-inline: 18px;
+  color: var(--blue-200);
   text-decoration: none;
+  font-size: var(--text-sm);
+  border-radius: 0;
 }
 
 .nav-item:hover {
-  background: var(--bg);
+  background: var(--bg-sidebar-hover);
+  color: var(--white);
 }
 
 .nav-item.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--bg-sidebar-hover);
+  color: var(--white);
+  font-weight: var(--fw-medium);
 }
 
-.sidebar-footer {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  font-size: 13px;
-  color: var(--muted);
+/* نوار طلایی کنار آیتم فعال. */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--gold-500);
+}
+
+.nav-icon {
+  flex: 0 0 24px;
+  text-align: center;
+  font-size: var(--text-md);
+}
+
+/* لیبل فقط وقتی سایدبار باز است دیده می‌شود. */
+.nav-label {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.sidebar:hover .nav-label {
+  opacity: 1;
+}
+
+/* ---- نوار وضعیت ---- */
+.statusbar {
+  grid-area: statusbar;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: var(--space-4);
+  padding-inline: var(--space-4);
+  background: var(--bg-topbar);
+  color: var(--blue-100);
+  font-size: var(--text-xs);
 }
 
+.statusbar .spacer {
+  flex: 1;
+}
+
+.statusbar .status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--success-500);
+  margin-inline-end: 5px;
+}
+
+/* ---- محتوا ---- */
 .content {
-  padding: 28px;
+  grid-area: content;
+  padding: var(--space-5);
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .page {
@@ -116,11 +265,12 @@ body {
 
 /* ── عناصر پایه ─────────────────────────────────── */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 18px;
-  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .card h3 {
@@ -151,12 +301,22 @@ textarea,
 select {
   width: 100%;
   font: inherit;
-  color: var(--ink);
-  padding: 9px 10px;
-  margin-top: 4px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
+  color: var(--text-body);
+  /* ارتفاع کنترل در سند ۳۲px است؛ پدینگ برای همان تنظیم شده. */
+  min-height: var(--control-h);
+  padding: 5px var(--space-3);
+  margin-top: var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--ring-focus);
 }
 
 textarea {
@@ -165,23 +325,48 @@ textarea {
 
 button {
   font: inherit;
-  padding: 9px 16px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
+  min-height: var(--control-h);
+  padding: 5px var(--space-4);
+  border: 1px solid var(--blue-600);
+  border-radius: var(--radius-sm);
+  background: var(--blue-600);
+  color: var(--text-on-brand);
   cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+button:hover:not(:disabled) {
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
 }
 
 button.secondary {
-  background: #fff;
-  color: var(--ink);
+  background: var(--bg-surface);
+  color: var(--text-body);
+  border-color: var(--border-strong);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--blue-300);
 }
 
 button.danger {
-  background: #fff;
-  color: var(--danger);
-  border-color: #fecaca;
+  background: var(--bg-surface);
+  color: var(--danger-500);
+  border-color: var(--danger-500);
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--danger-50);
+  border-color: var(--danger-500);
 }
 
 button.link {
@@ -497,23 +682,38 @@ button:disabled {
   overflow-x: auto;
 }
 
+/*
+ * جدول عملیاتی: خط‌کشی کامل، زبرا، هاور و ارتفاع ردیف ۳۰px.
+ * سند صریح می‌گوید این داشبورد SaaS نیست و باید چگال و خط‌کشی‌شده باشد.
+ */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-sm);
+  border: 1px solid var(--border);
 }
 
 th,
 td {
   text-align: start;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
+  height: var(--row-h);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
   white-space: nowrap;
 }
 
 th {
-  color: var(--muted);
-  font-weight: 600;
+  background: var(--bg-sunken);
+  color: var(--text-body);
+  font-weight: var(--fw-semibold);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--gray-50);
+}
+
+tbody tr:hover {
+  background: var(--bg-active);
 }
 
 /* ── فهرست‌ها ───────────────────────────────────── */
@@ -1158,4 +1358,132 @@ input[type='color'] {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ── انتخاب قالب آماده ────────────────────────────────────────── */
+
+.template-group + .template-group {
+  margin-top: 16px;
+}
+
+.template-group-label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.template-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 14px;
+  text-align: start;
+  background: #fff;
+  color: #111827;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.template-card:hover {
+  border-color: #c7d2fe;
+}
+
+.template-card.active {
+  border-color: #111827;
+  background: #f9fafb;
+}
+
+.template-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.template-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.template-body small {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.template-count {
+  align-self: flex-start;
+  font-size: 11px;
+  color: #374151;
+  background: #f3f4f6;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+/* ── آپلود لوگو ───────────────────────────────────────────────── */
+
+.logo-field {
+  margin-bottom: 16px;
+}
+
+.logo-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.logo-preview img {
+  max-height: 56px;
+  max-width: 180px;
+  object-fit: contain;
+}
+
+.logo-preview button {
+  width: auto;
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* ورودی فایل پنهان است و برچسبش نقش دکمه را دارد. */
+.file-button {
+  display: inline-block;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: #111827;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.file-button input {
+  display: none;
+}
+
+/* ── پیش‌نمایش نوار پایین سکو ────────────────────────────────── */
+
+.footer-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  margin-top: 12px;
+  font-size: 12px;
+  background: #1f2937;
+  color: #e5e7eb;
+  border-radius: 8px;
 }
