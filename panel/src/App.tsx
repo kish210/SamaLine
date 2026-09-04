@@ -4,6 +4,7 @@ import { useAuth } from './auth';
 import { AiPage } from './pages/AiPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { ContactSourcesPage } from './pages/ContactSourcesPage';
+import { DashboardsPage } from './pages/DashboardsPage';
 import { ContactsPage } from './pages/ContactsPage';
 import { FormBuilderPage } from './pages/FormBuilderPage';
 import { FormsPage } from './pages/FormsPage';
@@ -20,6 +21,7 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/forms" element={<FormsPage />} />
         <Route path="/forms/:formId" element={<FormBuilderPage />} />
+        <Route path="/dashboards" element={<DashboardsPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/sources" element={<ContactSourcesPage />} />
         <Route path="/campaigns" element={<CampaignsPage />} />

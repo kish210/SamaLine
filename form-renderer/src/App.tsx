@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { PublicDashboard } from './PublicDashboard';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
@@ -150,6 +151,7 @@ function App() {
   return (
     <Routes>
       <Route path="/f/:token" element={<FormPage />} />
+      <Route path="/d/:publicToken" element={<PublicDashboard />} />
       <Route path="*" element={<Navigate to="/f/demo" replace />} />
     </Routes>
   );

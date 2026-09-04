@@ -41,6 +41,16 @@ export class ReportService {
     };
   }
 
+  /** پاسخ‌های تکمیل‌شده‌ی یک فرم؛ مبنای محاسبه‌ی میانگین شاخص‌ها. */
+  completedResponses(formId: string) {
+    return this.responseRepo
+      .createQueryBuilder('response')
+      .innerJoin('response.formVersion', 'version')
+      .where('version.formId = :formId', { formId })
+      .andWhere("response.status = 'completed'")
+      .getMany();
+  }
+
   async questionBreakdown(questionId: string) {
     const values = await this.answerFlatRepo.find({
       where: { questionId },

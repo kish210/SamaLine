@@ -19,6 +19,25 @@ export function setRespondentToken(token?: string) {
   }
 }
 
+export const dashboardApi = {
+  getPublic: (publicToken: string) =>
+    client
+      .get<{
+        name: string;
+        widgets: Array<{
+          id: string;
+          type: 'stat' | 'bar' | 'nps' | 'text' | 'score';
+          title: string;
+          layout: { x: number; y: number; w: number; h: number };
+          value?: number | string;
+          series?: Array<{ label: string; count: number }>;
+          content?: string;
+          error?: string;
+        }>;
+      }>(`/public/dashboards/${publicToken}`)
+      .then((r) => r.data),
+};
+
 export const formApi = {
   authInfo: (token: string) =>
     client

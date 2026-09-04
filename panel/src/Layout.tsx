@@ -3,6 +3,7 @@ import { useAuth } from './auth';
 
 const NAV = [
   { to: '/forms', label: 'فرم‌ها' },
+  { to: '/dashboards', label: 'داشبوردها' },
   { to: '/contacts', label: 'مخاطبان' },
   { to: '/sources', label: 'اتصال به CRM' },
   { to: '/campaigns', label: 'ارسال گروهی' },

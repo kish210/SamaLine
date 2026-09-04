@@ -282,6 +282,67 @@ export const aiApi = {
       .then((r) => r.data),
 };
 
+export interface DashboardWidget {
+  id: string;
+  type: 'stat' | 'bar' | 'nps' | 'text' | 'score';
+  title: string;
+  formId?: string;
+  questionId?: string;
+  metric?: string;
+  scoreKey?: string;
+  content?: string;
+  layout: { x: number; y: number; w: number; h: number };
+}
+
+export interface WidgetData extends DashboardWidget {
+  value?: number | string;
+  series?: Array<{ label: string; count: number }>;
+  error?: string;
+}
+
+export interface Dashboard {
+  id: string;
+  name: string;
+  widgets: DashboardWidget[];
+  isPublic: boolean;
+  publicToken: string | null;
+}
+
+export const dashboardsApi = {
+  list: () => api.get<Dashboard[]>('/dashboards').then((r) => r.data),
+
+  create: (name: string) =>
+    api.post<Dashboard>('/dashboards', { name }).then((r) => r.data),
+
+  get: (id: string) =>
+    api.get<Dashboard>(`/dashboards/${id}`).then((r) => r.data),
+
+  data: (id: string) =>
+    api
+      .get<{
+        id: string;
+        name: string;
+        isPublic: boolean;
+        publicToken: string | null;
+        widgets: WidgetData[];
+      }>(`/dashboards/${id}/data`)
+      .then((r) => r.data),
+
+  update: (id: string, body: { name?: string; widgets?: DashboardWidget[] }) =>
+    api.patch<Dashboard>(`/dashboards/${id}`, body).then((r) => r.data),
+
+  setPublic: (id: string, isPublic: boolean) =>
+    api
+      .patch<{ isPublic: boolean; publicToken: string | null }>(
+        `/dashboards/${id}/public`,
+        { isPublic },
+      )
+      .then((r) => r.data),
+
+  remove: (id: string) =>
+    api.delete(`/dashboards/${id}`).then((r) => r.data),
+};
+
 export const plansApi = {
   policy: (organizationId: string) =>
     api

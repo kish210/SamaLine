@@ -4,6 +4,7 @@ import { AuditLogEntity } from './audit-log.entity';
 import { ContactEntity } from './contact.entity';
 import { ContactListEntity } from './contact-list.entity';
 import { ContactSourceEntity } from './contact-source.entity';
+import { DashboardEntity } from './dashboard.entity';
 import { DeliveryLogEntity } from './delivery-log.entity';
 import { FormEntity } from './form.entity';
 import { FormVersionEntity } from './form-version.entity';
@@ -59,4 +60,5 @@ export const ALL_ENTITIES = [
   ContactSourceEntity,
   OtpChallengeEntity,
   QueuedJobEntity,
+  DashboardEntity,
 ];

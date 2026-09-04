@@ -675,3 +675,60 @@ code {
   margin: 0;
   white-space: nowrap;
 }
+
+/* ── داشبوردساز ─────────────────────────────────── */
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+}
+
+.widget {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.widget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.widget-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.widget-actions button {
+  padding: 2px 8px;
+  font-size: 12px;
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.widget-actions button.danger {
+  color: var(--danger);
+  border-color: #fecaca;
+}
+
+.widget-stat {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.widget-text {
+  margin: 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
