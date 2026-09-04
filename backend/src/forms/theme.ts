@@ -16,6 +16,18 @@ export interface FormTheme {
   backgroundImageUrl: string;
   /** خانواده‌ی قلم. */
   fontFamily: string;
+  /**
+   * رنگ دوم گرادیان پس‌زمینه؛ خالی یعنی پس‌زمینه‌ی یکدست.
+   * الگوی رایج فرم‌های فارسی، گرادیان ملایم پشت کارت سوال است.
+   */
+  gradientColor: string;
+  /** زاویه‌ی گرادیان بر حسب درجه. */
+  gradientAngle: number;
+  /**
+   * نمایش تک‌سوالی: هر گام یک سوال.
+   * تمرکز پاسخ‌دهنده را بالا می‌برد و در موبایل خواناتر است.
+   */
+  oneQuestionPerStep: boolean;
 }
 
 export const DEFAULT_THEME: FormTheme = {
@@ -27,6 +39,9 @@ export const DEFAULT_THEME: FormTheme = {
   logoUrl: '',
   backgroundImageUrl: '',
   fontFamily: 'Vazirmatn, Tahoma, sans-serif',
+  gradientColor: '',
+  gradientAngle: 25,
+  oneQuestionPerStep: false,
 };
 
 /** تم‌های آماده تا کاربر بدون دانستن کد رنگ هم ظاهر را عوض کند. */
@@ -36,6 +51,13 @@ export const THEME_PRESETS: Record<string, Partial<FormTheme>> = {
     primaryColor: '#0369a1',
     backgroundColor: '#f0f9ff',
     textColor: '#0c4a6e',
+  },
+  sky: {
+    primaryColor: '#3ebfea',
+    backgroundColor: '#ffffff',
+    gradientColor: '#8ccbf0',
+    textColor: '#334155',
+    cornerRadius: 12,
   },
   forest: {
     primaryColor: '#047857',
@@ -113,7 +135,25 @@ export function resolveTheme(settings: Record<string, unknown>): FormTheme {
       themeObject.fontFamily.trim()
         ? themeObject.fontFamily.trim().slice(0, 120)
         : base.fontFamily,
+    gradientColor: themeObject.gradientColor
+      ? safeColor(themeObject.gradientColor, base.gradientColor ?? '')
+      : (base.gradientColor ?? ''),
+    gradientAngle: clampAngle(
+      themeObject.gradientAngle,
+      base.gradientAngle ?? 25,
+    ),
+    oneQuestionPerStep:
+      typeof themeObject.oneQuestionPerStep === 'boolean'
+        ? themeObject.oneQuestionPerStep
+        : (base.oneQuestionPerStep ?? false),
   };
+}
+
+function clampAngle(value: unknown, fallback: number): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  // زاویه در بازه‌ی ۰ تا ۳۶۰ نگه داشته می‌شود.
+  return ((Math.round(num) % 360) + 360) % 360;
 }
 
 function clampRadius(value: unknown, fallback: number): number {

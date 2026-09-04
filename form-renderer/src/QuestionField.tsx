@@ -90,9 +90,39 @@ export function QuestionField({ question, value, lang, onChange }: Props) {
     );
   }
 
-  if (q.type === 'rating' || q.type === 'slider' || q.type === 'nps') {
+  // NPS و امتیازی به‌صورت دکمه‌های عددی نمایش داده می‌شوند نه اسلایدر:
+  // پاسخ‌دهنده با یک ضربه انتخاب می‌کند و مقدار انتخابی پیداست.
+  if (q.type === 'nps' || q.type === 'rating') {
     const min = q.type === 'nps' ? 0 : (q.meta?.min ?? 1);
     const max = q.type === 'nps' ? 10 : (q.meta?.max ?? 5);
+    const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+    const selected = value === undefined || value === null ? null : Number(value);
+
+    return (
+      <div className="scale">
+        <div className="scale-buttons">
+          {steps.map((step) => (
+            <button
+              key={step}
+              type="button"
+              className={selected === step ? 'scale-step active' : 'scale-step'}
+              onClick={() => onChange(step)}
+            >
+              {step}
+            </button>
+          ))}
+        </div>
+        <div className="scale-labels">
+          <span>{q.meta?.labels?.start ?? 'کم'}</span>
+          <span>{q.meta?.labels?.end ?? 'زیاد'}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (q.type === 'slider') {
+    const min = q.meta?.min ?? 1;
+    const max = q.meta?.max ?? 5;
     const current = Number(value ?? min);
     return (
       <div>

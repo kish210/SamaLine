@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { PublicDashboard } from './PublicDashboard';
@@ -14,6 +14,20 @@ function FormPage() {
   const flow = useFormFlow(token);
   const startedRef = useRef(false);
   useTheme(flow.form?.theme);
+
+  // در حالت تک‌سوالی، شماره‌ی سوال جاری درون صفحه.
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const oneAtATime = Boolean(flow.form?.theme?.oneQuestionPerStep);
+  const questions = flow.page?.questions ?? [];
+  // با عوض شدن صفحه، از سوال اول همان صفحه شروع می‌کنیم.
+  const pageId = flow.page?.id;
+  useEffect(() => setQuestionIndex(0), [pageId]);
+
+  const visibleQuestions = oneAtATime
+    ? questions.slice(questionIndex, questionIndex + 1)
+    : questions;
+  const isLastQuestionOfPage =
+    !oneAtATime || questionIndex >= questions.length - 1;
 
   // وقتی صفحه‌ی شروع غیرفعال است، خودکار وارد فرم می‌شویم.
   useEffect(() => {
@@ -35,8 +49,24 @@ function FormPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    // در حالت تک‌سوالی، تا وقتی سوال بعدی در همین صفحه هست به سرور
+    // نمی‌رویم؛ منطق پرش فقط بین صفحات معنا دارد.
+    if (!isLastQuestionOfPage) {
+      setQuestionIndex((prev) => prev + 1);
+      return;
+    }
+
     const step = await flow.goNext();
     if (step?.finished) await flow.submit();
+  };
+
+  const handleBack = async () => {
+    if (oneAtATime && questionIndex > 0) {
+      setQuestionIndex((prev) => prev - 1);
+      return;
+    }
+    await flow.goBack();
   };
 
   if (!token) return <div className="container">توکن فرم نامعتبر است.</div>;
@@ -119,26 +149,39 @@ function FormPage() {
       {flow.view === 'form' && flow.page && (
         <form onSubmit={handleSubmit}>
           {flow.progress !== null && (
-            <div
-              className="progress"
-              role="progressbar"
-              aria-valuenow={flow.progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
+            <div className="progress-row">
               <div
-                className="progress-fill"
-                style={{ width: `${flow.progress}%` }}
-              />
-              <span className="progress-label">{flow.progress}٪</span>
+                className="progress"
+                role="progressbar"
+                aria-valuenow={flow.progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="progress-fill"
+                  style={{ width: `${flow.progress}%` }}
+                />
+              </div>
+              {oneAtATime && questions.length > 0 && (
+                <span className="progress-counter">
+                  {questionIndex + 1}/{questions.length}
+                </span>
+              )}
             </div>
           )}
 
           <h3>{flow.page.title}</h3>
 
-          {flow.page.questions.map((question) => (
+          {visibleQuestions.map((question) => (
             <div key={question.id} className="question">
-              <label htmlFor={question.id}>{question.title}</label>
+              <label htmlFor={question.id}>
+                {question.required && (
+                  <span className="required-star" aria-hidden="true">
+                    *
+                  </span>
+                )}
+                {question.title}
+              </label>
               {question.description && (
                 <small className="description">{question.description}</small>
               )}
@@ -152,17 +195,21 @@ function FormPage() {
           ))}
 
           <div className="actions">
-            {flow.canGoBack && (
+            {(flow.canGoBack || (oneAtATime && questionIndex > 0)) && (
               <button
                 type="button"
                 disabled={flow.loading}
-                onClick={() => void flow.goBack()}
+                onClick={() => void handleBack()}
               >
-                صفحه قبل
+                قبلی
               </button>
             )}
             <button type="submit" disabled={flow.loading}>
-              {flow.loading ? '...' : t('submit')}
+              {flow.loading
+                ? '...'
+                : isLastQuestionOfPage
+                  ? t('submit')
+                  : 'بعدی'}
             </button>
           </div>
         </form>

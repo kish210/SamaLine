@@ -19,9 +19,18 @@ export function useTheme(theme: FormTheme | undefined) {
     root.style.setProperty('--form-ink', theme.textColor);
     root.style.setProperty('--form-radius', `${theme.cornerRadius}px`);
     root.style.setProperty('--form-font', theme.fontFamily);
+    // تصویر پس‌زمینه بر گرادیان اولویت دارد؛ هر دو با هم شلوغ می‌شود.
+    const layers: string[] = [];
+    if (theme.backgroundImageUrl) {
+      layers.push(`url("${theme.backgroundImageUrl}")`);
+    } else if (theme.gradientColor) {
+      layers.push(
+        `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundColor} 15%, ${theme.gradientColor} 100%)`,
+      );
+    }
     root.style.setProperty(
       '--form-bg-image',
-      theme.backgroundImageUrl ? `url("${theme.backgroundImageUrl}")` : 'none',
+      layers.length ? layers.join(', ') : 'none',
     );
   }, [theme]);
 }

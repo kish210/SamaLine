@@ -16,11 +16,15 @@ interface ThemeValue {
   cornerRadius: number;
   logoUrl: string;
   backgroundImageUrl: string;
+  gradientColor: string;
+  gradientAngle: number;
+  oneQuestionPerStep: boolean;
 }
 
 const PRESETS: Array<{ value: string; label: string; swatch: string }> = [
   { value: 'default', label: 'پیش‌فرض', swatch: '#111827' },
   { value: 'ocean', label: 'دریایی', swatch: '#0369a1' },
+  { value: 'sky', label: 'آسمانی', swatch: '#3ebfea' },
   { value: 'forest', label: 'جنگلی', swatch: '#047857' },
   { value: 'sunset', label: 'غروب', swatch: '#c2410c' },
   { value: 'night', label: 'شب', swatch: '#818cf8' },
@@ -35,6 +39,9 @@ const EMPTY: ThemeValue = {
   cornerRadius: 14,
   logoUrl: '',
   backgroundImageUrl: '',
+  gradientColor: '',
+  gradientAngle: 25,
+  oneQuestionPerStep: false,
 };
 
 /** ویرایش ظاهر و برندینگ فرم. */
@@ -152,6 +159,47 @@ export function ThemeEditor({ formId, settings }: Props) {
         />
       </label>
 
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={theme.oneQuestionPerStep}
+          onChange={(e) => set('oneQuestionPerStep', e.target.checked)}
+        />
+        نمایش تک‌سوالی (هر گام یک سوال)
+      </label>
+
+      <div className="grid-2">
+        <label>
+          رنگ گرادیان پس‌زمینه
+          <div className="inline-form">
+            <input
+              type="color"
+              value={theme.gradientColor || theme.backgroundColor}
+              onChange={(e) => set('gradientColor', e.target.value)}
+            />
+            {theme.gradientColor && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => set('gradientColor', '')}
+              >
+                حذف
+              </button>
+            )}
+          </div>
+        </label>
+        <label>
+          زاویه گرادیان: {theme.gradientAngle}°
+          <input
+            type="range"
+            min={0}
+            max={359}
+            value={theme.gradientAngle}
+            onChange={(e) => set('gradientAngle', Number(e.target.value))}
+          />
+        </label>
+      </div>
+
       <label>
         نشانی لوگو
         <input
@@ -173,7 +221,9 @@ export function ThemeEditor({ formId, settings }: Props) {
       <div
         className="theme-preview"
         style={{
-          background: theme.backgroundColor,
+          background: theme.gradientColor
+            ? `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundColor} 15%, ${theme.gradientColor} 100%)`
+            : theme.backgroundColor,
           borderRadius: theme.cornerRadius,
         }}
       >

@@ -88,6 +88,37 @@ describe('resolveTheme — ظاهر فرم', () => {
       expect(theme.fontFamily.length).toBeLessThanOrEqual(120);
     });
 
+    it('گرادیان و حالت تک‌سوالی را می‌خواند', () => {
+      const theme = resolveTheme({
+        theme: {
+          gradientColor: '#8ccbf0',
+          gradientAngle: 45,
+          oneQuestionPerStep: true,
+        },
+      });
+      expect(theme.gradientColor).toBe('#8ccbf0');
+      expect(theme.gradientAngle).toBe(45);
+      expect(theme.oneQuestionPerStep).toBe(true);
+    });
+
+    it('زاویه‌ی گرادیان را در بازه‌ی ۰ تا ۳۶۰ نگه می‌دارد', () => {
+      expect(
+        resolveTheme({ theme: { gradientAngle: 400 } }).gradientAngle,
+      ).toBe(40);
+      expect(
+        resolveTheme({ theme: { gradientAngle: -30 } }).gradientAngle,
+      ).toBe(330);
+      expect(
+        resolveTheme({ theme: { gradientAngle: 'کج' } }).gradientAngle,
+      ).toBe(25);
+    });
+
+    it('تم آسمانی گرادیان دارد', () => {
+      const theme = resolveTheme({ theme: { preset: 'sky' } });
+      expect(theme.gradientColor).toBe('#8ccbf0');
+      expect(theme.primaryColor).toBe('#3ebfea');
+    });
+
     it('تصویر پس‌زمینه را هم پاک‌سازی می‌کند', () => {
       expect(
         resolveTheme({ theme: { backgroundImageUrl: 'javascript:x' } })

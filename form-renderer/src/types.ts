@@ -43,6 +43,9 @@ export interface FormTheme {
   logoUrl: string;
   backgroundImageUrl: string;
   fontFamily: string;
+  gradientColor: string;
+  gradientAngle: number;
+  oneQuestionPerStep: boolean;
 }
 
 export interface PublicForm {

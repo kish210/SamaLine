@@ -42,12 +42,26 @@ body {
 }
 
 /* نوار پیشرفت فرم چندصفحه‌ای */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .progress {
   position: relative;
+  flex: 1;
   height: 8px;
   background: rgba(128, 128, 128, 0.2);
   border-radius: 999px;
-  margin-bottom: 22px;
+}
+
+.progress-counter {
+  font-size: 12px;
+  opacity: 0.65;
+  white-space: nowrap;
+  direction: ltr;
 }
 
 .progress-fill {
@@ -57,12 +71,57 @@ body {
   transition: width 0.3s ease;
 }
 
-.progress-label {
-  position: absolute;
-  inset-inline-start: 0;
-  top: 12px;
-  font-size: 11px;
-  opacity: 0.6;
+/* ستاره‌ی سوال اجباری */
+.required-star {
+  color: #dc2626;
+  margin-inline-end: 4px;
+  font-weight: 700;
+}
+
+/* مقیاس عددی NPS و امتیازی */
+/*
+ * مقیاس با grid چیده می‌شود نه flex، تا همه‌ی گزینه‌ها هم‌عرض بمانند
+ * و آخرین عدد به خط بعد نیفتد.
+ */
+.scale-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.scale-step {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 0;
+  background: var(--form-surface);
+  color: var(--form-ink);
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+/* در موبایل، مقیاس ۱۱تایی در دو ردیف جا می‌شود. */
+@media (max-width: 520px) {
+  .scale-buttons {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.scale-step.active {
+  background: var(--form-primary);
+  color: #fff;
+  border-color: var(--form-primary);
+}
+
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.65;
+  margin-top: 6px;
+  margin-bottom: 12px;
 }
 
 input,
