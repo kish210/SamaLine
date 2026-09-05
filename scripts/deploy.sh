@@ -16,6 +16,8 @@ PORT="${PORT:-8080}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="${SERVICE_NAME:-samaline}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
+# حداقل نسخه‌ای که vite و nest می‌پذیرند.
+NODE_MIN="${NODE_MIN:-20}"
 
 log() { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31mخطا: %s\033[0m\n' "$1" >&2; exit 1; }
@@ -53,14 +55,35 @@ if port_busy "$PORT"; then
 fi
 echo "پورت انتخاب‌شده: $PORT"
 
-log "نصب Node.js نسخه $NODE_MAJOR در صورت نیاز"
-if ! command -v node >/dev/null 2>&1 ||
-   [ "$(node -p 'process.versions.node.split(".")[0]')" -lt "$NODE_MAJOR" ]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-  apt-get install -y nodejs
+log "بررسی Node.js"
+if command -v node >/dev/null 2>&1; then
+  CURRENT_NODE="$(node -p 'process.versions.node.split(".")[0]')"
+else
+  CURRENT_NODE=0
 fi
+
+if [ "$CURRENT_NODE" -ge "$NODE_MIN" ]; then
+  # روی سرور مشترک، Node موجود ممکن است زیر پای اپ‌های دیگر باشد.
+  # ارتقای آن می‌تواند سرویس‌های در حال اجرا را بشکند، پس اگر نسخه‌ی
+  # موجود کافی است دست‌نخورده می‌ماند.
+  echo "Node $(node -v) موجود است و کافی است؛ دست نمی‌خورد."
+else
+  if [ -n "${ALLOW_NODE_INSTALL:-}" ]; then
+    echo "Node موجود کافی نیست؛ نصب نسخه $NODE_MAJOR…"
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
+    apt-get install -y nodejs
+  else
+    fail "Node نسخه $NODE_MIN یا بالاتر لازم است (نسخه‌ی فعلی: ${CURRENT_NODE:-ندارد}).
+نصب خودکار عمدا انجام نمی‌شود چون ممکن است Node اپ‌های دیگر همین سرور را
+عوض کند. اگر مطمئنید، با ALLOW_NODE_INSTALL=1 دوباره اجرا کنید."
+  fi
+fi
+
 # better-sqlite3 ماژول بومی است و بدون ابزار ساخت کامپایل نمی‌شود.
-apt-get install -y build-essential python3 >/dev/null
+if ! command -v cc >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+  echo "نصب ابزار ساخت…"
+  apt-get install -y build-essential python3 >/dev/null
+fi
 
 log "نصب وابستگی‌ها"
 cd "$APP_DIR"
