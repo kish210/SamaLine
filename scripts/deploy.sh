@@ -87,7 +87,9 @@ fi
 
 log "نصب وابستگی‌ها"
 cd "$APP_DIR"
-npm --prefix backend ci --omit=dev 2>/dev/null || npm --prefix backend install
+# وابستگی‌های توسعه لازم‌اند: nest و vite هر دو devDependency‌اند و بدونشان
+# build انجام نمی‌شود. پس از build با prune حذف می‌شوند تا دیسک آزاد بماند.
+npm --prefix backend install
 npm --prefix form-renderer install
 npm --prefix panel install
 
@@ -98,6 +100,12 @@ VITE_API_URL="/api/v1" npm --prefix form-renderer run build
 # پنل زیر /panel سرو می‌شود؛ base در vite.config.ts همان را می‌گذارد.
 VITE_API_URL="/api/v1" npm --prefix panel run build
 npm --prefix backend run build
+
+log "پاک‌سازی وابستگی‌های توسعه"
+# فقط بک‌اند در زمان اجرا به node_modules نیاز دارد؛ خروجی build دو اپ
+# دیگر فایل استاتیک است و node_modules‌شان دیگر لازم نیست.
+npm --prefix backend prune --omit=dev >/dev/null 2>&1 || true
+rm -rf "$APP_DIR/form-renderer/node_modules" "$APP_DIR/panel/node_modules"
 
 log "ساخت فایل تنظیمات"
 ENV_FILE="$APP_DIR/backend/.env"
