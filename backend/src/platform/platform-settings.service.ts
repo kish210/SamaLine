@@ -6,6 +6,7 @@ import {
   PlatformSettingsEntity,
 } from '../database/entities/platform-settings.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
 
 /** شکل نوار پایین که به فرم عمومی فرستاده می‌شود. */
 export interface PublicFooter {
@@ -25,7 +26,23 @@ export class PlatformSettingsService {
     private readonly repo: Repository<PlatformSettingsEntity>,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaces: Repository<WorkspaceEntity>,
   ) {}
+
+  /** فهرست فرامستاجری فضاهای کاری، برای پنل سوپرادمین. */
+  async allWorkspaces() {
+    const rows = await this.workspaces.find({
+      relations: { organization: true },
+      order: { createdAt: 'ASC' },
+    });
+    return rows.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+      organizationId: workspace.organizationId,
+      organizationName: workspace.organization?.name ?? '—',
+    }));
+  }
 
   /** آیا این کاربر سوپرادمین سکوست؟ */
   async isSuperAdmin(userId: string): Promise<boolean> {

@@ -8,6 +8,7 @@ import type { DataSource } from 'typeorm';
 import { ForbiddenException } from '@nestjs/common';
 import { PlatformSettingsEntity } from '../database/entities/platform-settings.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { SuperAdminGuard } from '../common/super-admin.guard';
 import { createTestDataSource } from '../testing/test-database';
 import {
@@ -31,9 +32,10 @@ describe('تنظیمات سکو و سوپرادمین', () => {
   beforeEach(async () => {
     ds = await createTestDataSource();
     service = new PlatformSettingsService(
-      ds.getRepository(PlatformSettingsEntity),
-      ds.getRepository(UserEntity),
-    );
+        ds.getRepository(PlatformSettingsEntity),
+        ds.getRepository(UserEntity),
+        ds.getRepository(WorkspaceEntity),
+      );
   });
 
   afterEach(async () => {

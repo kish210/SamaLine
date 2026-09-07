@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { describeError, platformApi } from '../api';
 import type { PlatformSettings } from '../api';
+import { TelegramCard } from './TelegramCard';
 
 const EMPTY: PlatformSettings = {
   footerEnabled: true,
@@ -136,6 +137,61 @@ export function PlatformSettingsPage() {
           {value.footerText || 'شرکت سماع رایانه کیش'}
         </div>
       </section>
+
+      <PlatformTelegram />
     </div>
+  );
+}
+
+/**
+ * تنظیم ربات تلگرام هر مجموعه، از پنل سوپرادمین.
+ *
+ * همان کارت پنل سازمان استفاده می‌شود، فقط با یک انتخابگر فضای کاری بالای
+ * آن. بازنویسی جداگانه یعنی دو رابط که با گذشت زمان از هم واگرا می‌شوند.
+ */
+function PlatformTelegram() {
+  const [workspaceId, setWorkspaceId] = useState('');
+
+  const workspaces = useQuery({
+    queryKey: ['platform-workspaces'],
+    queryFn: platformApi.workspaces,
+  });
+
+  const list = workspaces.data ?? [];
+
+  return (
+    <section className="card">
+      <div className="section-head">
+        <h3>ربات تلگرام مجموعه‌ها</h3>
+      </div>
+
+      <p className="hint">
+        برای هر مجموعه می‌توانید ربات را تنظیم کنید و مشخص کنید پاسخ‌های هر
+        فرم به کدام مدیر برود.
+      </p>
+
+      {workspaces.isLoading && <p>در حال بارگذاری فضاهای کاری…</p>}
+
+      {list.length > 0 && (
+        <label>
+          <span className="field-label">مجموعه</span>
+          <select
+            value={workspaceId}
+            onChange={(e) => setWorkspaceId(e.target.value)}
+          >
+            <option value="">یک مجموعه را انتخاب کنید…</option>
+            {list.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.organizationName} — {workspace.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {workspaceId && (
+        <TelegramCard key={workspaceId} workspaceId={workspaceId} />
+      )}
+    </section>
   );
 }

@@ -395,6 +395,19 @@ export const platformApi = {
 
   updateSettings: (body: Partial<PlatformSettings>) =>
     api.patch<PlatformSettings>('/platform/settings', body).then((r) => r.data),
+
+  /** همه‌ی فضاهای کاری سکو؛ فقط برای سوپرادمین. */
+  workspaces: () =>
+    api
+      .get<
+        Array<{
+          id: string;
+          name: string;
+          organizationId: string;
+          organizationName: string;
+        }>
+      >('/platform/workspaces')
+      .then((r) => r.data),
 };
 
 export const uploadApi = {

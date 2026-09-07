@@ -59,15 +59,22 @@ body {
   transition: grid-template-columns var(--dur) var(--ease);
 }
 
-/* در نمایشگر باریک، سایدبار جمع می‌شود و با هاور باز. */
-@media (max-width: 1000px) {
-  .app-shell {
-    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
-  }
+/*
+ * جمع شدن سایدبار فقط با دکمه‌ی تاپ‌بار، نه خودکار با عرض پنجره.
+ *
+ * قاعده‌ی خودکارِ قبلی زیر ۱۰۰۰px یک نوار ۶۰ پیکسلی از آیکون‌های بی‌نام
+ * می‌ساخت که فقط با هاور خوانده می‌شد؛ کاربر آن را «خراب بودن منو»
+ * می‌دید، نه یک حالت فشرده.
+ */
+.app-shell.collapsed {
+  grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+}
 
-  .app-shell:has(.sidebar:hover) {
-    grid-template-columns: var(--sidebar-w) 1fr;
-  }
+.app-shell.collapsed:hover .sidebar,
+.app-shell.collapsed .sidebar:hover {
+  /* در حالت جمع، هاور روی سایدبار نامش را نشان می‌دهد. */
+  width: var(--sidebar-w);
+  z-index: 5;
 }
 
 /* ---- تاپ‌بار ---- */
@@ -209,14 +216,12 @@ body {
 }
 
 /* در حالت جمع، لیبل فقط با هاور روی سایدبار ظاهر می‌شود. */
-@media (max-width: 1000px) {
-  .nav-label {
-    opacity: 0;
-  }
+.app-shell.collapsed .nav-label {
+  opacity: 0;
+}
 
-  .sidebar:hover .nav-label {
-    opacity: 1;
-  }
+.app-shell.collapsed .sidebar:hover .nav-label {
+  opacity: 1;
 }
 
 /* ---- نوار وضعیت ---- */
@@ -2250,4 +2255,38 @@ input[type='color'] {
 
 .form-grid.three {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* دکمه‌ی جمع/باز کردن منو در تاپ‌بار. */
+.sidebar-toggle {
+  width: auto;
+  min-height: 0;
+  padding: 5px;
+  margin: 0;
+  background: none;
+  border: none;
+  color: var(--blue-100);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--white);
+}
+
+/* در چیدمان افقی، جمع کردن معنا ندارد. */
+@media (max-width: 860px) {
+  .sidebar-toggle {
+    display: none;
+  }
+
+  .app-shell.collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell.collapsed .nav-label {
+    opacity: 1;
+  }
 }

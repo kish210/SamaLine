@@ -20,6 +20,7 @@ import {
   Min,
 } from 'class-validator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TelegramService } from './telegram.service';
 
 export class TelegramBotDto {
@@ -83,64 +84,90 @@ export class TelegramController {
   constructor(private readonly telegramService: TelegramService) {}
 
   @Get()
-  getBot(@Query('workspaceId') workspaceId: string) {
+  async getBot(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.getBot(workspaceId);
   }
 
   @Post()
-  saveBot(
+  async saveBot(
     @Query('workspaceId') workspaceId: string,
     @Body() dto: TelegramBotDto,
+    @CurrentUser() user: JwtUser,
   ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.saveBot(workspaceId, dto);
   }
 
   @Delete()
-  removeBot(@Query('workspaceId') workspaceId: string) {
+  async removeBot(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.removeBot(workspaceId);
   }
 
   /** گفتگوهایی که به‌تازگی به ربات پیام داده‌اند؛ برای پیدا کردن chat id. */
   @Get('chats')
-  chats(@Query('workspaceId') workspaceId: string) {
+  async chats(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.discoverChats(workspaceId);
   }
 
   @Get('recipients')
-  listRecipients(@Query('workspaceId') workspaceId: string) {
+  async listRecipients(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.listRecipients(workspaceId);
   }
 
   @Post('recipients')
-  addRecipient(
+  async addRecipient(
     @Query('workspaceId') workspaceId: string,
     @Body() dto: TelegramRecipientDto,
+    @CurrentUser() user: JwtUser,
   ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.addRecipient(workspaceId, dto);
   }
 
   @Patch('recipients/:id')
-  updateRecipient(
+  async updateRecipient(
     @Query('workspaceId') workspaceId: string,
     @Param('id') id: string,
     @Body() dto: TelegramRecipientPatchDto,
+    @CurrentUser() user: JwtUser,
   ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.updateRecipient(workspaceId, id, dto);
   }
 
   @Delete('recipients/:id')
-  removeRecipient(
+  async removeRecipient(
     @Query('workspaceId') workspaceId: string,
     @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
   ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.removeRecipient(workspaceId, id);
   }
 
   @Post('recipients/:id/test')
-  test(
+  async test(
     @Query('workspaceId') workspaceId: string,
     @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
   ) {
+    await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.sendTest(workspaceId, id);
   }
 }

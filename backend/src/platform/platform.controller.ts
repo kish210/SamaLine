@@ -50,4 +50,16 @@ export class PlatformController {
   update(@Body() dto: UpdateFooterDto) {
     return this.settings.update(dto);
   }
+
+  /**
+   * همه‌ی فضاهای کاری سکو، با نام سازمانشان.
+   *
+   * سوپرادمین باید بتواند ربات هر مجموعه را تنظیم کند؛ برای همین به فهرست
+   * فرامستاجری نیاز دارد که هیچ کاربر عادی‌ای نباید ببیند.
+   */
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @Get('workspaces')
+  workspaces() {
+    return this.settings.allWorkspaces();
+  }
 }

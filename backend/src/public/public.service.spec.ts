@@ -177,10 +177,17 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       new PlatformSettingsService(
         ds.getRepository(PlatformSettingsEntity),
         ds.getRepository(UserEntity),
+        ds.getRepository(WorkspaceEntity),
       ),
       new TelegramService(
         ds.getRepository(TelegramIntegrationEntity),
         ds.getRepository(TelegramRecipientEntity),
+        ds.getRepository(WorkspaceEntity),
+        new PlatformSettingsService(
+        ds.getRepository(PlatformSettingsEntity),
+        ds.getRepository(UserEntity),
+        ds.getRepository(WorkspaceEntity),
+      ),
       ),
     );
   });

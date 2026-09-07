@@ -53,6 +53,10 @@ function build(
       },
       delete: async () => undefined,
     } as never,
+    // مخزن فضای کاری و سوپرادمین فقط برای assertAccess لازم‌اند؛ تست‌های
+    // این فایل مستقیم سرویس را صدا می‌زنند، پس دسترسی جای دیگری بررسی شده.
+    { findOne: async () => ({ id: 'w1', organizationId: 'org-1' }) } as never,
+    { isSuperAdmin: async () => false } as never,
   );
   return { service, updates };
 }
@@ -231,5 +235,49 @@ describe('TelegramService', () => {
   it('بدون ربات یعنی «متصل نشده»', async () => {
     const { service } = build(null, []);
     expect(await service.getBot('w1')).toMatchObject({ configured: false });
+  });
+
+  describe('جداسازی مستاجر', () => {
+    /**
+     * `workspaceId` از خود درخواست می‌آید. بدون این بررسی، هر کاربر
+     * واردشده می‌توانست با حدس زدن شناسه توکن ربات سازمان دیگری را عوض کند
+     * یا پاسخ‌های فرم‌های آن سازمان را به گفتگوی خودش هدایت کند.
+     */
+    const serviceFor = (
+      workspace: { id: string; organizationId: string } | null,
+      isSuperAdmin = false,
+    ) =>
+      new TelegramService(
+        { findOne: async () => null } as never,
+        { find: async () => [] } as never,
+        { findOne: async () => workspace } as never,
+        { isSuperAdmin: async () => isSuperAdmin } as never,
+      );
+
+    const user = { sub: 'u1', organizationId: 'org-1' };
+
+    it('فضای کاری سازمان خودی را می‌پذیرد', async () => {
+      const service = serviceFor({ id: 'w1', organizationId: 'org-1' });
+      await expect(service.assertAccess('w1', user)).resolves.toBeUndefined();
+    });
+
+    it('فضای کاری سازمان دیگر را رد می‌کند', async () => {
+      const service = serviceFor({ id: 'w9', organizationId: 'org-2' });
+      await expect(service.assertAccess('w9', user)).rejects.toThrow(
+        'به این فضای کاری دسترسی ندارید',
+      );
+    });
+
+    it('فضای کاری ناموجود را رد می‌کند', async () => {
+      const service = serviceFor(null);
+      await expect(service.assertAccess('ناموجود', user)).rejects.toThrow(
+        'به این فضای کاری دسترسی ندارید',
+      );
+    });
+
+    it('سوپرادمین به همه‌ی فضاهای کاری دسترسی دارد', async () => {
+      const service = serviceFor({ id: 'w9', organizationId: 'org-2' }, true);
+      await expect(service.assertAccess('w9', user)).resolves.toBeUndefined();
+    });
   });
 });

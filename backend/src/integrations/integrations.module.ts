@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebhookEntity } from '../database/entities/webhook.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { PlatformModule } from '../platform/platform.module';
 import { IntegrationsController } from './integrations.controller';
 import { IntegrationsService } from './integrations.service';
 import { TelegramController } from './telegram.controller';
@@ -10,10 +12,12 @@ import { TelegramService } from './telegram.service';
 
 @Module({
   imports: [
+    PlatformModule,
     TypeOrmModule.forFeature([
       WebhookEntity,
       TelegramIntegrationEntity,
       TelegramRecipientEntity,
+      WorkspaceEntity,
     ]),
   ],
   controllers: [IntegrationsController, TelegramController],
