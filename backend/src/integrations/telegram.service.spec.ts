@@ -4,22 +4,57 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { TelegramService } from './telegram.service';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
+import type { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 
-/** یک مخزن ساختگی با یک ردیف در حافظه. */
-function repoWith(row: Partial<TelegramIntegrationEntity> | null) {
-  const updates: Array<Record<string, unknown>> = [];
+const BOT: Partial<TelegramIntegrationEntity> = {
+  id: 'bot-1',
+  workspaceId: 'w1',
+  botToken: 'token-123',
+  isActive: true,
+};
+
+function recipient(
+  over: Partial<TelegramRecipientEntity> = {},
+): Partial<TelegramRecipientEntity> {
   return {
-    updates,
-    repo: {
-      findOne: async () => row,
-      update: async (_where: unknown, patch: Record<string, unknown>) => {
-        updates.push(patch);
-      },
-      create: (value: unknown) => value,
-      save: async (value: unknown) => value,
+    id: 'r1',
+    workspaceId: 'w1',
+    formId: 'form-1',
+    chatId: '-100999',
+    label: 'مدیر هتل',
+    scoreThreshold: null,
+    isActive: true,
+    ...over,
+  };
+}
+
+/** مخزن‌های ساختگی؛ ردیف‌ها در حافظه‌اند و به‌روزرسانی‌ها ثبت می‌شوند. */
+function build(
+  bot: Partial<TelegramIntegrationEntity> | null,
+  recipients: Array<Partial<TelegramRecipientEntity>>,
+) {
+  const updates: Array<Record<string, unknown>> = [];
+  const service = new TelegramService(
+    {
+      findOne: async () => bot,
+      create: (v: unknown) => v,
+      save: async (v: unknown) => v,
       delete: async () => undefined,
     } as never,
-  };
+    {
+      // سرویس با آرایه‌ی where دو حالت «همین فرم» و «همه‌ی فرم‌ها» را
+      // با هم می‌خواهد؛ اینجا هر دو از یک فهرست برمی‌گردند.
+      find: async () => recipients,
+      findOne: async () => recipients[0] ?? null,
+      create: (v: unknown) => v,
+      save: async (v: unknown) => v,
+      update: async (_w: unknown, patch: Record<string, unknown>) => {
+        updates.push(patch);
+      },
+      delete: async () => undefined,
+    } as never,
+  );
+  return { service, updates };
 }
 
 const structure = {
@@ -34,6 +69,19 @@ const structure = {
     },
   ],
 };
+
+const notify = (
+  service: TelegramService,
+  scores: Record<string, number> = {},
+) =>
+  service.notifyResponse({
+    workspaceId: 'w1',
+    formId: 'form-1',
+    formTitle: 'نظرسنجی هتل',
+    structure,
+    answers: { name: 'پروین', rate: 8 },
+    scores,
+  });
 
 describe('TelegramService', () => {
   const fetchMock = jest.fn();
@@ -53,32 +101,14 @@ describe('TelegramService', () => {
     globalThis.fetch = original;
   });
 
-  const active = {
-    id: 'row-1',
-    botToken: 'token-123',
-    chatId: '-100999',
-    isActive: true,
-    notifyOnResponse: true,
-    scoreThreshold: null,
-  };
-
-  const notify = (
-    service: TelegramService,
-    scores: Record<string, number> = {},
-  ) =>
-    service.notifyResponse({
-      workspaceId: 'w1',
-      formTitle: 'نظرسنجی هتل',
-      structure,
-      answers: { name: 'پروین', rate: 8 },
-      scores,
-    });
+  const bodyOf = (call: number) =>
+    JSON.parse(fetchMock.mock.calls[call][1].body as string);
 
   it('پیام را با عنوان سوال‌ها می‌سازد و سوال بی‌پاسخ را نمی‌آورد', async () => {
-    const { repo } = repoWith(active);
-    await notify(new TelegramService(repo), { 'رضایت کلی': 8 });
+    const { service } = build(BOT, [recipient()]);
+    await notify(service, { 'رضایت کلی': 8 });
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const body = bodyOf(0);
     expect(body.chat_id).toBe('-100999');
     expect(body.text).toContain('نظرسنجی هتل');
     expect(body.text).toContain('<b>نام:</b> پروین');
@@ -86,77 +116,120 @@ describe('TelegramService', () => {
     expect(body.text).not.toContain('بی‌پاسخ');
   });
 
+  it('به همه‌ی مقصدهای آن فرم می‌فرستد', async () => {
+    const { service } = build(BOT, [
+      recipient({ id: 'r1', chatId: '-100111' }),
+      recipient({ id: 'r2', chatId: '-100222' }),
+    ]);
+    await notify(service);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect([bodyOf(0).chat_id, bodyOf(1).chat_id].sort()).toEqual([
+      '-100111',
+      '-100222',
+    ]);
+  });
+
+  it('مقصد غیرفعال پیام نمی‌گیرد', async () => {
+    const { service } = build(BOT, [
+      recipient({ id: 'r1', chatId: '-100111', isActive: false }),
+      recipient({ id: 'r2', chatId: '-100222' }),
+    ]);
+    await notify(service);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(bodyOf(0).chat_id).toBe('-100222');
+  });
+
+  it('آستانه‌ی امتیاز برای هر مقصد جدا اعمال می‌شود', async () => {
+    const { service } = build(BOT, [
+      // فقط این مدیر پاسخ‌های ناراضی را می‌خواهد.
+      recipient({ id: 'r1', chatId: '-100111', scoreThreshold: 5 }),
+      recipient({ id: 'r2', chatId: '-100222' }),
+    ]);
+
+    await notify(service, { 'رضایت کلی': 8 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(bodyOf(0).chat_id).toBe('-100222');
+
+    fetchMock.mockClear();
+    await notify(service, { 'رضایت کلی': 3 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('ربات غیرفعال هیچ درخواستی نمی‌فرستد', async () => {
+    const { service } = build({ ...BOT, isActive: false }, [recipient()]);
+    await notify(service);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('بدون مقصد هیچ درخواستی نمی‌فرستد', async () => {
+    const { service } = build(BOT, []);
+    await notify(service);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('توکن ربات در نشانی می‌آید نه در متن پیام', async () => {
-    const { repo } = repoWith(active);
-    await notify(new TelegramService(repo));
+    const { service } = build(BOT, [recipient()]);
+    await notify(service);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('/bottoken-123/sendMessage');
     expect(init.body).not.toContain('token-123');
   });
 
-  it('اتصال غیرفعال هیچ درخواستی نمی‌فرستد', async () => {
-    const { repo } = repoWith({ ...active, isActive: false });
-    await notify(new TelegramService(repo));
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('با آستانه‌ی امتیاز، پاسخ راضی فرستاده نمی‌شود', async () => {
-    const { repo } = repoWith({ ...active, scoreThreshold: 5 });
-    const service = new TelegramService(repo);
-
-    await notify(service, { 'رضایت کلی': 8 });
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    await notify(service, { 'رضایت کلی': 3 });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('خطای تلگرام ثبت پاسخ را نمی‌شکند و در ردیف ذخیره می‌شود', async () => {
+  it('خطای تلگرام ثبت پاسخ را نمی‌شکند و روی مقصد ذخیره می‌شود', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
       json: async () => ({ ok: false, description: 'Unauthorized' }),
     });
-    const { repo, updates } = repoWith(active);
+    const { service, updates } = build(BOT, [recipient()]);
 
     // نباید throw کند؛ این از داخل مسیر ثبت پاسخ صدا زده می‌شود.
-    await expect(notify(new TelegramService(repo))).resolves.toBeUndefined();
+    await expect(notify(service)).resolves.toBeUndefined();
     expect(updates[0]).toEqual({ lastError: 'Unauthorized' });
   });
 
   it('قطع شدن شبکه هم پاسخ را نمی‌شکند', async () => {
     fetchMock.mockRejectedValue(new Error('network down'));
-    const { repo, updates } = repoWith(active);
-    await expect(notify(new TelegramService(repo))).resolves.toBeUndefined();
+    const { service, updates } = build(BOT, [recipient()]);
+    await expect(notify(service)).resolves.toBeUndefined();
     expect(updates[0]).toEqual({ lastError: 'network down' });
   });
 
   it('تگ‌های HTML داخل پاسخ به‌عنوان تگ تفسیر نمی‌شوند', async () => {
-    const { repo } = repoWith(active);
-    await new TelegramService(repo).notifyResponse({
+    const { service } = build(BOT, [recipient()]);
+    await service.notifyResponse({
       workspaceId: 'w1',
+      formId: 'form-1',
       formTitle: 'فرم',
       structure,
       answers: { name: '<b>حمله</b>' },
       scores: {},
     });
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body.text).toContain('&lt;b&gt;حمله&lt;/b&gt;');
+    expect(bodyOf(0).text).toContain('&lt;b&gt;حمله&lt;/b&gt;');
   });
 
-  it('توکن ذخیره‌شده با ذخیره‌ی تنظیمات بدون توکن پاک نمی‌شود', async () => {
-    const { repo } = repoWith(active);
-    const service = new TelegramService(repo);
-    const saved = await service.saveSettings('w1', { chatId: '-100888' });
-    expect(saved.configured).toBe(true);
-    // getSettings توکن را برنمی‌گرداند؛ نبودنش در خروجی عمدی است.
-    expect(saved).not.toHaveProperty('botToken');
-  });
-
-  it('تنظیمات نداشته یعنی «متصل نشده»', async () => {
-    const { repo } = repoWith(null);
-    expect(await new TelegramService(repo).getSettings('w1')).toMatchObject({
-      configured: false,
+  it('توکن نامعتبر همان لحظه رد می‌شود، نه با نرسیدن پیام‌ها', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: false, description: 'Unauthorized' }),
     });
+    const { service } = build(null, []);
+    await expect(
+      service.saveBot('w1', { botToken: 'bad-token' }),
+    ).rejects.toThrow('توکن ربات معتبر نیست');
+  });
+
+  it('وضعیت ربات توکن را برنمی‌گرداند', async () => {
+    const { service } = build(BOT, []);
+    const status = await service.getBot('w1');
+    expect(status.configured).toBe(true);
+    expect(status).not.toHaveProperty('botToken');
+  });
+
+  it('بدون ربات یعنی «متصل نشده»', async () => {
+    const { service } = build(null, []);
+    expect(await service.getBot('w1')).toMatchObject({ configured: false });
   });
 });

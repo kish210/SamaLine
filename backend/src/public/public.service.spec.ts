@@ -44,6 +44,7 @@ import type { MessagingService } from '../messaging/messaging.service';
 import { PublicService } from './public.service';
 import { TelegramService } from '../integrations/telegram.service';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
+import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { RespondentAuthService } from './respondent-auth.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { PlatformSettingsEntity } from '../database/entities/platform-settings.entity';
@@ -177,7 +178,10 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         ds.getRepository(PlatformSettingsEntity),
         ds.getRepository(UserEntity),
       ),
-      new TelegramService(ds.getRepository(TelegramIntegrationEntity)),
+      new TelegramService(
+        ds.getRepository(TelegramIntegrationEntity),
+        ds.getRepository(TelegramRecipientEntity),
+      ),
     );
   });
 

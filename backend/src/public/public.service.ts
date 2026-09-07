@@ -513,6 +513,7 @@ export class PublicService {
     // پاسخ پاسخ‌دهنده نباید گروگان در دسترس بودن تلگرام باشد.
     await this.telegramService.notifyResponse({
       workspaceId: formData.workspaceId,
+      formId: formData.formId,
       formTitle: formData.formTitle,
       structure,
       answers,

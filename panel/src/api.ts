@@ -421,50 +421,103 @@ export function absoluteUploadUrl(url: string): string {
   return `${base}${url}`;
 }
 
-/** تنظیمات ربات تلگرام؛ توکن هرگز از سرور برنمی‌گردد. */
-export interface TelegramSettings {
+/** وضعیت ربات تلگرام؛ توکن هرگز از سرور برنمی‌گردد. */
+export interface TelegramBotStatus {
   configured: boolean;
   isActive: boolean;
-  notifyOnResponse: boolean;
+  botUsername: string | null;
+  lastError: string | null;
+  lastSentAt: string | null;
+}
+
+export interface TelegramRecipient {
+  id: string;
+  formId: string | null;
   chatId: string;
+  label: string;
   scoreThreshold: number | null;
+  isActive: boolean;
   lastError: string | null;
   lastSentAt: string | null;
 }
 
 export const telegramApi = {
-  get: (workspaceId: string) =>
+  getBot: (workspaceId: string) =>
     api
-      .get<TelegramSettings>('/integrations/telegram', {
+      .get<TelegramBotStatus>('/integrations/telegram', {
         params: { workspaceId },
       })
       .then((r) => r.data),
 
-  save: (
+  saveBot: (workspaceId: string, body: { botToken?: string }) =>
+    api
+      .post<TelegramBotStatus>('/integrations/telegram', body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  removeBot: (workspaceId: string) =>
+    api
+      .delete('/integrations/telegram', { params: { workspaceId } })
+      .then((r) => r.data),
+
+  /** گفتگوهایی که به‌تازگی به ربات پیام داده‌اند. */
+  chats: (workspaceId: string) =>
+    api
+      .get<Array<{ id: string; title: string }>>(
+        '/integrations/telegram/chats',
+        { params: { workspaceId } },
+      )
+      .then((r) => r.data),
+
+  recipients: (workspaceId: string) =>
+    api
+      .get<TelegramRecipient[]>('/integrations/telegram/recipients', {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  addRecipient: (
     workspaceId: string,
     body: {
-      botToken?: string;
-      chatId?: string;
-      notifyOnResponse?: boolean;
+      formId: string | null;
+      chatId: string;
+      label?: string;
       scoreThreshold?: number | null;
-      isActive?: boolean;
     },
   ) =>
     api
-      .post<TelegramSettings>('/integrations/telegram', body, {
+      .post<TelegramRecipient>('/integrations/telegram/recipients', body, {
         params: { workspaceId },
       })
       .then((r) => r.data),
 
-  test: (workspaceId: string) =>
+  updateRecipient: (
+    workspaceId: string,
+    id: string,
+    body: { label?: string; scoreThreshold?: number | null; isActive?: boolean },
+  ) =>
     api
-      .post<{ ok: boolean }>('/integrations/telegram/test', null, {
+      .patch<TelegramRecipient>(
+        `/integrations/telegram/recipients/${id}`,
+        body,
+        { params: { workspaceId } },
+      )
+      .then((r) => r.data),
+
+  removeRecipient: (workspaceId: string, id: string) =>
+    api
+      .delete(`/integrations/telegram/recipients/${id}`, {
         params: { workspaceId },
       })
       .then((r) => r.data),
 
-  remove: (workspaceId: string) =>
+  test: (workspaceId: string, id: string) =>
     api
-      .delete('/integrations/telegram', { params: { workspaceId } })
+      .post<{ ok: boolean }>(
+        `/integrations/telegram/recipients/${id}/test`,
+        null,
+        { params: { workspaceId } },
+      )
       .then((r) => r.data),
 };

@@ -10,8 +10,9 @@ import { TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 /**
  * اتصال یک فضای کاری به ربات تلگرام.
  *
- * هر فضای کاری یک ردیف دارد (نه بیشتر)؛ اگر تیم بخواهد چند مقصد داشته باشد
- * می‌تواند از گروه تلگرام استفاده کند، که همان یک شناسه‌ی گفتگو است.
+ * فقط خودِ ربات اینجاست، نه مقصدها: هر فضای کاری یک ربات دارد ولی پاسخ هر
+ * فرم می‌تواند به چند گفتگوی متفاوت برود. مقصدها در
+ * `TelegramRecipientEntity` نگه‌داری می‌شوند.
  */
 @Entity('telegram_integrations')
 export class TelegramIntegrationEntity {
@@ -30,23 +31,12 @@ export class TelegramIntegrationEntity {
   @Column({ type: 'varchar', length: 120 })
   botToken: string;
 
-  /** شناسه‌ی گفتگو یا گروه مقصد. */
-  @Column({ type: 'varchar', length: 64 })
-  chatId: string;
+  /** نام کاربری ربات (@…)، فقط برای نمایش در پنل. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  botUsername: string | null;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
-
-  /** با هر پاسخ کامل پیام بفرست. */
-  @Column({ type: 'boolean', default: true })
-  notifyOnResponse: boolean;
-
-  /**
-   * فقط پاسخ‌هایی که شاخص رضایتشان زیر این عدد است اطلاع داده شود.
-   * `null` یعنی همه‌ی پاسخ‌ها.
-   */
-  @Column({ type: 'double precision', nullable: true })
-  scoreThreshold: number | null;
 
   /** نتیجه‌ی آخرین ارسال؛ برای عیب‌یابی در پنل. */
   @Column({ type: 'varchar', length: 300, nullable: true })

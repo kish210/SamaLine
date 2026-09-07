@@ -1804,3 +1804,27 @@ input[type='color'] {
   padding: 3px 6px;
   text-align: center;
 }
+
+/* انتخاب گفتگوی تلگرام از فهرست خوانده‌شده. */
+.chat-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chat-picks button {
+  width: auto;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.row-actions button {
+  width: auto;
+  padding: 2px 10px;
+  font-size: 12px;
+}
