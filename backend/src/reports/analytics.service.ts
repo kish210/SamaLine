@@ -9,6 +9,7 @@ import type {
   ScoreIndexNode,
 } from '../forms/logic-types';
 import { isoToJalaliText } from '../common/jalali';
+import { extractKeywords, type Keyword } from './keywords';
 
 /** یک ستون نمودار. */
 export interface AnalyticsBar {
@@ -39,6 +40,8 @@ export interface AnalyticsQuestion {
   } | null;
   /** نمونه‌ی پاسخ‌های متنی؛ برای مرور سریع بدون باز کردن جدول. */
   samples: string[];
+  /** پرتکرارترین کلیدواژه‌های پاسخ‌های متنی. */
+  keywords: Keyword[];
 }
 
 export interface AnalyticsResult {
@@ -195,6 +198,7 @@ export class AnalyticsService {
       scale: null,
       nps: null,
       samples: [],
+      keywords: [],
     };
 
     if (OPAQUE_TYPES.has(type)) return base;
@@ -253,6 +257,16 @@ export class AnalyticsService {
 
     base.chart = 'text';
     base.samples = values.slice(-20).map((v) => String(v)).reverse();
+    /*
+     * کلیدواژه فقط از متن آزاد گرفته می‌شود.
+     *
+     * شماره تلفن و ایمیل هم «متنی» شمرده می‌شوند ولی شمردن واژه‌هایشان
+     * چیزی جز فهرستی از تکه‌های شماره نمی‌دهد. کلیدواژه هم از همه‌ی
+     * پاسخ‌ها می‌آید، نه فقط ۲۰ تای نمایش‌داده‌شده.
+     */
+    if (type === 'short_text' || type === 'long_text') {
+      base.keywords = extractKeywords(values.map((v) => String(v)));
+    }
     return base;
   }
 

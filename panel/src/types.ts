@@ -216,6 +216,8 @@ export interface AnalyticsQuestion {
     score: number;
   } | null;
   samples: string[];
+  /** پرتکرارترین کلیدواژه‌های پاسخ‌های متنی. */
+  keywords: Array<{ word: string; count: number }>;
 }
 
 export interface FormAnalytics {

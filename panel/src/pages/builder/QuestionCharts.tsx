@@ -1,3 +1,6 @@
+import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { aiApi, describeError } from '../../api';
 import type { AnalyticsQuestion, FormAnalytics } from '../../types';
 import { todayJalali } from '../../jalali';
 
@@ -90,7 +93,7 @@ function QuestionCard({ question }: { question: AnalyticsQuestion }) {
       ) : question.chart === 'nps' && question.nps ? (
         <NpsChart question={question} />
       ) : question.chart === 'text' ? (
-        <TextSamples samples={question.samples} />
+        <TextAnswers question={question} />
       ) : (
         <Bars question={question} />
       )}
@@ -160,6 +163,100 @@ function NpsChart({ question }: { question: AnalyticsQuestion }) {
       </ul>
 
       <Bars question={question} />
+    </div>
+  );
+}
+
+/**
+ * پاسخ‌های متنی: نمودار کلیدواژه، تحلیل اختیاری با AI، و نمونه‌ها.
+ *
+ * کلیدواژه‌ها سمت سرور با شمارش ساده ساخته می‌شوند و همیشه هستند؛ تحلیل
+ * معنایی لایه‌ی اختیاری روی همان است و اگر ارائه‌دهنده‌ی AI تنظیم نشده
+ * باشد، بقیه‌ی گزارش دست‌نخورده می‌ماند.
+ */
+function TextAnswers({ question }: { question: AnalyticsQuestion }) {
+  const [ai, setAi] = useState<AiResult | null>(null);
+  const [aiError, setAiError] = useState('');
+
+  const analyze = useMutation({
+    mutationFn: () => aiApi.analyze(question.samples),
+    onSuccess: (data) => {
+      setAiError('');
+      setAi(data as AiResult);
+    },
+    onError: (error) => setAiError(describeError(error)),
+  });
+
+  const maxCount = Math.max(1, ...question.keywords.map((k) => k.count));
+
+  return (
+    <>
+      {question.keywords.length > 0 && (
+        <div className="keyword-cloud">
+          {question.keywords.map((keyword) => (
+            <span
+              key={keyword.word}
+              className="keyword"
+              /*
+               * اندازه با تکرار نسبی زیاد می‌شود، ولی کف ۱۲px دارد: ابر
+               * واژه‌ای که نصفش خوانده نشود بدتر از فهرست ساده است.
+               */
+              style={{ fontSize: `${12 + (keyword.count / maxCount) * 10}px` }}
+              title={`در ${keyword.count} پاسخ`}
+            >
+              {keyword.word}
+              <small>{keyword.count}</small>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="inline-form">
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => analyze.mutate()}
+          disabled={analyze.isPending || question.samples.length === 0}
+        >
+          {analyze.isPending ? 'در حال تحلیل…' : 'تحلیل با هوش مصنوعی'}
+        </button>
+      </div>
+
+      {aiError && <p className="error">{aiError}</p>}
+
+      {ai && <AiSummary result={ai} />}
+
+      <TextSamples samples={question.samples} />
+    </>
+  );
+}
+
+interface AiResult {
+  sentiment?: { positive?: number; neutral?: number; negative?: number };
+  topics?: string[];
+}
+
+function AiSummary({ result }: { result: AiResult }) {
+  const sentiment = result.sentiment;
+  return (
+    <div className="ai-summary">
+      {sentiment && (
+        <ul className="nps-legend">
+          <li>
+            <i className="dot promoters" /> مثبت — {sentiment.positive ?? 0}
+          </li>
+          <li>
+            <i className="dot passives" /> خنثی — {sentiment.neutral ?? 0}
+          </li>
+          <li>
+            <i className="dot detractors" /> منفی — {sentiment.negative ?? 0}
+          </li>
+        </ul>
+      )}
+
+      {result.topics && result.topics.length > 0 && (
+        <p className="hint">موضوع‌های پرتکرار: {result.topics.join('، ')}</p>
+      )}
     </div>
   );
 }

@@ -191,4 +191,34 @@ describe('AnalyticsService', () => {
       expect(lastParams).toEqual({});
     });
   });
+
+  describe('کلیدواژه‌ها', () => {
+    it('از پاسخ متن آزاد کلیدواژه می‌گیرد', async () => {
+      const result = await build(structure, [
+        response({ q_note: 'صبحانه عالی بود' }),
+        response({ q_note: 'صبحانه ضعیف بود' }),
+      ]);
+      const note = result.questions.find((q) => q.id === 'q_note');
+      expect(note?.keywords.map((k) => k.word)).toContain('صبحانه');
+    });
+
+    it('از شماره تلفن کلیدواژه نمی‌سازد', async () => {
+      // «متنی» بودن کافی نیست؛ شمردن تکه‌های شماره هیچ الگویی نشان نمی‌دهد.
+      const withPhone = {
+        pages: [
+          {
+            id: 'p1',
+            questions: [{ id: 'q_tel', type: 'mobile', title: 'تلفن' }],
+          },
+        ],
+      };
+      const result = await build(withPhone, [
+        response({ q_tel: '09121112233' }),
+        response({ q_tel: '09121112233' }),
+      ]);
+      expect(result.questions.find((q) => q.id === 'q_tel')?.keywords).toEqual(
+        [],
+      );
+    });
+  });
 });

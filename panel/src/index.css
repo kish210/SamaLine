@@ -2290,3 +2290,46 @@ input[type='color'] {
 }
 
 
+
+/* ── ابر کلیدواژه و تحلیل متن ────────────────────────────────────────── */
+
+.keyword-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.keyword {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  color: var(--blue-800);
+  line-height: 1.6;
+}
+
+.keyword small {
+  font-size: 10px;
+  color: var(--gray-500);
+}
+
+.ai-summary {
+  border-inline-start: 3px solid var(--gold-500);
+  background: var(--gold-50);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.ai-summary .nps-legend {
+  margin: 0 0 4px;
+}
+
+.ai-summary .hint {
+  margin: 0;
+}
