@@ -255,6 +255,13 @@ body {
   padding: var(--space-5);
   overflow-x: hidden;
   overflow-y: auto;
+  /*
+   * بدون این، آیتم گرید زیر عرضِ min-content محتوایش جمع نمی‌شود
+   * (پیش‌فرض min-width: auto). یک ردیف پهن، ستون را از عرض صفحه بزرگ‌تر
+   * می‌کرد و کل صفحه افقی سرریز می‌شد — روی موبایل تاپ‌بار و منو هم
+   * جابه‌جا و بریده دیده می‌شدند.
+   */
+  min-width: 0;
 }
 
 .page {
@@ -411,11 +418,19 @@ button:disabled {
   display: flex;
   gap: 8px;
   align-items: center;
+  /* روی صفحه‌ی باریک، ردیف می‌شکند به‌جای اینکه صفحه را پهن کند. */
+  flex-wrap: wrap;
 }
 
 .inline-form input {
   margin: 0;
-  min-width: 220px;
+  /*
+   * min-width ثابت روی نمایشگر باریک از عرض صفحه بیشتر می‌شد و کل چیدمان
+   * را افقی سرریز می‌کرد؛ با min() کف عرض هیچ‌وقت از خود صفحه بزرگ‌تر
+   * نمی‌شود.
+   */
+  min-width: min(220px, 100%);
+  flex: 1 1 220px;
 }
 
 .grid-2 {
