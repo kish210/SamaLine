@@ -6,6 +6,7 @@ import {
   SignatureField,
 } from './fields/MediaFields';
 import { StarRating } from './fields/StarRating';
+import { ScaleMeter } from './fields/ScaleMeter';
 import { JalaliDatePicker } from './JalaliDatePicker';
 import { QuestionIcon } from './QuestionIcon';
 import { hasIcon } from './question-icons';
@@ -223,8 +224,10 @@ export function QuestionField({
   if (q.type === 'rating') {
     const min = q.meta?.min ?? 1;
     const max = q.meta?.max ?? 5;
+    // انتخاب صریح کاربر مقدم است؛ فقط وقتی چیزی نگفته از بازه حدس می‌زنیم.
     const useStars =
-      q.meta?.style === 'star' || (q.meta?.style !== 'number' && max - min <= 6);
+      q.meta?.style === 'star' ||
+      (q.meta?.style === undefined && max - min <= 6);
 
     if (useStars) {
       return (
@@ -239,32 +242,24 @@ export function QuestionField({
     }
   }
 
-  // NPS و امتیازیِ بازه‌بزرگ با دکمه‌های عددی: یک ضربه و مقدار پیداست.
+  // NPS و امتیازیِ بازه‌بزرگ با متر خطی: نوار پرشونده هم مقدار را
+  // می‌گوید هم جای آن روی مقیاس را — چیزی که ده دکمه‌ی هم‌اندازه نمی‌گوید.
   if (q.type === 'nps' || q.type === 'rating') {
     const min = q.type === 'nps' ? 0 : (q.meta?.min ?? 1);
     const max = q.type === 'nps' ? 10 : (q.meta?.max ?? 5);
-    const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-    const selected = value === undefined || value === null ? null : Number(value);
+    const selected =
+      value === undefined || value === null || value === '' ? null : Number(value);
 
     return (
-      <div className="scale">
-        <div className="scale-buttons">
-          {steps.map((step) => (
-            <button
-              key={step}
-              type="button"
-              className={selected === step ? 'scale-step active' : 'scale-step'}
-              onClick={() => commit(step)}
-            >
-              {step}
-            </button>
-          ))}
-        </div>
-        <div className="scale-labels">
-          <span>{q.meta?.labels?.start ?? 'کم'}</span>
-          <span>{q.meta?.labels?.end ?? 'زیاد'}</span>
-        </div>
-      </div>
+      <ScaleMeter
+        min={min}
+        max={max}
+        value={Number.isFinite(selected) ? selected : null}
+        startLabel={q.meta?.labels?.start ?? 'کم'}
+        endLabel={q.meta?.labels?.end ?? 'زیاد'}
+        showEmoji={q.meta?.showEmoji !== false}
+        onChange={(next) => commit(next)}
+      />
     );
   }
 

@@ -14,6 +14,7 @@ import { PublishCard } from './builder/PublishCard';
 import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
+import { IndicatorEditor, useIndicators } from './builder/IndicatorEditor';
 
 type Tab = 'build' | 'design' | 'flow' | 'report';
 
@@ -73,10 +74,14 @@ export function FormBuilderPage() {
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
-  const scoreIndexes = form.data?.latestVersion?.structure.scoreIndexes ?? [];
+  const [indexes, setIndexes] = useIndicators(
+    form.data?.latestVersion?.structure.scoreIndexes,
+    loadedVersionId ?? '',
+  );
 
   const save = useMutation({
-    mutationFn: () => formsApi.update(formId, { pages }),
+    mutationFn: () =>
+      formsApi.update(formId, { pages, scoreConfig: { indices: indexes } }),
     onSuccess: async () => {
       setError(null);
       setSaved(true);
@@ -321,7 +326,7 @@ export function FormBuilderPage() {
                   question={question}
                   index={questionIndex}
                   total={page.questions.length}
-                  scoreIndexKeys={scoreIndexes}
+                  scoreIndexKeys={indexes}
                   earlierQuestions={earlierQuestions(pageIndex, questionIndex)}
                   onChange={(patch) =>
                     updateQuestion(pageIndex, questionIndex, patch)
@@ -387,6 +392,14 @@ export function FormBuilderPage() {
         <div className="design-tab">
           <ThemeEditor formId={formId} settings={form.data.settings} />
           <EdgePagesEditor formId={formId} settings={form.data.settings} />
+          <IndicatorEditor
+            pages={pages}
+            indexes={indexes}
+            onChange={(next) => {
+              setIndexes(next);
+              setDirty(true);
+            }}
+          />
         </div>
       )}
 
@@ -419,7 +432,9 @@ export function FormBuilderPage() {
         </div>
       )}
 
-      {tab === 'report' && <ResponsesPanel formId={formId} />}
+      {tab === 'report' && (
+        <ResponsesPanel formId={formId} formTitle={form.data.title} />
+      )}
     </div>
   );
 }

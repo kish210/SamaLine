@@ -1,4 +1,38 @@
 /*
+ * وزیرمتن، خودمیزبان.
+ *
+ * عمداً از CDN گوگل گرفته نمی‌شود: پاسخ‌دهنده‌ها در ایران‌اند و درخواست به
+ * fonts.googleapis.com یا کند است یا اصلا نمی‌رسد — نتیجه‌اش صفحه‌ای است که
+ * چند ثانیه معطل یک فونت می‌ماند. فایل‌ها کنار خود برنامه سرو می‌شوند.
+ *
+ * font-display: swap یعنی متن فوری با فونت سیستم دیده می‌شود و بعد وزیرمتن
+ * جایش را می‌گیرد؛ روی اینترنت کند، دیدنِ دیرهنگام متن بدتر از پرش فونت است.
+ */
+@font-face {
+  font-family: Vazirmatn;
+  src: url('./assets/fonts/Vazirmatn-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Vazirmatn;
+  src: url('./assets/fonts/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Vazirmatn;
+  src: url('./assets/fonts/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
  * پدینگ و حاشیه داخل عرض عنصر حساب شود؛ بدون این، کارتی که عرض ۱۰۰٪ دارد
  * به‌اندازه‌ی پدینگش از صفحه بیرون می‌زند و نوار افقی می‌آورد.
  */
@@ -998,4 +1032,145 @@ body {
   color: #b91c1c;
   font-size: 13px;
   margin: 6px 0 0;
+}
+
+/* ── متر امتیاز ──────────────────────────────────────────────────────── */
+
+.scale-meter {
+  margin: 4px 0 18px;
+}
+
+/* چهرک واکنشی */
+.meter-mood {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.mood-emoji {
+  font-size: 46px;
+  line-height: 1.1;
+  /*
+   * هر بار که امتیاز عوض می‌شود، کلید عنصر عوض می‌شود و این انیمیشن از نو
+   * اجرا می‌شود. بدون آن، تغییر چهرک بی‌صدا اتفاق می‌افتد و دیده نمی‌شود.
+   */
+  animation: mood-pop 320ms var(--ease-ios);
+}
+
+@keyframes mood-pop {
+  0% {
+    transform: scale(0.6) rotate(-8deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+.mood-label {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+.meter-value {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * نوار: دکمه‌ها روی یک ریل پیوسته می‌نشینند و لایه‌ی پرشونده پشتشان است.
+ * grid استفاده می‌شود تا همه‌ی پله‌ها هم‌عرض بمانند و آخرین عدد به خط بعد
+ * نیفتد — همان مشکلی که مقیاس دکمه‌ای داشت.
+ */
+.meter-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0;
+  background: rgba(128, 128, 128, 0.16);
+  border-radius: 999px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.meter-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 0;
+  transition: width 260ms var(--ease-ios), background 260ms var(--ease-ios);
+}
+
+.meter-step {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--form-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+  transition: opacity 160ms var(--ease-ios), transform 140ms var(--ease-ios);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* روی بخش پرشده، متن تیره خوانده نمی‌شود. */
+.meter-step.filled,
+.meter-step.current {
+  color: #fff;
+  opacity: 1;
+}
+
+.meter-step.current {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.meter-step:active {
+  transform: scale(0.94);
+}
+
+@media (max-width: 520px) {
+  .meter-step {
+    padding: 12px 0;
+    font-size: 13px;
+  }
+
+  .mood-emoji {
+    font-size: 40px;
+  }
+}
+
+/* کسانی که حرکت را کم کرده‌اند نباید با پرش چهرک روبه‌رو شوند. */
+@media (prefers-reduced-motion: reduce) {
+  .mood-emoji {
+    animation: none;
+  }
+
+  .meter-fill {
+    transition: none;
+  }
 }

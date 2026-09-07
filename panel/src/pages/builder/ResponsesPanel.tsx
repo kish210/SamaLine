@@ -2,9 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { reportsApi } from '../../api';
 import { QuestionCharts } from './QuestionCharts';
+import { DateRangeFilter, type DateRange } from './DateRangeFilter';
 
 interface Props {
   formId: string;
+  /** عنوان فرم؛ روی سربرگ گزارش چاپی می‌نشیند. */
+  formTitle: string;
 }
 
 type Tab = 'charts' | 'table';
@@ -24,8 +27,9 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
-export function ResponsesPanel({ formId }: Props) {
+export function ResponsesPanel({ formId, formTitle }: Props) {
   const [tab, setTab] = useState<Tab>('charts');
+  const [range, setRange] = useState<DateRange>({});
   const [advancedExport, setAdvancedExport] = useState(false);
 
   const summary = useQuery({
@@ -39,8 +43,8 @@ export function ResponsesPanel({ formId }: Props) {
   });
 
   const analytics = useQuery({
-    queryKey: ['analytics', formId],
-    queryFn: () => reportsApi.analytics(formId),
+    queryKey: ['analytics', formId, range.from, range.to],
+    queryFn: () => reportsApi.analytics(formId, range),
   });
 
   // ستون‌های جدول از کلید پاسخ‌ها استخراج می‌شود چون ساختار فرم
@@ -114,12 +118,27 @@ export function ResponsesPanel({ formId }: Props) {
         >
           جدول پاسخ‌ها
         </button>
+
+        <div className="tabs-spacer" />
+
+        <button
+          type="button"
+          className="secondary print-button"
+          onClick={() => window.print()}
+          disabled={!analytics.data}
+          title="در پنجره‌ی چاپ، «ذخیره به‌صورت PDF» را انتخاب کنید"
+        >
+          خروجی PDF
+        </button>
       </div>
 
       {tab === 'charts' && (
         <>
+          <DateRangeFilter value={range} onChange={setRange} />
           {analytics.isLoading && <p>در حال ساخت نمودارها…</p>}
-          {analytics.data && <QuestionCharts data={analytics.data} />}
+          {analytics.data && (
+            <QuestionCharts data={analytics.data} formTitle={formTitle} />
+          )}
         </>
       )}
 

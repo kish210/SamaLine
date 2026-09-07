@@ -1,3 +1,15 @@
+/** یک شاخص امتیازدهی فرم. */
+export interface ScoreIndex {
+  id: string;
+  /** نامی که در گزارش و پایان فرم دیده می‌شود و کلید خروجی امتیاز است. */
+  key: string;
+  title?: string;
+  method: 'sum' | 'avg' | 'weighted' | 'percent';
+  maxScore?: number;
+  /** سوال‌های عضو؛ عضویت از سمت شاخص اعلام می‌شود. */
+  questionIds?: string[];
+}
+
 export const QUESTION_TYPES = [
   'short_text',
   'long_text',
@@ -101,7 +113,7 @@ export interface FormDetail extends FormSummary {
     structure: {
       pages?: FormPage[];
       logic?: Record<string, unknown>;
-      scoreIndexes?: Array<{ id: string; key: string; method?: string }>;
+      scoreIndexes?: ScoreIndex[];
     };
   };
   publication?: Publication | null;
@@ -182,6 +194,13 @@ export interface AnalyticsQuestion {
 }
 
 export interface FormAnalytics {
+  /** بازه‌ی اعمال‌شده؛ برای سربرگ گزارش چاپی. */
+  range: {
+    from: string | null;
+    to: string | null;
+    fromJalali: string | null;
+    toJalali: string | null;
+  };
   questions: AnalyticsQuestion[];
   /** روند روزانه؛ `jalali` برچسب آماده‌ی محور است. */
   trend: Array<{
@@ -190,6 +209,13 @@ export interface FormAnalytics {
     started: number;
     completed: number;
   }>;
-  scores: Array<{ key: string; average: number; count: number }>;
+  scores: Array<{
+    key: string;
+    average: number;
+    count: number;
+    maxScore: number | null;
+    /** «نرخ شاخص»: میانگین به‌صورت درصدی از سقف. */
+    rate: number | null;
+  }>;
   totalResponses: number;
 }

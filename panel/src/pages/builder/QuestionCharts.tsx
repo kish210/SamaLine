@@ -1,4 +1,5 @@
 import type { AnalyticsQuestion, FormAnalytics } from '../../types';
+import { todayJalali } from '../../jalali';
 
 /**
  * نمودارهای گزارش فرم.
@@ -7,28 +8,53 @@ import type { AnalyticsQuestion, FormAnalytics } from '../../types';
  * و با CSS و یک SVG کوچک کشیده می‌شوند. یک کتابخانه‌ی نمودار چند صد کیلوبایت
  * به پنل اضافه می‌کرد بی‌آنکه چیزی بیشتر از این بدهد.
  */
-export function QuestionCharts({ data }: { data: FormAnalytics }) {
+export function QuestionCharts({
+  data,
+  formTitle,
+}: {
+  data: FormAnalytics;
+  formTitle: string;
+}) {
   if (data.totalResponses === 0) {
     return (
-      <section className="card">
-        <p className="empty">
-          هنوز پاسخ تکمیل‌شده‌ای نیست؛ با آمدن اولین پاسخ، نمودارها اینجا
-          ساخته می‌شوند.
-        </p>
-      </section>
+      <>
+        <PrintHeader data={data} formTitle={formTitle} />
+        <section className="card">
+          <p className="empty">
+            در این بازه پاسخ تکمیل‌شده‌ای نیست؛ بازه را بازتر کنید یا منتظر
+            اولین پاسخ بمانید.
+          </p>
+        </section>
+      </>
     );
   }
 
   return (
     <>
+      <PrintHeader data={data} formTitle={formTitle} />
+
       {data.scores.length > 0 && (
         <section className="card">
           <h3>شاخص‌ها</h3>
           <div className="score-row">
             {data.scores.map((score) => (
               <div key={score.key} className="score-chip">
-                <span className="score-value">{score.average}</span>
+                <span className="score-value">
+                  {score.average}
+                  {score.maxScore !== null && (
+                    <small className="score-max"> از {score.maxScore}</small>
+                  )}
+                </span>
                 <span className="score-key">{score.key}</span>
+                {score.rate !== null && (
+                  <span className="score-rate">
+                    <span
+                      className="score-rate-fill"
+                      style={{ width: `${Math.min(100, score.rate)}%` }}
+                    />
+                    <b>{score.rate}٪</b>
+                  </span>
+                )}
                 <span className="score-count">
                   میانگین {score.count} پاسخ
                 </span>
@@ -235,4 +261,49 @@ function TrendChart({ trend }: { trend: FormAnalytics['trend'] }) {
       </div>
     </section>
   );
+}
+
+/**
+ * سربرگ گزارش چاپی.
+ *
+ * روی صفحه دیده نمی‌شود و فقط هنگام چاپ ظاهر می‌شود؛ برگه‌ی PDF بدون عنوان
+ * فرم و بازه‌ی زمانی، شش ماه بعد قابل استناد نیست.
+ */
+function PrintHeader({
+  data,
+  formTitle,
+}: {
+  data: FormAnalytics;
+  formTitle: string;
+}) {
+  const range =
+    data.range.fromJalali || data.range.toJalali
+      ? `${data.range.fromJalali ?? 'ابتدا'} تا ${data.range.toJalali ?? 'امروز'}`
+      : 'همه‌ی پاسخ‌ها';
+
+  return (
+    <header className="print-header">
+      <h1>{formTitle}</h1>
+      <dl>
+        <div>
+          <dt>بازه‌ی زمانی</dt>
+          <dd>{range}</dd>
+        </div>
+        <div>
+          <dt>پاسخ تکمیل‌شده</dt>
+          <dd>{data.totalResponses}</dd>
+        </div>
+        <div>
+          <dt>تاریخ گزارش</dt>
+          <dd>{todayText()}</dd>
+        </div>
+      </dl>
+    </header>
+  );
+}
+
+function todayText(): string {
+  const today = todayJalali();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${today.jy}/${pad(today.jm)}/${pad(today.jd)}`;
 }

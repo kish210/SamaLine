@@ -1828,3 +1828,239 @@ input[type='color'] {
   padding: 2px 10px;
   font-size: 12px;
 }
+
+/* ── فیلتر بازه‌ی زمانی ──────────────────────────────────────────────── */
+
+.date-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.range-presets {
+  display: flex;
+  gap: 4px;
+}
+
+.range-presets button {
+  width: auto;
+  padding: 4px 12px;
+  font-size: 12px;
+  background: var(--bg-surface);
+  color: var(--gray-600);
+  border: 1px solid var(--gray-300);
+}
+
+.range-presets button.active {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: var(--white);
+}
+
+.range-manual {
+  display: flex;
+  gap: 6px;
+}
+
+.range-manual input {
+  width: 130px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.range-label {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.tabs-spacer {
+  flex: 1;
+}
+
+.report-tabs .print-button {
+  width: auto;
+  align-self: center;
+  padding: 4px 14px;
+  font-size: 12px;
+}
+
+/* نرخ شاخص */
+.score-max {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--gray-500);
+}
+
+.score-rate {
+  position: relative;
+  display: block;
+  height: 16px;
+  background: var(--gray-150);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 4px 0 2px;
+}
+
+.score-rate-fill {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--gold-500);
+}
+
+.score-rate b {
+  position: relative;
+  font-size: 11px;
+  color: var(--gray-800);
+  line-height: 16px;
+  padding-inline-start: 6px;
+}
+
+/* شاخص‌ها در ویرایشگر */
+.indicator-row {
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.indicator-questions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 12px;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--gray-50);
+  border-radius: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* ── گزارش چاپی (خروجی PDF) ─────────────────────────────────────────── */
+
+.print-header {
+  display: none;
+}
+
+@media print {
+  /*
+   * چاپ فقط گزارش را می‌خواهد. سایدبار، تاپ‌بار، دکمه‌ها و فیلترها روی
+   * کاغذ هم بی‌فایده‌اند هم فضای مفید را می‌خورند.
+   */
+  .sidebar,
+  .topbar,
+  .statusbar,
+  .report-tabs,
+  .date-range,
+  .page-header,
+  .live-preview,
+  button {
+    display: none !important;
+  }
+
+  body,
+  .app-shell,
+  .content {
+    background: var(--white);
+    margin: 0;
+    padding: 0;
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .print-header {
+    display: block;
+    border-bottom: 2px solid var(--blue-700);
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+
+  .print-header h1 {
+    font-size: 18pt;
+    margin: 0 0 8px;
+    color: var(--blue-700);
+  }
+
+  .print-header dl {
+    display: flex;
+    gap: 28px;
+    margin: 0;
+    font-size: 9pt;
+  }
+
+  .print-header dt {
+    color: var(--gray-500);
+    font-size: 8pt;
+  }
+
+  .print-header dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .card {
+    border: 1px solid var(--gray-300);
+    box-shadow: none;
+    /* یک نمودار نباید وسطش به صفحه‌ی بعد بیفتد. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 10px;
+  }
+
+  .text-samples {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .trend-scroll,
+  .table-scroll {
+    overflow: visible;
+  }
+
+  /* رنگ میله‌ها باید چاپ شود، وگرنه نمودار سفیدِ خالی درمی‌آید. */
+  .bar-fill,
+  .nps-seg,
+  .score-rate-fill,
+  .meter-fill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}
+
+/* تنظیمات مقیاس در ویرایشگر سوال */
+.scale-settings {
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+
+.scale-settings legend {
+  font-size: 12px;
+  color: var(--gray-600);
+  padding: 0 6px;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.range-inputs input {
+  width: 70px;
+}
+
+.range-inputs span {
+  font-size: 12px;
+  color: var(--gray-500);
+}

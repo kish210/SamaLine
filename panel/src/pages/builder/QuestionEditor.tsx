@@ -202,6 +202,14 @@ export function QuestionEditor({
         </label>
       )}
 
+      {SCALE_TYPES.includes(question.type) && (
+        <ScaleSettings
+          type={question.type}
+          meta={meta}
+          onPatch={patchMeta}
+        />
+      )}
+
       <div className="grid-2">
         <label className="checkbox">
           <input
@@ -236,5 +244,113 @@ export function QuestionEditor({
         )}
       </div>
     </div>
+  );
+}
+
+/** نوع‌هایی که تنظیمات مقیاس دارند. */
+const SCALE_TYPES: QuestionType[] = ['rating', 'nps', 'slider'];
+
+interface ScaleProps {
+  type: QuestionType;
+  meta: Record<string, unknown>;
+  onPatch: (patch: Record<string, unknown>) => void;
+}
+
+/**
+ * تنظیمات ظاهر و بازه‌ی سوال‌های امتیازی.
+ *
+ * NPS بازه‌ی ثابت ۰ تا ۱۰ دارد (تعریف استانداردش همین است)، پس برای آن
+ * فیلد کف و سقف نشان داده نمی‌شود؛ اجازه‌ی تغییرش فقط داده‌ی غیرقابل مقایسه
+ * تولید می‌کند.
+ */
+function ScaleSettings({ type, meta, onPatch }: ScaleProps) {
+  const isNps = type === 'nps';
+  const style = (meta.style as string | undefined) ?? '';
+  const min = Number(meta.min ?? (type === 'rating' ? 1 : 0));
+  const max = Number(meta.max ?? (type === 'rating' ? 5 : 10));
+  const labels = (meta.labels ?? {}) as { start?: string; end?: string };
+  const showEmoji = meta.showEmoji !== false;
+
+  const patchLabel = (side: 'start' | 'end', text: string) =>
+    onPatch({ labels: { ...labels, [side]: text } });
+
+  return (
+    <fieldset className="scale-settings">
+      <legend>ظاهر مقیاس</legend>
+
+      <div className="grid-2">
+        {type !== 'slider' && (
+          <label>
+            نمایش
+            <select
+              value={style}
+              onChange={(e) =>
+                onPatch({ style: e.target.value || undefined })
+              }
+            >
+              <option value="">خودکار (بر اساس بازه)</option>
+              <option value="meter">متر خطی</option>
+              <option value="star">ستاره</option>
+            </select>
+          </label>
+        )}
+
+        {!isNps && (
+          <label>
+            بازه
+            <span className="range-inputs">
+              <input
+                type="number"
+                value={min}
+                onChange={(e) => onPatch({ min: Number(e.target.value) })}
+              />
+              <span>تا</span>
+              <input
+                type="number"
+                value={max}
+                onChange={(e) => onPatch({ max: Number(e.target.value) })}
+              />
+            </span>
+          </label>
+        )}
+      </div>
+
+      <div className="grid-2">
+        <label>
+          برچسب کمینه
+          <input
+            placeholder="خیلی بد"
+            value={labels.start ?? ''}
+            onChange={(e) => patchLabel('start', e.target.value)}
+          />
+        </label>
+        <label>
+          برچسب بیشینه
+          <input
+            placeholder="عالی"
+            value={labels.end ?? ''}
+            onChange={(e) => patchLabel('end', e.target.value)}
+          />
+        </label>
+      </div>
+
+      {type !== 'slider' && style !== 'star' && (
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={showEmoji}
+            onChange={(e) => onPatch({ showEmoji: e.target.checked })}
+          />
+          نمایش چهرک واکنشی (با امتیاز عوض می‌شود)
+        </label>
+      )}
+
+      {isNps && (
+        <p className="hint">
+          بازه‌ی NPS همیشه ۰ تا ۱۰ است؛ تغییرش داده را با استاندارد جهانی
+          ناهم‌خوان می‌کند.
+        </p>
+      )}
+    </fieldset>
   );
 }

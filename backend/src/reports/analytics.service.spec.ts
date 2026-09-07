@@ -9,20 +9,36 @@ import type { ResponseEntity } from '../database/entities/response.entity';
  * سرویس فقط برای خواندن به مخزن‌ها نیاز دارد؛ اینجا نسخه‌ی فرم و پاسخ‌ها
  * مستقیم داده می‌شوند تا تجمیع بدون پایگاه‌داده آزموده شود.
  */
-function build(structure: unknown, rows: Array<Partial<ResponseEntity>>) {
-  const service = new AnalyticsService(
-    {
-      createQueryBuilder: () => ({
-        innerJoin: () => ({
-          where: () => ({
-            orderBy: () => ({ getMany: async () => rows }),
-          }),
-        }),
-      }),
-    } as never,
+/** پارامترهای ثبت‌شده‌ی آخرین پرس‌وجو؛ برای بررسی اعمال بازه. */
+const lastParams: Record<string, unknown> = {};
+
+function makeService(
+  structure: unknown,
+  rows: Array<Partial<ResponseEntity>>,
+) {
+  for (const key of Object.keys(lastParams)) delete lastParams[key];
+
+  // سازنده‌ی پرس‌وجوی زنجیره‌ای: هر متد خودش را برمی‌گرداند تا ترتیب
+  // فراخوانی‌ها روی تست اثر نگذارد.
+  const qb: Record<string, unknown> = {
+    innerJoin: () => qb,
+    where: () => qb,
+    andWhere: (_sql: string, params: Record<string, unknown>) => {
+      Object.assign(lastParams, params);
+      return qb;
+    },
+    orderBy: () => qb,
+    getMany: async () => rows,
+  };
+
+  return new AnalyticsService(
+    { createQueryBuilder: () => qb } as never,
     { findOne: async () => ({ structure }) } as never,
   );
-  return service.forForm('form-1');
+}
+
+function build(structure: unknown, rows: Array<Partial<ResponseEntity>>) {
+  return makeService(structure, rows).forForm('form-1');
 }
 
 function response(
@@ -58,7 +74,9 @@ describe('AnalyticsService', () => {
         ],
       },
     ],
-    scoreIndexes: [{ id: 'sat', key: 'رضایت کلی', method: 'avg' }],
+    scoreIndexes: [
+      { id: 'sat', key: 'رضایت کلی', method: 'avg', maxScore: 10 },
+    ],
   };
 
   it('گزینه‌ها را با برچسب خوانا می‌شمارد، نه با شناسه', async () => {
@@ -142,7 +160,35 @@ describe('AnalyticsService', () => {
       response({}, { scores: { 'رضایت کلی': 6 } }),
     ]);
     expect(result.scores).toEqual([
-      { key: 'رضایت کلی', average: 7, count: 2 },
+      // «نرخ شاخص»: میانگین ۷ روی سقف ۱۰ یعنی ۷۰٪.
+      { key: 'رضایت کلی', average: 7, count: 2, maxScore: 10, rate: 70 },
     ]);
+  });
+
+  describe('بازه‌ی زمانی', () => {
+    it('بازه را روی پرس‌وجو اعمال می‌کند و روز پایان را کامل می‌گیرد', async () => {
+      const service = makeService(structure, []);
+      const result = await service.forForm('form-1', {
+        from: '2025-08-01',
+        to: '2025-08-31',
+      });
+
+      expect(lastParams.from).toEqual(new Date('2025-08-01T00:00:00.000Z'));
+      // پایانِ روز، نه ابتدای آن: کاربری که «تا ۳۱ام» می‌گوید انتظار دارد
+      // پاسخ‌های همان روز هم بیایند.
+      expect(lastParams.to).toEqual(new Date('2025-08-31T23:59:59.999Z'));
+
+      expect(result.range).toEqual({
+        from: '2025-08-01',
+        to: '2025-08-31',
+        fromJalali: '1404/05/10',
+        toJalali: '1404/06/09',
+      });
+    });
+
+    it('بدون بازه هیچ شرط تاریخی اضافه نمی‌شود', async () => {
+      await makeService(structure, []).forForm('form-1');
+      expect(lastParams).toEqual({});
+    });
   });
 });

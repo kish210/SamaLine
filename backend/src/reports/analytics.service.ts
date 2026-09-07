@@ -42,6 +42,13 @@ export interface AnalyticsQuestion {
 }
 
 export interface AnalyticsResult {
+  /** بازه‌ی اعمال‌شده؛ برای نوشتن روی سربرگ گزارش چاپی. */
+  range: {
+    from: string | null;
+    to: string | null;
+    fromJalali: string | null;
+    toJalali: string | null;
+  };
   questions: AnalyticsQuestion[];
   trend: Array<{
     date: string;
@@ -49,7 +56,14 @@ export interface AnalyticsResult {
     started: number;
     completed: number;
   }>;
-  scores: Array<{ key: string; average: number; count: number }>;
+  scores: Array<{
+    key: string;
+    average: number;
+    count: number;
+    maxScore: number | null;
+    /** میانگین به‌صورت درصدی از سقف؛ بدون سقف null. */
+    rate: number | null;
+  }>;
   totalResponses: number;
 }
 
@@ -108,7 +122,15 @@ export class AnalyticsService {
     private readonly versionRepo: Repository<FormVersionEntity>,
   ) {}
 
-  async forForm(formId: string): Promise<AnalyticsResult> {
+  /**
+   * @param range بازه‌ی زمانی میلادی (`YYYY-MM-DD`). `to` شامل خودِ آن روز
+   *   است؛ کاربری که «تا ۳۱ شهریور» می‌گوید انتظار دارد پاسخ‌های همان روز
+   *   هم بیایند.
+   */
+  async forForm(
+    formId: string,
+    range: { from?: string; to?: string } = {},
+  ): Promise<AnalyticsResult> {
     const version = await this.versionRepo.findOne({
       where: { formId },
       order: { version: 'DESC' },
@@ -118,16 +140,35 @@ export class AnalyticsService {
     const structure = version.structure as unknown as FormStructure;
     const questions = (structure.pages ?? []).flatMap((p) => p.questions ?? []);
 
-    const responses = await this.responseRepo
+    const query = this.responseRepo
       .createQueryBuilder('response')
       .innerJoin('response.formVersion', 'version')
-      .where('version.formId = :formId', { formId })
+      .where('version.formId = :formId', { formId });
+
+    if (range.from) {
+      query.andWhere('response.createdAt >= :from', {
+        from: new Date(`${range.from}T00:00:00.000Z`),
+      });
+    }
+    if (range.to) {
+      query.andWhere('response.createdAt <= :to', {
+        to: new Date(`${range.to}T23:59:59.999Z`),
+      });
+    }
+
+    const responses = await query
       .orderBy('response.createdAt', 'ASC')
       .getMany();
 
     const completed = responses.filter((r) => r.status === 'completed');
 
     return {
+      range: {
+        from: range.from ?? null,
+        to: range.to ?? null,
+        fromJalali: range.from ? isoToJalaliText(range.from) : null,
+        toJalali: range.to ? isoToJalaliText(range.to) : null,
+      },
       totalResponses: completed.length,
       questions: questions
         .map((q) => this.aggregate(q, completed))
@@ -346,12 +387,23 @@ export class AnalyticsService {
       const values = responses
         .map((r) => Number((r.scores ?? {})[index.key]))
         .filter((n) => Number.isFinite(n));
+      const average = values.length
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : 0;
+      const max = index.maxScore ?? 0;
       return {
         key: index.title ?? index.key,
         count: values.length,
-        average: values.length
-          ? round(values.reduce((a, b) => a + b, 0) / values.length)
-          : 0,
+        average: round(average),
+        maxScore: max || null,
+        /**
+         * «نرخ شاخص»: میانگین به‌صورت درصدی از سقف.
+         *
+         * بدون سقف معنا ندارد — میانگین ۷ روی مقیاس ۱۰ با میانگین ۷ روی
+         * مقیاس ۱۰۰ یکی نیست — پس با سقف تعریف‌نشده null برمی‌گردد و پنل
+         * به‌جای عدد گمراه‌کننده، خط تیره نشان می‌دهد.
+         */
+        rate: max > 0 ? round((average / max) * 100) : null,
       };
     });
   }

@@ -156,9 +156,11 @@ export const reportsApi = {
   },
 
   /** تجمیع همه‌ی سوال‌ها برای گزارش تصویری. */
-  analytics: (formId: string) =>
+  analytics: (formId: string, range?: { from?: string; to?: string }) =>
     api
-      .get<FormAnalytics>(`/reports/forms/${formId}/analytics`)
+      .get<FormAnalytics>(`/reports/forms/${formId}/analytics`, {
+        params: range,
+      })
       .then((r) => r.data),
 
   breakdown: (questionId: string, formId: string) =>
