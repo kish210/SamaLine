@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { platformApi } from './api';
 import { NavIcon } from './NavIcon';
 import { useAuth } from './auth';
+import { useNarrowScreen } from './useNarrowScreen';
 
 /** انتخاب کاربر برای جمع بودن سایدبار، بین نشست‌ها می‌ماند. */
 const SIDEBAR_KEY = 'samaline.sidebar.collapsed';
@@ -52,18 +53,27 @@ export function Layout() {
   });
 
   /*
-   * جمع/باز بودن سایدبار انتخاب کاربر است، نه تابعی از عرض پنجره.
+   * دو رفتار متفاوت، با یک دکمه.
    *
-   * پیش از این زیر ۱۰۰۰px خودکار جمع می‌شد و کاربر یک نوار باریک از
-   * آیکون‌های بی‌نام می‌دید که فقط با هاور خوانده می‌شد — که بارها به
-   * «منو کار نمی‌کند» تعبیر شد. حالا پیش‌فرض باز است و جمع‌شدن فقط با
-   * دکمه اتفاق می‌افتد.
+   * روی نمایشگر پهن، دکمه سایدبار را بین ۲۲۰px و ۶۰px عوض می‌کند و انتخاب
+   * کاربر ذخیره می‌شود. روی نمایشگر باریک، سایدبار یک کشوی روی محتواست که
+   * پیش‌فرض بسته است.
+   *
+   * حالت باریک پیش از این یک نوار افقی اسکرول‌شونده بود: هشت آیتم روی صفحه‌ی
+   * موبایل جا نمی‌شد و هیچ نشانه‌ای هم نداشت که باید کشیده شود، پس عملا نصف
+   * منو نامرئی بود.
    */
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_KEY) === '1',
   );
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const narrow = useNarrowScreen();
 
   const toggleSidebar = () => {
+    if (narrow) {
+      setDrawerOpen((prev) => !prev);
+      return;
+    }
     setCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0');
@@ -71,19 +81,33 @@ export function Layout() {
     });
   };
 
+  /*
+   * با رفتن به صفحه‌ی تازه کشو بسته می‌شود؛ وگرنه روی موبایل صفحه‌ی مقصد
+   * زیر کشو می‌ماند و کاربر فکر می‌کند کلیک کار نکرده است.
+   */
+  const location = useLocation();
+  useEffect(() => setDrawerOpen(false), [location.pathname]);
+
+  /** منو الان باز است؟ روی موبایل یعنی کشو، روی دسکتاپ یعنی جمع‌نشده. */
+  const menuOpen = narrow ? drawerOpen : !collapsed;
+
   const isSuperAdmin = platform.data?.isSuperAdmin === true;
   const items = isSuperAdmin ? [...NAV, PLATFORM_NAV] : NAV;
 
   return (
-    <div className={collapsed ? 'app-shell collapsed' : 'app-shell'}>
+    <div
+      className={['app-shell', collapsed ? 'collapsed' : '', drawerOpen ? 'drawer-open' : '']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="topbar">
         <button
           type="button"
           className="sidebar-toggle"
           onClick={toggleSidebar}
-          aria-label={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
-          aria-expanded={!collapsed}
-          title={collapsed ? 'باز کردن منو' : 'جمع کردن منو'}
+          aria-label={menuOpen ? 'بستن منو' : 'باز کردن منو'}
+          aria-expanded={menuOpen}
+          title={menuOpen ? 'بستن منو' : 'باز کردن منو'}
         >
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
             <path
@@ -141,6 +165,15 @@ export function Layout() {
           ))}
         </nav>
       </aside>
+
+      {drawerOpen && (
+        <button
+          type="button"
+          className="drawer-backdrop"
+          aria-label="بستن منو"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
 
       <main className="content">
         <Outlet />

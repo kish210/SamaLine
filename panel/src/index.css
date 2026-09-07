@@ -830,62 +830,60 @@ code {
   font-size: 12px;
 }
 
+/*
+ * نمایشگر باریک: سایدبار یک کشوی روی محتواست، نه ستون یا نوار افقی.
+ *
+ * نسخه‌ی قبلی نوار افقی اسکرول‌شونده بود؛ هشت آیتم روی صفحه‌ی موبایل جا
+ * نمی‌شد و هیچ نشانه‌ای هم نداشت که باید کشیده شود، پس نصف منو نامرئی بود.
+ */
 @media (max-width: 860px) {
-  /*
-   * در نمایشگر باریک، سایدبار به نوار افقی بالای محتوا تبدیل می‌شود.
-   *
-   * پیش از این فقط `grid-template-columns` به یک ستون تغییر می‌کرد ولی
-   * `grid-template-areas` همچنان دو ستونی می‌ماند؛ نتیجه این بود که
-   * سایدبار و محتوا سرِ یک ستون دعوا می‌کردند و منو به چند پیکسل پهنا
-   * جمع می‌شد — یعنی عملا ناپدید. نواحی هم باید با هم عوض شوند.
-   */
-  .app-shell {
+  .app-shell,
+  .app-shell.collapsed {
     grid-template-columns: 1fr;
-    grid-template-rows: var(--topbar-h) auto 1fr var(--statusbar-h);
     grid-template-areas:
-      'topbar'
-      'sidebar'
-      'content'
-      'statusbar';
+      "topbar"
+      "content"
+      "statusbar";
   }
 
   .sidebar {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    overflow-x: auto;
-    /* نوار افقی نباید ارتفاع تمام‌صفحه بگیرد. */
-    height: auto;
-    padding: 6px 10px;
+    position: fixed;
+    inset-block: var(--topbar-h) var(--statusbar-h);
+    inset-inline-start: 0;
+    width: min(280px, 82vw);
+    z-index: 40;
+    /* بسته: بیرون از لبه. RTL است، پس به راست می‌رود. */
+    transform: translateX(100%);
+    transition: transform var(--dur) var(--ease);
+    overflow-y: auto;
+    box-shadow: -8px 0 24px rgb(0 0 0 / 18%);
   }
 
-  .sidebar nav {
-    flex-direction: row;
-    flex: 1;
+  .app-shell.drawer-open .sidebar {
+    transform: translateX(0);
   }
 
-  .nav-item {
-    white-space: nowrap;
-    padding-inline: 12px;
-  }
-
-  /*
-   * قاعده‌ی «جمع‌شده» زیر ۱۰۰۰px لیبل را محو می‌کند؛ در نوار افقی این
-   * یعنی منویی از آیکون‌های بی‌نام. اینجا لیبل باید دیده شود.
-   */
-  .nav-label {
+  /* لیبل‌ها در کشو همیشه دیده می‌شوند، حتی اگر حالت جمع ذخیره شده باشد. */
+  .app-shell.collapsed .nav-label,
+  .app-shell.drawer-open .nav-label {
     opacity: 1;
   }
 
-  /* نوار طلایی حالت فعال در چیدمان افقی باید زیر آیتم بنشیند نه کنارش. */
-  .nav-item.active::before {
-    inset: auto 0 0 0;
-    width: auto;
-    height: 3px;
+  .nav-item {
+    height: 44px;
   }
 
-  .sidebar nav {
-    flex-direction: row;
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: rgb(0 0 0 / 38%);
+    min-height: 0;
   }
 
   .grid-2,
@@ -2276,17 +2274,4 @@ input[type='color'] {
   color: var(--white);
 }
 
-/* در چیدمان افقی، جمع کردن معنا ندارد. */
-@media (max-width: 860px) {
-  .sidebar-toggle {
-    display: none;
-  }
 
-  .app-shell.collapsed {
-    grid-template-columns: 1fr;
-  }
-
-  .app-shell.collapsed .nav-label {
-    opacity: 1;
-  }
-}
