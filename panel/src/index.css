@@ -2106,3 +2106,148 @@ input[type='color'] {
   font-size: 12px;
   color: var(--gray-500);
 }
+
+/* ── بوم گرافیکی مسیر فرم ────────────────────────────────────────────── */
+
+.flow-scroll {
+  overflow-x: auto;
+  padding: 6px 0 12px;
+}
+
+.flow-node rect {
+  fill: var(--bg-surface);
+  stroke: var(--blue-600);
+  stroke-width: 1.5;
+}
+
+.flow-node text {
+  fill: var(--text-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.flow-node .node-sub {
+  fill: var(--gray-500);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.flow-node.end rect {
+  fill: var(--blue-900);
+  stroke: var(--blue-900);
+}
+
+.flow-node.end text {
+  fill: var(--white);
+}
+
+.arrow-head {
+  fill: var(--gray-400);
+}
+
+.flow-edge path {
+  fill: none;
+  stroke: var(--gray-400);
+  stroke-width: 1.5;
+}
+
+/* «در غیر این صورت» عمداً کم‌رنگ‌تر است: مسیر پیش‌فرض، نه یک تصمیم. */
+.flow-edge.otherwise path {
+  stroke: var(--gray-300);
+  stroke-dasharray: 3 3;
+}
+
+.flow-edge.otherwise text {
+  fill: var(--gray-500);
+  font-size: 11px;
+}
+
+.flow-edge.skip path {
+  stroke: var(--gold-500);
+  stroke-width: 2;
+}
+
+.flow-edge.skip.conditional path {
+  stroke-dasharray: 6 4;
+}
+
+/* برچسب یال با foreignObject نوشته می‌شود تا متن فارسی بشکند و دکمه بگیرد. */
+.edge-label {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--gray-700);
+  background: var(--bg-surface);
+  border: 1px solid var(--gold-300);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.edge-label > span:first-child {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.edge-actions button {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--blue-600);
+  font-size: 11px;
+}
+
+.edge-actions button.danger {
+  background: none;
+  border: none;
+  color: var(--danger-500);
+}
+
+.rule-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rule-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  background: var(--gray-50);
+  border-inline-start: 3px solid var(--gold-500);
+  border-radius: 4px;
+  padding: 7px 10px;
+}
+
+.skip-editor {
+  margin-top: 14px;
+  border-color: var(--blue-300);
+}
+
+/*
+ * چیدمان دوستونیِ خودتطبیق برای فرم‌های تنظیمات.
+ *
+ * برخلاف .grid-2 که همیشه دو ستون مساوی است، این یکی در عرض کم به یک ستون
+ * می‌افتد — لازم است چون این کارت‌ها در سایدبار باریک هم دیده می‌شوند.
+ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.form-grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}

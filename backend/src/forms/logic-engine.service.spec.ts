@@ -199,12 +199,117 @@ describe('LogicEngineService', () => {
           ],
         },
       });
-      expect(graph.edges).toContainEqual({
-        from: 'p1',
-        to: null,
-        kind: 'skip',
-        conditional: true,
+      expect(graph.edges).toContainEqual(
+        expect.objectContaining({
+          from: 'p1',
+          to: null,
+          kind: 'skip',
+          conditional: true,
+          ruleIndex: 0,
+        }),
+      );
+    });
+
+    it('شرط را به جمله‌ی فارسی تبدیل می‌کند تا روی یال بنشیند', () => {
+      const graph = engine.buildFlowGraph({
+        pages: [
+          {
+            id: 'p1',
+            questions: [{ id: 'q1', title: 'رضایت شما' }],
+          },
+          { id: 'p2', questions: [] },
+        ],
+        logic: {
+          skip: [
+            {
+              fromPageId: 'p1',
+              toEnd: true,
+              when: {
+                combinator: 'or',
+                conditions: [
+                  { source: 'q1', operator: 'lt', value: 5 },
+                  { source: 'score.sat', operator: 'is_empty' },
+                ],
+              },
+            },
+          ],
+        },
       });
+
+      const skip = graph.edges.find((e) => e.kind === 'skip');
+      // عنوان سوال می‌آید نه شناسه‌اش؛ برچسبِ «q1» روی بوم بی‌فایده است.
+      expect(skip?.label).toBe('رضایت شما کمتر از 5 یا شاخص sat خالی باشد');
+    });
+
+    it('گروه تو در تو را داخل پرانتز می‌گذارد', () => {
+      const graph = engine.buildFlowGraph({
+        pages: [
+          { id: 'p1', questions: [{ id: 'a', title: 'الف' }, { id: 'b', title: 'ب' }] },
+          { id: 'p2', questions: [] },
+        ],
+        logic: {
+          skip: [
+            {
+              fromPageId: 'p1',
+              toEnd: true,
+              when: {
+                combinator: 'and',
+                conditions: [
+                  { source: 'a', operator: 'equals', value: '1' },
+                  {
+                    combinator: 'or',
+                    conditions: [
+                      { source: 'b', operator: 'equals', value: '2' },
+                      { source: 'b', operator: 'equals', value: '3' },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      // بدون پرانتز، «الف و ب یا ج» دو معنای متفاوت دارد.
+      expect(graph.edges.find((e) => e.kind === 'skip')?.label).toBe(
+        'الف برابر 1 و (ب برابر 2 یا ب برابر 3)',
+      );
+    });
+
+    it('صفحه‌ی دارای پرش شرطی، شاخه‌ی «در غیر این صورت» می‌گیرد', () => {
+      const graph = engine.buildFlowGraph({
+        ...twoPageForm,
+        logic: {
+          skip: [
+            {
+              fromPageId: 'p1',
+              toEnd: true,
+              when: {
+                combinator: 'and',
+                conditions: [{ source: 'q1', operator: 'equals', value: 'خیر' }],
+              },
+            },
+          ],
+        },
+      });
+
+      // بدون این شاخه، کاربر نمی‌داند وقتی شرط برقرار نشد فرم کجا می‌رود.
+      expect(graph.edges).toContainEqual(
+        expect.objectContaining({
+          from: 'p1',
+          to: 'p2',
+          kind: 'otherwise',
+          label: 'در غیر این صورت',
+        }),
+      );
+    });
+
+    it('صفحه‌ی بدون پرش شرطی، یال ترتیبی ساده دارد', () => {
+      const graph = engine.buildFlowGraph(twoPageForm);
+      expect(graph.edges).toContainEqual(
+        expect.objectContaining({ from: 'p1', to: 'p2', kind: 'sequential' }),
+      );
+      expect(graph.edges.some((e) => e.kind === 'otherwise')).toBe(false);
     });
   });
 

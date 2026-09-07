@@ -199,25 +199,30 @@ export class LogicEngineService {
       questionCount: (page.questions ?? []).length,
     }));
 
+    const questionTitles = new Map<string, string>();
+    pages.forEach((p) =>
+      (p.questions ?? []).forEach((q) =>
+        questionTitles.set(q.id, q.title ?? q.id),
+      ),
+    );
+
     const edges: Array<{
       from: string;
       to: string | null;
-      kind: 'sequential' | 'skip';
+      kind: 'sequential' | 'skip' | 'otherwise';
       conditional: boolean;
+      /** جای این قانون در `logic.skip`؛ برای ویرایش و حذف از بوم. */
+      ruleIndex?: number;
+      /** شرط به زبان آدمیزاد، برای برچسب روی یال. */
+      label?: string;
     }> = [];
 
-    pages.forEach((page, idx) => {
-      if (idx < pages.length - 1) {
-        edges.push({
-          from: page.id,
-          to: pages[idx + 1].id,
-          kind: 'sequential',
-          conditional: false,
-        });
-      }
-    });
+    const skipRules = structure.logic?.skip ?? [];
 
-    (structure.logic?.skip ?? []).forEach((rule: SkipRule) => {
+    /** صفحه‌هایی که دست‌کم یک پرش شرطی دارند. */
+    const branching = new Set<string>();
+
+    skipRules.forEach((rule: SkipRule, ruleIndex: number) => {
       const from =
         rule.fromPageId ??
         (rule.fromQuestionId
@@ -231,11 +236,36 @@ export class LogicEngineService {
             ? questionToPage.get(rule.toQuestionId)
             : undefined) ??
           null);
+      if (rule.when) branching.add(from);
       edges.push({
         from,
         to,
         kind: 'skip',
         conditional: Boolean(rule.when),
+        ruleIndex,
+        label: rule.when
+          ? describeGroup(rule.when, questionTitles)
+          : 'همیشه',
+      });
+    });
+
+    pages.forEach((page, idx) => {
+      const next = idx < pages.length - 1 ? pages[idx + 1].id : null;
+      if (next === null && !branching.has(page.id)) return;
+
+      /*
+       * روی صفحه‌ای که پرش شرطی دارد، مسیر ترتیبی در واقع شاخه‌ی «در غیر
+       * این صورت» است. بدون نشان دادن صریحش، کاربر نمی‌داند وقتی هیچ شرطی
+       * برقرار نشد فرم کجا می‌رود — و همین‌جاست که بیشترین اشتباه منطقی
+       * ساخته می‌شود.
+       */
+      const isOtherwise = branching.has(page.id);
+      edges.push({
+        from: page.id,
+        to: next,
+        kind: isOtherwise ? 'otherwise' : 'sequential',
+        conditional: false,
+        label: isOtherwise ? 'در غیر این صورت' : undefined,
       });
     });
 
@@ -274,4 +304,61 @@ export class LogicEngineService {
       return normalizeTokenValue(answers[token]);
     });
   }
+}
+
+/** اپراتورها به فارسی، برای برچسب یال‌های بوم فلوچارت. */
+const OPERATOR_TEXT: Record<string, string> = {
+  equals: 'برابر',
+  not_equals: 'نابرابر با',
+  contains: 'شامل',
+  starts_with: 'شروع‌شونده با',
+  gt: 'بیشتر از',
+  lt: 'کمتر از',
+  between: 'بین',
+  is_empty: 'خالی باشد',
+  is_not_empty: 'خالی نباشد',
+};
+
+/** نام خوانای مبدأ شرط: عنوان سوال، پارامتر یا شاخص. */
+function describeSource(source: string, titles: Map<string, string>): string {
+  if (source.startsWith('param.')) return `پارامتر ${source.slice(6)}`;
+  if (source.startsWith('score.')) return `شاخص ${source.slice(6)}`;
+  return titles.get(source) ?? source;
+}
+
+function describeCondition(
+  condition: LogicCondition,
+  titles: Map<string, string>,
+): string {
+  const subject = describeSource(condition.source, titles);
+  const operator = OPERATOR_TEXT[condition.operator] ?? condition.operator;
+
+  if (condition.operator === 'is_empty' || condition.operator === 'is_not_empty') {
+    return `${subject} ${operator}`;
+  }
+  if (condition.operator === 'between') {
+    return `${subject} ${operator} ${String(condition.value)} و ${String(
+      condition.valueTo,
+    )}`;
+  }
+  return `${subject} ${operator} ${String(condition.value)}`;
+}
+
+/**
+ * گروه شرط به یک جمله.
+ *
+ * گروه‌های تو در تو داخل پرانتز می‌آیند تا اولویت ترکیب گم نشود؛ بدون آن
+ * «الف و ب یا ج» دو معنای متفاوت دارد.
+ */
+function describeGroup(
+  group: LogicConditionGroup,
+  titles: Map<string, string>,
+): string {
+  const joiner = group.combinator === 'or' ? ' یا ' : ' و ';
+  const parts = (group.conditions ?? []).map((node) =>
+    isConditionGroup(node)
+      ? `(${describeGroup(node, titles)})`
+      : describeCondition(node, titles),
+  );
+  return parts.join(joiner) || 'بدون شرط';
 }

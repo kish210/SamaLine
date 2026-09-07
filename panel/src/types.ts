@@ -148,15 +148,40 @@ export interface ResponseRow {
   scores: Record<string, number>;
 }
 
+export interface FlowEdge {
+  from: string;
+  to: string | null;
+  /** «otherwise» شاخه‌ی پیش‌فرضِ صفحه‌ای است که پرش شرطی دارد. */
+  kind: 'sequential' | 'skip' | 'otherwise';
+  conditional: boolean;
+  /** جای قانون در logic.skip؛ برای ویرایش و حذف از بوم. */
+  ruleIndex?: number;
+  /** شرط به زبان آدمیزاد. */
+  label?: string;
+}
+
 export interface FlowGraph {
   nodes: Array<{ id: string; title: string; questionCount: number }>;
-  edges: Array<{
-    from: string;
-    to: string | null;
-    kind: 'sequential' | 'skip';
-    conditional: boolean;
-  }>;
+  edges: FlowEdge[];
   conditionalQuestions: string[];
+}
+
+/** یک قانون پرش، همان شکلی که در logic.skip ذخیره می‌شود. */
+export interface SkipRule {
+  fromPageId?: string;
+  fromQuestionId?: string;
+  toPageId?: string;
+  toQuestionId?: string;
+  toEnd?: boolean;
+  when?: {
+    combinator: 'and' | 'or';
+    conditions: Array<{
+      source: string;
+      operator: string;
+      value?: unknown;
+      valueTo?: unknown;
+    }>;
+  };
 }
 
 export interface ContactList {

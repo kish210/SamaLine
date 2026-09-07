@@ -15,6 +15,7 @@ import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
 import { IndicatorEditor, useIndicators } from './builder/IndicatorEditor';
+import { useSkipRules } from './builder/useSkipRules';
 
 type Tab = 'build' | 'design' | 'flow' | 'report';
 
@@ -74,6 +75,18 @@ export function FormBuilderPage() {
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
+  /*
+   * قوانین نمایش و Piping اینجا ویرایش نمی‌شوند ولی باید حفظ شوند؛ اگر
+   * فقط  فرستاده شود، سرور کل logic را جایگزین می‌کند و قوانین
+   * نمایشِ قالب (مثل سوال‌های دروازه‌ای هتل) از بین می‌روند.
+   */
+  const existingLogic = form.data?.latestVersion?.structure.logic ?? {};
+
+  const [skipRules, setSkipRules] = useSkipRules(
+    form.data?.latestVersion?.structure.logic,
+    loadedVersionId ?? '',
+  );
+
   const [indexes, setIndexes] = useIndicators(
     form.data?.latestVersion?.structure.scoreIndexes,
     loadedVersionId ?? '',
@@ -81,7 +94,11 @@ export function FormBuilderPage() {
 
   const save = useMutation({
     mutationFn: () =>
-      formsApi.update(formId, { pages, scoreConfig: { indices: indexes } }),
+      formsApi.update(formId, {
+        pages,
+        scoreConfig: { indices: indexes },
+        logic: { ...existingLogic, skip: skipRules },
+      }),
     onSuccess: async () => {
       setError(null);
       setSaved(true);
@@ -428,7 +445,18 @@ export function FormBuilderPage() {
               ))}
             </div>
           )}
-          {flow.data && <FlowChart graph={flow.data} />}
+          {flow.data && (
+            <FlowChart
+              graph={flow.data}
+              pages={pages}
+              rules={skipRules}
+              dirty={dirty}
+              onChange={(next) => {
+                setSkipRules(next);
+                setDirty(true);
+              }}
+            />
+          )}
         </div>
       )}
 
