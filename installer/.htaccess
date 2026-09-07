@@ -1,0 +1,11 @@
+# نصاب فقط باید install.php را سرو کند.
+#
+# فایل‌های کمکی (لاگ، وضعیت، اسکریپت اجرا) نباید از وب خوانده شوند: لاگ
+# مسیرهای سرور را لو می‌دهد و اسکریپت اجرا قابل دانلود است.
+<FilesMatch "\.(log|state|sh)$">
+  Require all denied
+</FilesMatch>
+
+<Files ".installed">
+  Require all denied
+</Files>
