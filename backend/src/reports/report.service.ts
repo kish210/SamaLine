@@ -80,11 +80,26 @@ export class ReportService {
       .getMany();
   }
 
-  async questionBreakdown(questionId: string) {
-    const values = await this.answerFlatRepo.find({
-      where: { questionId },
-      take: 5000,
-    });
+  /**
+   * شمارش پاسخ‌های یک سوال.
+   *
+   * `formId` اختیاری است ولی باید داده شود: شناسه‌ی سوال بین فرم‌هایی که از
+   * یک قالب ساخته شده‌اند مشترک است، پس بدون آن آمار چند فرم با هم جمع می‌شد.
+   */
+  async questionBreakdown(questionId: string, formId?: string) {
+    const query = this.answerFlatRepo
+      .createQueryBuilder('answer')
+      .where('answer.questionId = :questionId', { questionId })
+      .take(5000);
+
+    if (formId) {
+      query
+        .innerJoin('answer.response', 'response')
+        .innerJoin('response.formVersion', 'version')
+        .andWhere('version.formId = :formId', { formId });
+    }
+
+    const values = await query.getMany();
     const counts = values.reduce<Record<string, number>>((acc, row) => {
       const key = row.choiceId ?? row.valueText ?? 'خالی';
       acc[key] = (acc[key] ?? 0) + 1;

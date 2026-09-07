@@ -153,3 +153,43 @@ export interface ContactList {
   tags: string[];
   createdAt: string;
 }
+
+/** یک ستون نمودار در گزارش. */
+export interface AnalyticsBar {
+  label: string;
+  count: number;
+  percent: number;
+}
+
+export interface AnalyticsQuestion {
+  id: string;
+  title: string;
+  type: string;
+  answered: number;
+  skipped: number;
+  /** نحوه‌ی نمایش پیشنهادی سرور برای این سوال. */
+  chart: 'bar' | 'scale' | 'nps' | 'text';
+  bars: AnalyticsBar[];
+  average: number | null;
+  scale: { min: number; max: number } | null;
+  nps: {
+    promoters: number;
+    passives: number;
+    detractors: number;
+    score: number;
+  } | null;
+  samples: string[];
+}
+
+export interface FormAnalytics {
+  questions: AnalyticsQuestion[];
+  /** روند روزانه؛ `jalali` برچسب آماده‌ی محور است. */
+  trend: Array<{
+    date: string;
+    jalali: string;
+    started: number;
+    completed: number;
+  }>;
+  scores: Array<{ key: string; average: number; count: number }>;
+  totalResponses: number;
+}

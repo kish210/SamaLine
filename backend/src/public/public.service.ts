@@ -25,6 +25,7 @@ import { PlanService } from '../plans/plan.service';
 import { SaveProgressDto, SubmitResponseDto } from './dto';
 import { RespondentAuthService } from './respondent-auth.service';
 import { validateAnswers } from './answer-validator';
+import { TelegramService } from '../integrations/telegram.service';
 import {
   PlatformSettingsService,
   type PublicFooter,
@@ -34,6 +35,7 @@ type PublicFormPayload = {
   publicationId: string;
   formId: string;
   organizationId: string;
+  workspaceId: string;
   formTitle: string;
   formVersionId: string;
   structure: Record<string, unknown>;
@@ -63,6 +65,7 @@ export class PublicService {
     private readonly logicRuntime: LogicRuntimeService,
     private readonly respondentAuth: RespondentAuthService,
     private readonly platformSettings: PlatformSettingsService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   /**
@@ -202,6 +205,7 @@ export class PublicService {
       publicationId: publication.id,
       formId: publication.formId,
       organizationId: publication.form.workspace.organizationId,
+      workspaceId: publication.form.workspaceId,
       formTitle: publication.form.title,
       formVersionId: latestVersion.id,
       structure: latestVersion.structure,
@@ -504,6 +508,16 @@ export class PublicService {
       'response_submitted',
       1,
     );
+
+    // اطلاع‌رسانی تلگرام عمداً await می‌شود ولی خودش هرگز خطا نمی‌دهد؛
+    // پاسخ پاسخ‌دهنده نباید گروگان در دسترس بودن تلگرام باشد.
+    await this.telegramService.notifyResponse({
+      workspaceId: formData.workspaceId,
+      formTitle: formData.formTitle,
+      structure,
+      answers,
+      scores,
+    });
 
     return { id: response.id, status: 'completed', scores };
   }

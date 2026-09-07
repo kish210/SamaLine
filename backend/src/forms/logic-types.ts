@@ -81,6 +81,15 @@ export interface ScoreIndexNode {
   title?: string;
   method?: 'sum' | 'avg' | 'weighted' | 'percent';
   maxScore?: number;
+  /**
+   * سوال‌های عضو این شاخص.
+   *
+   * عضویت را می‌شود از دو سو اعلام کرد: روی خود سوال (`scoring.indexId`) یا
+   * اینجا روی شاخص. قالب‌های آماده از این سو اعلام می‌کنند، چون یک شاخص با
+   * ده سوال یک فهرست است نه ده تکرار. پیش از این فقط سوی اول خوانده می‌شد و
+   * امتیاز قالب‌ها همیشه صفر درمی‌آمد.
+   */
+  questionIds?: string[];
 }
 
 export interface FormQuestionNode {

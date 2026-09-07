@@ -120,3 +120,52 @@ describe('قالب‌های آماده‌ی فرم', () => {
     expect(findTemplate('وجود-ندارد')).toBeUndefined();
   });
 });
+
+describe('قالب هتل دروازه‌دار', () => {
+  const template = FORM_TEMPLATES.find((t) => t.key === 'hotel-gated');
+  const questions = (template?.structure.pages ?? []).flatMap(
+    (p) => p.questions ?? [],
+  );
+  const display = (template?.structure.logic?.display ?? []) as Array<{
+    targetQuestionId: string;
+    when: { conditions: Array<{ source: string }> };
+  }>;
+
+  it('هر سوال امتیاز خدمت، پشت سوال دروازه‌ای‌اش پنهان است', () => {
+    const gated = questions.filter((q) => q.id?.endsWith('_sat'));
+    expect(gated).toHaveLength(9);
+    for (const question of gated) {
+      const rule = display.find((r) => r.targetQuestionId === question.id);
+      expect(rule).toBeDefined();
+      // شرط باید به همان سوال دروازه‌ای اشاره کند، نه سوال دیگری.
+      expect(rule?.when.conditions[0].source).toBe(
+        question.id.replace(/_sat$/, ''),
+      );
+    }
+  });
+
+  it('سوال دروازه‌ای پیش از سوال امتیازش می‌آید', () => {
+    // اگر ترتیب برعکس شود، شرط هنگام نمایش هنوز پاسخی ندارد و سوال
+    // امتیاز هیچ‌وقت نشان داده نمی‌شود.
+    for (const rule of display) {
+      const gate = questions.findIndex(
+        (q) => q.id === rule.when.conditions[0].source,
+      );
+      const target = questions.findIndex(
+        (q) => q.id === rule.targetQuestionId,
+      );
+      expect(gate).toBeGreaterThanOrEqual(0);
+      expect(gate).toBeLessThan(target);
+    }
+  });
+
+  it('شاخص رضایت فقط سوال‌های امتیازی را می‌شمارد', () => {
+    const index = (template?.structure.scoreIndexes ?? [])[0] as {
+      questionIds: string[];
+    };
+    const ratingIds = questions
+      .filter((q) => q.type === 'rating')
+      .map((q) => q.id);
+    expect([...index.questionIds].sort()).toEqual([...ratingIds].sort());
+  });
+});

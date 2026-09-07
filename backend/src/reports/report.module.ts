@@ -16,6 +16,7 @@ import {
 import { DashboardService } from './dashboard.service';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
+import { AnalyticsService } from './analytics.service';
 
 @Module({
   imports: [
@@ -35,6 +36,6 @@ import { ReportService } from './report.service';
     DashboardController,
     PublicDashboardController,
   ],
-  providers: [ReportService, ExportService, DashboardService],
+  providers: [ReportService, ExportService, DashboardService, AnalyticsService],
 })
 export class ReportModule {}

@@ -3,6 +3,7 @@ import type {
   AuthPayload,
   ContactList,
   FlowGraph,
+  FormAnalytics,
   FormDetail,
   FormPage,
   FormSummary,
@@ -153,6 +154,12 @@ export const reportsApi = {
     link.click();
     URL.revokeObjectURL(url);
   },
+
+  /** تجمیع همه‌ی سوال‌ها برای گزارش تصویری. */
+  analytics: (formId: string) =>
+    api
+      .get<FormAnalytics>(`/reports/forms/${formId}/analytics`)
+      .then((r) => r.data),
 
   breakdown: (questionId: string, formId: string) =>
     api
@@ -413,3 +420,51 @@ export function absoluteUploadUrl(url: string): string {
   const base = (api.defaults.baseURL ?? '').replace(/\/api\/v1\/?$/, '');
   return `${base}${url}`;
 }
+
+/** تنظیمات ربات تلگرام؛ توکن هرگز از سرور برنمی‌گردد. */
+export interface TelegramSettings {
+  configured: boolean;
+  isActive: boolean;
+  notifyOnResponse: boolean;
+  chatId: string;
+  scoreThreshold: number | null;
+  lastError: string | null;
+  lastSentAt: string | null;
+}
+
+export const telegramApi = {
+  get: (workspaceId: string) =>
+    api
+      .get<TelegramSettings>('/integrations/telegram', {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  save: (
+    workspaceId: string,
+    body: {
+      botToken?: string;
+      chatId?: string;
+      notifyOnResponse?: boolean;
+      scoreThreshold?: number | null;
+      isActive?: boolean;
+    },
+  ) =>
+    api
+      .post<TelegramSettings>('/integrations/telegram', body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  test: (workspaceId: string) =>
+    api
+      .post<{ ok: boolean }>('/integrations/telegram/test', null, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  remove: (workspaceId: string) =>
+    api
+      .delete('/integrations/telegram', { params: { workspaceId } })
+      .then((r) => r.data),
+};

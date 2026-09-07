@@ -151,9 +151,211 @@ function hotelTemplate(): FormTemplate {
   };
 }
 
+/** گزینه‌های سوال دروازه‌ای «آیا از این خدمت استفاده کرده‌اید؟». */
+const USED = 'استفاده کردم';
+const NOT_USED = 'استفاده نکردم';
+
+/**
+ * خدمت دروازه‌دار: اول می‌پرسیم استفاده کرده یا نه، و فقط اگر کرده باشد
+ * امتیازش را می‌گیریم.
+ *
+ * این با الگوی «همه‌چیز را امتیاز بده» فرق دارد و مهم است: مهمانی که اصلا
+ * به استخر نرفته، اگر مجبور شود امتیاز بدهد یا عدد الکی می‌زند یا فرم را
+ * رها می‌کند — هر دو داده را خراب می‌کند.
+ */
+function gatedService(
+  id: string,
+  gateTitle: string,
+  ratingTitle: string,
+): {
+  questions: NonNullable<FormPageNode['questions']>;
+  rule: Record<string, unknown>;
+  ratingId: string;
+} {
+  const ratingId = `${id}_sat`;
+  return {
+    ratingId,
+    questions: [
+      {
+        id,
+        type: 'multiple_choice',
+        title: gateTitle,
+        required: true,
+        options: [USED, NOT_USED],
+      },
+      rating(ratingId, ratingTitle),
+    ],
+    rule: {
+      targetQuestionId: ratingId,
+      when: {
+        combinator: 'and',
+        conditions: [{ source: id, operator: 'equals', value: USED }],
+      },
+    },
+  };
+}
+
+/** خدمت‌های دروازه‌دار هتل: شناسه، متن سوال دروازه، متن سوال امتیاز. */
+const GATED_SERVICES: Array<[string, string, string]> = [
+  [
+    't_transfer',
+    'آیا از ترانسفر فرودگاهی استفاده کرده‌اید؟',
+    'میزان رضایتمندی شما در خصوص ترانسفر فرودگاهی؟',
+  ],
+  [
+    't_house',
+    'آیا از خدمات نظافت اتاق استفاده کرده‌اید؟',
+    'میزان رضایتمندی شما از نظافت اتاق',
+  ],
+  [
+    't_restaurant',
+    'آیا از رستوران هتل استفاده کرده‌اید؟',
+    'کیفیت نوشیدنی و غذا در رستوران',
+  ],
+  [
+    't_cafe',
+    'آیا از کافی‌شاپ هتل استفاده کرده‌اید؟',
+    'کیفیت خدمات کافی‌شاپ',
+  ],
+  [
+    't_roomservice',
+    'آیا از روم سرویس هتل استفاده کرده‌اید؟',
+    'کیفیت خدمات روم سرویس',
+  ],
+  [
+    't_spa',
+    'آیا از باشگاه ورزشی، اسپا، ماساژ و استخر هتل استفاده کرده‌اید؟',
+    'کیفیت باشگاه ورزشی، اسپا، ماساژ و استخر',
+  ],
+  ['t_shop', 'آیا از فروشگاه هتل استفاده کرده‌اید؟', 'فروشگاه‌ها'],
+  ['t_photo', 'آیا از عکاسی هتل استفاده کرده‌اید؟', 'کیفیت خدمات عکاسی'],
+  [
+    't_hall',
+    'آیا از سالن همایش / سمینار / رویدادهای اجتماعی استفاده کرده‌اید؟',
+    'کیفیت سالن همایش و رویدادها',
+  ],
+];
+
+/**
+ * نظرسنجی هتل با ساختار دروازه‌ای — بازسازی یک نظرسنجی واقعی گروه هتل‌ها.
+ *
+ * تفاوتش با قالب اول این است که به‌جای پرسیدن علت نارضایتی، اول می‌پرسد
+ * مهمان از کدام خدمت‌ها اصلا استفاده کرده و بقیه را نمی‌پرسد. برای هتلی که
+ * خدمات متنوع دارد، مسیر پاسخ‌دهی خیلی کوتاه‌تر می‌شود.
+ */
+function hotelGatedTemplate(): FormTemplate {
+  const questions: NonNullable<FormPageNode['questions']> = [
+    {
+      id: 't_name',
+      type: 'short_text',
+      title: 'نام و نام خانوادگی',
+      required: true,
+    },
+    { id: 't_checkin', type: 'date', title: 'تاریخ ورود', required: false },
+    { id: 't_checkout', type: 'date', title: 'تاریخ خروج', required: false },
+    {
+      id: 't_room',
+      type: 'number',
+      title: 'شماره اتاق',
+      required: false,
+      meta: { min: 1, max: 9999 },
+    },
+    { id: 't_mobile', type: 'mobile', title: 'تلفن همراه', required: false },
+    {
+      id: 't_agency',
+      type: 'short_text',
+      title: 'نام آژانسی که از آن تور تهیه کرده‌اید',
+      required: false,
+    },
+    rating(
+      't_agency_rating',
+      'به‌طور کلی رضایتمندی شما در خصوص تور و آژانس چگونه است؟',
+    ),
+    rating('t_reception', 'نحوه عملکرد و سرعت پذیرشگر در هنگام ورود'),
+    rating('t_bellboy', 'میزان رضایتمندی شما در خصوص اطلاع‌رسانی و توضیحات بل‌بوی'),
+  ];
+
+  const display: Array<Record<string, unknown>> = [];
+  const ratingIds = ['t_agency_rating', 't_reception', 't_bellboy'];
+
+  for (const [id, gateTitle, ratingTitle] of GATED_SERVICES) {
+    const service = gatedService(id, gateTitle, ratingTitle);
+    questions.push(...service.questions);
+    display.push(service.rule);
+    ratingIds.push(service.ratingId);
+  }
+
+  for (const [id, title] of [
+    ['t_tourism', 'کیفیت خدمات گردشگری'],
+    [
+      't_comfort',
+      'میزان راحتی شما در بخش اقامت از نظر نزدیکی به معیار خواسته‌های شما',
+    ],
+    ['t_services', 'میزان رضایتمندی شما از دریافت خدمات'],
+    [
+      't_overall',
+      'به‌طور کلی رضایتمندی شما در خصوص اقامت اخیر خود چگونه است؟',
+    ],
+  ]) {
+    questions.push(rating(id, title));
+    ratingIds.push(id);
+  }
+
+  questions.push({
+    id: 't_recommend',
+    type: 'boolean',
+    title: 'آیا این هتل را به دوستان و آشنایان خود پیشنهاد می‌کنید؟',
+    required: false,
+  });
+  questions.push({
+    id: 't_suggestion',
+    type: 'long_text',
+    title:
+      'آیا پیشنهادی در خصوص ارائه خدمات و اقامتی خاطره‌انگیزتر برای ما دارید؟',
+    required: false,
+  });
+  questions.push({
+    id: 't_contact',
+    type: 'mobile',
+    title: 'اطلاعات تماس',
+    required: false,
+  });
+
+  return {
+    key: 'hotel-gated',
+    title: 'نظرسنجی هتل ۲ — پرسش بر پایه‌ی خدمات استفاده‌شده',
+    summary:
+      'اول می‌پرسد مهمان از کدام خدمت استفاده کرده و فقط همان‌ها را امتیاز می‌گیرد؛ ترانسفر، رستوران، کافی‌شاپ، روم‌سرویس، اسپا، فروشگاه، عکاسی و سالن همایش.',
+    category: 'گردشگری و هتلداری',
+    icon: '🛎',
+    structure: {
+      pages: [{ id: 'p1', title: 'نظرسنجی اقامت', questions }],
+      logic: { display },
+      scoreIndexes: [
+        {
+          id: 'stay',
+          key: 'رضایت کلی',
+          method: 'avg',
+          // فقط امتیازهای پرسیده‌شده وارد میانگین می‌شوند؛ خدمتی که مهمان
+          // استفاده نکرده پاسخی ندارد و میانگین را پایین نمی‌کشد.
+          questionIds: ratingIds,
+        },
+      ],
+    },
+    settings: {
+      startPageEnabled: true,
+      startPageText:
+        'مهمان گرانقدر، نظر شما درباره‌ی اقامتتان راهنمای ما برای بهتر شدن است.',
+      endPageText: 'از همراهی شما سپاسگزاریم. تا دیدار بعدی!',
+      theme: { preset: 'aseman', oneQuestionPerStep: true },
+    },
+  };
+}
+
 /** قالب‌های آماده‌ی سامانه. */
 export const FORM_TEMPLATES: FormTemplate[] = [
   hotelTemplate(),
+  hotelGatedTemplate(),
 
   {
     key: 'nps',

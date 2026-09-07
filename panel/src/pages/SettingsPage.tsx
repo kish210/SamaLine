@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { messagingApi, plansApi } from '../api';
+import { messagingApi, plansApi, workspaceApi } from '../api';
+import { TelegramCard } from './TelegramCard';
 import { useAuth } from '../auth';
 
 const LIMIT_LABELS: Record<string, string> = {
@@ -43,6 +44,12 @@ export function SettingsPage() {
     queryFn: () => plansApi.policy(organizationId),
     enabled: Boolean(organizationId),
   });
+
+  const workspaces = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: workspaceApi.list,
+  });
+  const workspaceId = workspaces.data?.[0]?.id ?? '';
 
   const messaging = useQuery({
     queryKey: ['messaging-status'],
@@ -91,6 +98,8 @@ export function SettingsPage() {
           <p>در حال بارگذاری…</p>
         )}
       </section>
+
+      {workspaceId && <TelegramCard workspaceId={workspaceId} />}
 
       <section className="card">
         <h3>امکانات پلن شما</h3>

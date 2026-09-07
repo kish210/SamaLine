@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
+import { AnalyticsService } from './analytics.service';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard)
@@ -21,6 +22,7 @@ export class ReportController {
   constructor(
     private readonly reportService: ReportService,
     private readonly exportService: ExportService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Get('forms/:formId/summary')
@@ -28,9 +30,18 @@ export class ReportController {
     return this.reportService.formSummary(formId);
   }
 
+  /** تجمیع همه‌ی سوال‌ها برای گزارش تصویری فرم. */
+  @Get('forms/:formId/analytics')
+  analytics(@Param('formId') formId: string) {
+    return this.analyticsService.forForm(formId);
+  }
+
   @Get('questions/:questionId/breakdown')
-  breakdown(@Param('questionId') questionId: string) {
-    return this.reportService.questionBreakdown(questionId);
+  breakdown(
+    @Param('questionId') questionId: string,
+    @Query('formId') formId?: string,
+  ) {
+    return this.reportService.questionBreakdown(questionId, formId);
   }
 
   @Get('forms/:formId/responses')

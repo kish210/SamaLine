@@ -137,3 +137,41 @@ describe('ScoreEngineService', () => {
     expect(engine.calculate({ pages: [] }, { q1: 5 })).toEqual({});
   });
 });
+
+describe('عضویت اعلام‌شده از سمت شاخص', () => {
+  const engine = new ScoreEngineService();
+
+  /**
+   * قالب‌های آماده عضویت را روی خود شاخص می‌نویسند نه روی تک‌تک سوال‌ها.
+   * پیش از این فقط `scoring.indexId` خوانده می‌شد، پس امتیاز قالب هتل همیشه
+   * صفر بود بدون آنکه خطایی بدهد.
+   */
+  const structure = {
+    pages: [
+      {
+        id: 'p1',
+        questions: [{ id: 'a' }, { id: 'b' }, { id: 'note' }],
+      },
+    ],
+    scoreIndexes: [
+      {
+        id: 'sat',
+        key: 'رضایت کلی',
+        method: 'avg' as const,
+        questionIds: ['a', 'b'],
+      },
+    ],
+  };
+
+  it('سوال‌های فهرست‌شده در شاخص را می‌شمارد', () => {
+    expect(engine.calculate(structure, { a: 8, b: 6, note: 'خوب بود' })).toEqual(
+      { 'رضایت کلی': 7 },
+    );
+  });
+
+  it('سوال بیرون از فهرست را وارد امتیاز نمی‌کند', () => {
+    expect(engine.calculate(structure, { note: 'خوب بود' })).toEqual({
+      'رضایت کلی': 0,
+    });
+  });
+});

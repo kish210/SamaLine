@@ -13,10 +13,12 @@ import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
 import { RespondentAuthService } from './respondent-auth.service';
 import { PlatformModule } from '../platform/platform.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
   imports: [
     PlatformModule,
+    IntegrationsModule,
     TypeOrmModule.forFeature([
       PublicationEntity,
       FormVersionEntity,

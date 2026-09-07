@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { reportsApi } from '../../api';
+import { QuestionCharts } from './QuestionCharts';
 
 interface Props {
   formId: string;
 }
+
+type Tab = 'charts' | 'table';
 
 /** داشبورد فرم و جدول پاسخ‌نامه‌ها (بند ۸ سند). */
 /**
@@ -22,7 +25,7 @@ function formatDuration(seconds: number | null | undefined): string {
 }
 
 export function ResponsesPanel({ formId }: Props) {
-  const [selectedQuestion, setSelectedQuestion] = useState('');
+  const [tab, setTab] = useState<Tab>('charts');
   const [advancedExport, setAdvancedExport] = useState(false);
 
   const summary = useQuery({
@@ -35,10 +38,9 @@ export function ResponsesPanel({ formId }: Props) {
     queryFn: () => reportsApi.responses(formId),
   });
 
-  const breakdown = useQuery({
-    queryKey: ['breakdown', formId, selectedQuestion],
-    queryFn: () => reportsApi.breakdown(selectedQuestion, formId),
-    enabled: Boolean(selectedQuestion),
+  const analytics = useQuery({
+    queryKey: ['analytics', formId],
+    queryFn: () => reportsApi.analytics(formId),
   });
 
   // ستون‌های جدول از کلید پاسخ‌ها استخراج می‌شود چون ساختار فرم
@@ -51,7 +53,18 @@ export function ResponsesPanel({ formId }: Props) {
     return [...ids];
   }, [responses.data]);
 
-  const maxCount = Math.max(1, ...(breakdown.data ?? []).map((b) => b.count));
+  /**
+   * عنوان خوانای هر سوال برای سرستون جدول.
+   *
+   * پیش از این شناسه‌ی خام (`h_airport`) سرستون بود و جدول عملاً خوانده
+   * نمی‌شد. عنوان‌ها از همان تجمیعی می‌آید که نمودارها را می‌سازد.
+   */
+  const titleOf = useMemo(() => {
+    const map = new Map(
+      (analytics.data?.questions ?? []).map((q) => [q.id, q.title]),
+    );
+    return (id: string) => map.get(id) ?? id;
+  }, [analytics.data]);
 
   return (
     <div className="report-tab">
@@ -86,41 +99,31 @@ export function ResponsesPanel({ formId }: Props) {
         </div>
       </div>
 
-      {questionIds.length > 0 && (
-        <section className="card">
-          <h3>گزارش هر سوال</h3>
-          <select
-            value={selectedQuestion}
-            onChange={(e) => setSelectedQuestion(e.target.value)}
-          >
-            <option value="">یک سوال را انتخاب کنید</option>
-            {questionIds.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
+      <div className="report-tabs">
+        <button
+          type="button"
+          className={tab === 'charts' ? 'active' : ''}
+          onClick={() => setTab('charts')}
+        >
+          نمودارها
+        </button>
+        <button
+          type="button"
+          className={tab === 'table' ? 'active' : ''}
+          onClick={() => setTab('table')}
+        >
+          جدول پاسخ‌ها
+        </button>
+      </div>
 
-          {breakdown.data && breakdown.data.length > 0 && (
-            <div className="bars">
-              {breakdown.data.map((item) => (
-                <div key={item.label} className="bar-row">
-                  <span className="bar-label">{item.label}</span>
-                  <div className="bar-track">
-                    <div
-                      className="bar-fill"
-                      style={{ width: `${(item.count / maxCount) * 100}%` }}
-                    />
-                  </div>
-                  <span className="bar-count">{item.count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+      {tab === 'charts' && (
+        <>
+          {analytics.isLoading && <p>در حال ساخت نمودارها…</p>}
+          {analytics.data && <QuestionCharts data={analytics.data} />}
+        </>
       )}
 
-      <section className="card">
+      <section className="card" hidden={tab !== 'table'}>
         <div className="section-head">
           <h3>پاسخ‌نامه‌ها</h3>
           <div className="inline-form">
@@ -165,7 +168,7 @@ export function ResponsesPanel({ formId }: Props) {
                   <th>پاسخ‌دهنده</th>
                   <th>وضعیت</th>
                   {questionIds.map((id) => (
-                    <th key={id}>{id}</th>
+                    <th key={id}>{titleOf(id)}</th>
                   ))}
                   <th>شاخص‌ها</th>
                 </tr>

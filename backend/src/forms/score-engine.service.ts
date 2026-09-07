@@ -29,8 +29,14 @@ export class ScoreEngineService {
       });
     }
 
+    // عضویت سوال در شاخص می‌تواند از سمت شاخص هم اعلام شده باشد.
+    const membership = new Map<string, string>();
+    for (const idx of indexes) {
+      for (const qid of idx.questionIds ?? []) membership.set(qid, idx.id);
+    }
+
     for (const q of questions) {
-      const indexId = q.scoring?.indexId;
+      const indexId = q.scoring?.indexId ?? membership.get(q.id);
       if (!indexId || !buckets.has(indexId)) continue;
       const raw = answers[q.id];
       const numericValue = this.resolveNumericValue(raw, q);
