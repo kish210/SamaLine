@@ -137,6 +137,9 @@ function hotelTemplate(): FormTemplate {
           id: 'satisfaction',
           key: 'رضایت کلی',
           method: 'avg',
+          // بدون سقف، «نرخ شاخص» در گزارش قابل محاسبه نیست؛ سوال‌های
+          // امتیازی این قالب همه مقیاس ۰ تا ۱۰ دارند.
+          maxScore: 10,
           questionIds: HOTEL_ASPECTS.map(([id]) => id),
         },
       ],
@@ -336,6 +339,7 @@ function hotelGatedTemplate(): FormTemplate {
           id: 'stay',
           key: 'رضایت کلی',
           method: 'avg',
+          maxScore: 10,
           // فقط امتیازهای پرسیده‌شده وارد میانگین می‌شوند؛ خدمتی که مهمان
           // استفاده نکرده پاسخی ندارد و میانگین را پایین نمی‌کشد.
           questionIds: ratingIds,
@@ -426,6 +430,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
           id: 'engagement',
           key: 'شاخص رضایت کارکنان',
           method: 'avg',
+          maxScore: 10,
           questionIds: ['e_job', 'e_manager', 'e_balance', 'e_growth'],
         },
       ],

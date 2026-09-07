@@ -146,11 +146,28 @@ describe('ReportService — شاخص‌های کلی فرم', () => {
     expect((await service.formSummary(formId)).averageDurationSeconds).toBe(60);
   });
 
-  it('بدون بازدید ولی با پاسخ، نرخ پاسخگویی صفر می‌ماند نه بی‌نهایت', async () => {
-    // تقسیم بر صفر نباید NaN یا Infinity بدهد.
+  it('نرخ پاسخگویی هیچ‌وقت از صد درصد بیشتر نمی‌شود', async () => {
+    // شمارنده‌ی بازدید کم‌شماری می‌کند (پاسخ از حافظه‌ی نهان، ارسال مستقیم
+    // از API، لینک پخش‌شده پیش از افزوده‌شدن شمارنده). با مخرجِ خامِ بازدید
+    // نرخ ۱۵۰٪ درمی‌آمد — عددی که کل گزارش را بی‌اعتبار نشان می‌دهد.
+    await publish(2);
+    await respond(ResponseStatus.COMPLETED);
+    await respond(ResponseStatus.COMPLETED);
+    await respond(ResponseStatus.COMPLETED);
+
+    const summary = await service.formSummary(formId);
+    expect(summary.views).toBe(2);
+    expect(summary.completed).toBe(3);
+    expect(summary.responseRate).toBe(100);
+  });
+
+  it('بدون بازدید ولی با پاسخ، نرخ پاسخگویی بی‌نهایت نمی‌شود', async () => {
+    // تقسیم بر صفر نباید NaN یا Infinity بدهد. با مخرجِ
+    // max(بازدید، شروع‌شده) پاسخِ ثبت‌شده صد درصد شمرده می‌شود، نه صفر:
+    // «صفر» عملا می‌گوید هیچ‌کس پاسخ نداده، که خلاف واقعیت است.
     await respond(ResponseStatus.COMPLETED);
     const summary = await service.formSummary(formId);
-    expect(summary.responseRate).toBe(0);
+    expect(summary.responseRate).toBe(100);
     expect(Number.isFinite(summary.responseRate)).toBe(true);
   });
 });

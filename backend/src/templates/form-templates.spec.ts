@@ -169,3 +169,34 @@ describe('قالب هتل دروازه‌دار', () => {
     expect([...index.questionIds].sort()).toEqual([...ratingIds].sort());
   });
 });
+
+describe('شاخص قالب‌ها', () => {
+  /**
+   * «نرخ شاخص» در گزارش، میانگین را بر سقف تقسیم می‌کند. بدون سقف این KPI
+   * خالی می‌ماند و کاربر باید دستی برود سقف بگذارد — که یعنی قالب آماده
+   * نیست.
+   */
+  it('هر شاخصِ قالب سقف امتیاز دارد', () => {
+    for (const template of FORM_TEMPLATES) {
+      for (const index of template.structure.scoreIndexes ?? []) {
+        expect(typeof index.maxScore).toBe('number');
+        expect(index.maxScore as number).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('سوال‌های عضو شاخص واقعا در فرم وجود دارند', () => {
+    for (const template of FORM_TEMPLATES) {
+      const ids = new Set(
+        template.structure.pages.flatMap((p) =>
+          (p.questions ?? []).map((q) => q.id),
+        ),
+      );
+      for (const index of template.structure.scoreIndexes ?? []) {
+        for (const questionId of (index.questionIds as string[]) ?? []) {
+          expect(ids.has(questionId)).toBe(true);
+        }
+      }
+    }
+  });
+});

@@ -826,8 +826,22 @@ code {
 }
 
 @media (max-width: 860px) {
+  /*
+   * در نمایشگر باریک، سایدبار به نوار افقی بالای محتوا تبدیل می‌شود.
+   *
+   * پیش از این فقط `grid-template-columns` به یک ستون تغییر می‌کرد ولی
+   * `grid-template-areas` همچنان دو ستونی می‌ماند؛ نتیجه این بود که
+   * سایدبار و محتوا سرِ یک ستون دعوا می‌کردند و منو به چند پیکسل پهنا
+   * جمع می‌شد — یعنی عملا ناپدید. نواحی هم باید با هم عوض شوند.
+   */
   .app-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-h) auto 1fr var(--statusbar-h);
+    grid-template-areas:
+      'topbar'
+      'sidebar'
+      'content'
+      'statusbar';
   }
 
   .sidebar {
@@ -835,6 +849,34 @@ code {
     align-items: center;
     gap: 12px;
     overflow-x: auto;
+    /* نوار افقی نباید ارتفاع تمام‌صفحه بگیرد. */
+    height: auto;
+    padding: 6px 10px;
+  }
+
+  .sidebar nav {
+    flex-direction: row;
+    flex: 1;
+  }
+
+  .nav-item {
+    white-space: nowrap;
+    padding-inline: 12px;
+  }
+
+  /*
+   * قاعده‌ی «جمع‌شده» زیر ۱۰۰۰px لیبل را محو می‌کند؛ در نوار افقی این
+   * یعنی منویی از آیکون‌های بی‌نام. اینجا لیبل باید دیده شود.
+   */
+  .nav-label {
+    opacity: 1;
+  }
+
+  /* نوار طلایی حالت فعال در چیدمان افقی باید زیر آیتم بنشیند نه کنارش. */
+  .nav-item.active::before {
+    inset: auto 0 0 0;
+    width: auto;
+    height: 3px;
   }
 
   .sidebar nav {
