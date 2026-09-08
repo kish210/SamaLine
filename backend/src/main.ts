@@ -7,7 +7,9 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { uploadDirectory } from './uploads/upload.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { runMigrations } from './database/migrate-on-boot';
 import { DB_DRIVER } from './database/column-types';
 
 const RENDERER_DIR = resolve(process.cwd(), '../form-renderer/dist');
@@ -80,6 +82,14 @@ interface SpaResponse {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  /*
+   * مهاجرت‌ها پیش از پذیرش درخواست اجرا می‌شوند.
+   *
+   * اگر اسکیما عقب باشد و برنامه درخواست بگیرد، خطاهای «ستون وجود ندارد»
+   * به کاربر می‌رسد؛ شکست اینجا صریح‌تر و بی‌ضررتر است.
+   */
+  await runMigrations(app.get(DataSource));
 
   /*
    * فایل‌های آپلودی (لوگوی سازمان‌ها) از همین سرور سرو می‌شوند.

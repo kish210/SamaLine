@@ -23,7 +23,10 @@
     "db:seed:prod": "node dist/database/seed.js",
     "release": "npm run build && npm run db:seed:prod && npm run start:prod",
     "smoke": "node scripts/smoke-test.js",
-    "superadmin": "node scripts/grant-superadmin.js"
+    "superadmin": "node scripts/grant-superadmin.js",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/migration-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/migration-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/migration-source.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
