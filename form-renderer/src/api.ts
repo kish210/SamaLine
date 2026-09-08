@@ -19,6 +19,27 @@ export function setRespondentToken(token?: string) {
   }
 }
 
+export interface PortalPayload {
+  title: string;
+  description: string;
+  logoUrl: string;
+  forms: Array<{
+    formId: string;
+    title: string;
+    token: string;
+    slug: string | null;
+    url: string;
+  }>;
+  footer?: { enabled: boolean; text: string; url: string };
+}
+
+export const portalApi = {
+  get: (slug: string) =>
+    client
+      .get<PortalPayload>(`/public/portal/${encodeURIComponent(slug)}`)
+      .then((r) => r.data),
+};
+
 export const dashboardApi = {
   getPublic: (publicToken: string) =>
     client

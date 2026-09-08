@@ -7,6 +7,7 @@ import type {
   FormDetail,
   FormPage,
   FormSummary,
+  Portal,
   Publication,
   ResponseRow,
   Workspace,
@@ -559,4 +560,30 @@ export const telegramApi = {
         { params: { workspaceId } },
       )
       .then((r) => r.data),
+};
+
+export const portalsApi = {
+  list: (workspaceId: string) =>
+    api.get<Portal[]>('/portals', { params: { workspaceId } }).then((r) => r.data),
+
+  save: (
+    workspaceId: string,
+    id: string | null,
+    body: {
+      slug: string;
+      title: string;
+      description?: string;
+      logoUrl?: string;
+      formIds: string[];
+      isActive: boolean;
+    },
+  ) =>
+    api
+      .post<Portal>(id ? `/portals/${id}` : '/portals', body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  remove: (workspaceId: string, id: string) =>
+    api.delete(`/portals/${id}`, { params: { workspaceId } }).then((r) => r.data),
 };

@@ -10,7 +10,15 @@ import { FormModule } from '../forms/form.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PlanModule } from '../plans/plan.module';
 import { PublicController } from './public.controller';
+import {
+  PortalAdminController,
+  PublicPortalController,
+} from './portal.controller';
+import { PortalService } from './portal.service';
 import { PublicService } from './public.service';
+import { PortalEntity } from '../database/entities/portal.entity';
+import { FormEntity } from '../database/entities/form.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { RespondentAuthService } from './respondent-auth.service';
 import { PlatformModule } from '../platform/platform.module';
 import { IntegrationsModule } from '../integrations/integrations.module';
@@ -25,6 +33,9 @@ import { IntegrationsModule } from '../integrations/integrations.module';
       ResponseEntity,
       AnswerFlatEntity,
       OtpChallengeEntity,
+      PortalEntity,
+      FormEntity,
+      WorkspaceEntity,
     ]),
     PlanModule,
     FormModule,
@@ -35,7 +46,11 @@ import { IntegrationsModule } from '../integrations/integrations.module';
       secret: process.env.JWT_SECRET ?? 'change-me',
     }),
   ],
-  providers: [PublicService, RespondentAuthService],
-  controllers: [PublicController],
+  providers: [PublicService, RespondentAuthService, PortalService],
+  controllers: [
+    PublicController,
+    PortalAdminController,
+    PublicPortalController,
+  ],
 })
 export class PublicModule {}

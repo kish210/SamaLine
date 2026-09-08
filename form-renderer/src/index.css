@@ -1174,3 +1174,84 @@ body {
     transition: none;
   }
 }
+
+/* ── پرتال: چند فرم روی یک صفحه ──────────────────────────────────────── */
+
+.portal {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 40px 20px 24px;
+}
+
+.portal h1 {
+  font-size: 26px;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.portal-logo {
+  display: block;
+  max-height: 80px;
+  margin: 0 auto 18px;
+}
+
+.portal-description {
+  text-align: center;
+  opacity: 0.75;
+  line-height: 1.9;
+  margin: 0 0 26px;
+}
+
+.portal-forms {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  background: var(--form-surface);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: var(--form-radius);
+  color: var(--form-ink);
+  text-decoration: none;
+  transition:
+    transform 140ms var(--ease-ios),
+    border-color 160ms var(--ease-ios);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.portal-card:hover {
+  border-color: var(--form-primary);
+}
+
+.portal-card:active {
+  transform: scale(0.985);
+}
+
+.portal-card-title {
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+/* فلش سمت شروع خط است، پس در RTL به چپ اشاره می‌کند. */
+.portal-card-go {
+  color: var(--form-primary);
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+
+.portal-empty,
+.portal-error,
+.portal-loading {
+  text-align: center;
+  opacity: 0.7;
+  padding: 30px 0;
+}

@@ -18,6 +18,7 @@ const SIDEBAR_KEY = 'samaline.sidebar.collapsed';
 const NAV = [
   { to: '/forms', label: 'فرم‌ها', icon: 'forms' },
   { to: '/dashboards', label: 'داشبوردها', icon: 'dashboards' },
+  { to: '/portals', label: 'پرتال', icon: 'portal' },
   { to: '/contacts', label: 'مخاطبان', icon: 'contacts' },
   { to: '/sources', label: 'اتصال به CRM', icon: 'crm' },
   { to: '/campaigns', label: 'ارسال گروهی', icon: 'campaigns' },

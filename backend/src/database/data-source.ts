@@ -4,6 +4,7 @@ import { DataSource, type DataSourceOptions } from 'typeorm';
 import { IS_SQLITE } from './column-types';
 import { ALL_ENTITIES } from './entities';
 import { Baseline1788846783305 } from './migrations/1788846783305-Baseline';
+import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -12,7 +13,7 @@ import { Baseline1788846783305 } from './migrations/1788846783305-Baseline';
  * همین دوگانگی جایی از قلم می‌افتد و مهاجرت بی‌صدا اجرا نمی‌شود. وارد کردن
  * مستقیم، این خطا را غیرممکن می‌کند.
  */
-const MIGRATIONS = [Baseline1788846783305];
+const MIGRATIONS = [Baseline1788846783305, AddPortal1788865235241];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */
 export function sqliteDatabasePath(): string {

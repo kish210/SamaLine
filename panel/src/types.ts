@@ -246,3 +246,15 @@ export interface FormAnalytics {
   }>;
   totalResponses: number;
 }
+
+/** پرتال: چند فرم روی یک نشانی عمومی. */
+export interface Portal {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  logoUrl: string;
+  /** ترتیب همین آرایه، ترتیب نمایش کارت‌هاست. */
+  formIds: string[];
+  isActive: boolean;
+}

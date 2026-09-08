@@ -287,32 +287,6 @@ export class PublicService {
     return this.respondentAuth.verifyOtp(publication, destination, code);
   }
 
-  async getPortalForms(organizationId: string) {
-    const publications = await this.publicationRepo.find({
-      where: {
-        type: In([PublicationType.PORTAL, PublicationType.LINK]),
-        isActive: true,
-        form: {
-          status: FormStatus.ACTIVE,
-          workspace: { organizationId },
-        },
-      },
-      relations: { form: { workspace: true } },
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
-
-    return publications.map((publication) => ({
-      publicationId: publication.id,
-      formId: publication.formId,
-      formTitle: publication.form.title,
-      type: publication.type,
-      token: publication.token,
-      url: `/f/${publication.token}`,
-      tags: publication.tags ?? [],
-      expiresAt: publication.expiresAt,
-    }));
-  }
 
   async getProgressByToken(
     token: string,

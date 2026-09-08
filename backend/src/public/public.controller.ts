@@ -19,11 +19,6 @@ const RESPONDENT_HEADER = 'x-respondent-token';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
-  @Get('portal/:organizationId')
-  getPortal(@Param('organizationId') organizationId: string) {
-    return this.publicService.getPortalForms(organizationId);
-  }
-
   /** نوع احراز هویت لازم، پیش از نمایش فرم. */
   @Get(':token/auth-info')
   authInfo(@Param('token') token: string) {

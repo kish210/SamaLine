@@ -5,6 +5,7 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { LanguagePicker } from './LanguagePicker';
 import { PlatformFooter } from './PlatformFooter';
 import { PublicDashboard } from './PublicDashboard';
+import { PortalPage } from './PortalPage';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { useFormFlow } from './useFormFlow';
@@ -361,6 +362,7 @@ function App() {
     <Routes>
       <Route path="/f/:token" element={<FormPage />} />
       <Route path="/d/:publicToken" element={<PublicDashboard />} />
+      <Route path="/p/:slug" element={<PortalPage />} />
       <Route path="*" element={<Navigate to="/f/demo" replace />} />
     </Routes>
   );

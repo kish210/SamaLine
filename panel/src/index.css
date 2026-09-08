@@ -2373,3 +2373,27 @@ input[type='color'] {
   width: auto;
   margin: 0;
 }
+
+/* انتخاب فرم‌های پرتال. */
+.portal-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 12px;
+  padding: 10px;
+  background: var(--gray-50);
+  border-radius: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* پیشوند نشانی + ورودی، در یک ردیف. */
+.url-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.url-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
