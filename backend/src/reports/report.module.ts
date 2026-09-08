@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TenantAccessModule } from '../common/tenant-access.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { DashboardEntity } from '../database/entities/dashboard.entity';
@@ -20,6 +21,7 @@ import { AnalyticsService } from './analytics.service';
 
 @Module({
   imports: [
+    TenantAccessModule,
     TypeOrmModule.forFeature([
       ResponseEntity,
       AnswerFlatEntity,

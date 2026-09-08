@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TenantAccessModule } from '../common/tenant-access.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FormEntity } from '../database/entities/form.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
@@ -12,6 +13,7 @@ import { ScoreEngineService } from './score-engine.service';
 
 @Module({
   imports: [
+    TenantAccessModule,
     TypeOrmModule.forFeature([
       FormEntity,
       FormVersionEntity,

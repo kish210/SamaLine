@@ -173,6 +173,11 @@ export class ReportService {
     });
   }
 
+  /** یک فیلتر ذخیره‌شده؛ برای بررسی مالکیت پیش از حذف. */
+  getFilter(id: string) {
+    return this.savedFilterRepo.findOne({ where: { id } });
+  }
+
   async deleteFilter(id: string) {
     await this.savedFilterRepo.delete({ id });
     return { ok: true };

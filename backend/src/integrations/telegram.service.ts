@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   Logger,
 } from '@nestjs/common';
@@ -8,8 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
-import { WorkspaceEntity } from '../database/entities/workspace.entity';
-import { PlatformSettingsService } from '../platform/platform-settings.service';
+import { TenantAccessService } from '../common/tenant-access.service';
 import type { FormQuestionNode, FormStructure } from '../forms/logic-types';
 import { randomBytes } from 'crypto';
 import { MAX_MESSAGE, TelegramApi } from './telegram-api';
@@ -46,31 +44,16 @@ export class TelegramService {
     private readonly repo: Repository<TelegramIntegrationEntity>,
     @InjectRepository(TelegramRecipientEntity)
     private readonly recipientRepo: Repository<TelegramRecipientEntity>,
-    @InjectRepository(WorkspaceEntity)
-    private readonly workspaceRepo: Repository<WorkspaceEntity>,
-    private readonly platformSettings: PlatformSettingsService,
     private readonly api: TelegramApi,
+    private readonly tenant: TenantAccessService,
   ) {}
 
-  /**
-   * بررسی می‌کند فضای کاری متعلق به سازمان کاربر باشد.
-   *
-   * `workspaceId` از درخواست می‌آید، پس بدون این بررسی هر کاربر واردشده
-   * می‌توانست با حدس زدن شناسه، توکن ربات سازمان دیگری را عوض کند یا
-   * پاسخ‌های فرم‌های آن سازمان را به گفتگوی خودش هدایت کند.
-   */
-  async assertAccess(
+  /** بررسی مالکیت فضای کاری؛ پیاده‌سازی مشترک در TenantAccessService است. */
+  assertAccess(
     workspaceId: string,
     user: { sub: string; organizationId: string },
   ): Promise<void> {
-    if (await this.platformSettings.isSuperAdmin(user.sub)) return;
-
-    const workspace = await this.workspaceRepo.findOne({
-      where: { id: workspaceId },
-    });
-    if (!workspace || workspace.organizationId !== user.organizationId) {
-      throw new ForbiddenException('به این فضای کاری دسترسی ندارید');
-    }
+    return this.tenant.assertWorkspace(workspaceId, user as never);
   }
 
   // ── ربات ──────────────────────────────────────────────────────────────

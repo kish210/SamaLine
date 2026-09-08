@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,7 +11,7 @@ import {
   PublicationEntity,
   PublicationType,
 } from '../database/entities/publication.entity';
-import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { TenantAccessService } from '../common/tenant-access.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { validateSlug } from '../forms/slug';
 
@@ -41,24 +40,16 @@ export class PortalService {
     private readonly formRepo: Repository<FormEntity>,
     @InjectRepository(PublicationEntity)
     private readonly publicationRepo: Repository<PublicationEntity>,
-    @InjectRepository(WorkspaceEntity)
-    private readonly workspaceRepo: Repository<WorkspaceEntity>,
     private readonly platformSettings: PlatformSettingsService,
+    private readonly tenant: TenantAccessService,
   ) {}
 
-  /** همان بررسی مالکیت فضای کاری که اتصال تلگرام دارد. */
-  async assertAccess(
+  /** بررسی مالکیت فضای کاری؛ پیاده‌سازی مشترک در TenantAccessService است. */
+  assertAccess(
     workspaceId: string,
     user: { sub: string; organizationId: string },
   ): Promise<void> {
-    if (await this.platformSettings.isSuperAdmin(user.sub)) return;
-
-    const workspace = await this.workspaceRepo.findOne({
-      where: { id: workspaceId },
-    });
-    if (!workspace || workspace.organizationId !== user.organizationId) {
-      throw new ForbiddenException('به این فضای کاری دسترسی ندارید');
-    }
+    return this.tenant.assertWorkspace(workspaceId, user as never);
   }
 
   list(workspaceId: string) {

@@ -47,6 +47,8 @@ const PORTAL = {
   isActive: true,
 };
 
+const tenant = { assertWorkspace: async () => undefined } as never;
+
 const platform = {
   isSuperAdmin: async () => false,
   publicFooter: async () => ({ enabled: false, text: '', url: null }),
@@ -63,8 +65,8 @@ describe('PortalService', () => {
         repo(over.portal === null ? [] : [over.portal ?? PORTAL]),
         repo(over.forms ?? []),
         repo(over.publications ?? []),
-        repo([]),
         platform,
+        tenant,
       );
 
     it('فقط فرم فعالِ منتشرشده را می‌آورد', async () => {
@@ -149,8 +151,8 @@ describe('PortalService', () => {
         repo([]),
         repo([{ id: 'mine', workspaceId: 'w1' }]),
         repo([]),
-        repo([{ id: 'w1', organizationId: 'org-1' }]),
         platform,
+        tenant,
       );
 
       const saved = await service.save('w1', null, {
@@ -167,8 +169,8 @@ describe('PortalService', () => {
         repo([]),
         repo([]),
         repo([]),
-        repo([]),
         platform,
+        tenant,
       );
       await expect(
         service.save('w1', null, { slug: 'panel', title: 'x' }),
@@ -180,8 +182,8 @@ describe('PortalService', () => {
         repo([{ id: 'other', slug: 'hotel' }]),
         repo([]),
         repo([]),
-        repo([]),
         platform,
+        tenant,
       );
       await expect(
         service.save('w1', null, { slug: 'hotel', title: 'x' }),

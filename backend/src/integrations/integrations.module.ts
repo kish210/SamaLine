@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TenantAccessModule } from '../common/tenant-access.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebhookEntity } from '../database/entities/webhook.entity';
 import { FormEntity } from '../database/entities/form.entity';
@@ -19,6 +20,7 @@ import { TelegramWebhookController } from './telegram-webhook.controller';
 
 @Module({
   imports: [
+    TenantAccessModule,
     PlatformModule,
     // گزارش دوره‌ای از همان تجمیعی می‌آید که پنل استفاده می‌کند.
     ReportModule,

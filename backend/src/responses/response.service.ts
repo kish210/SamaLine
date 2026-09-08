@@ -19,6 +19,15 @@ export class ResponseService {
     private readonly commentRepo: Repository<ResponseCommentEntity>,
   ) {}
 
+  /** شناسه‌ی فرمِ یک پاسخ؛ برای بررسی مالکیت. */
+  async formIdOf(responseId: string): Promise<string | null> {
+    const row = await this.responseRepo.findOne({
+      where: { id: responseId },
+      relations: { formVersion: true },
+    });
+    return row?.formVersion?.formId ?? null;
+  }
+
   async listByForm(formId: string, filter?: ResponseFilterDto) {
     const qb = this.responseRepo
       .createQueryBuilder('response')
