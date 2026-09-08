@@ -9,6 +9,7 @@ import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
+import { ResponseEntity } from '../database/entities/response.entity';
 import {
   PublicationAuthMode,
   PublicationEntity,
@@ -37,15 +38,80 @@ export class FormService {
     private readonly versionRepo: Repository<FormVersionEntity>,
     @InjectRepository(PublicationEntity)
     private readonly publicationRepo: Repository<PublicationEntity>,
+    @InjectRepository(ResponseEntity)
+    private readonly responseRepo: Repository<ResponseEntity>,
     private readonly planService: PlanService,
     private readonly logicEngine: LogicEngineService,
   ) {}
 
-  async list(workspaceId: string) {
-    return this.formRepo.find({
+  /**
+   * فرم‌های یک فضای کاری.
+   *
+   * فرم بایگانی‌شده پیش‌فرض نمی‌آید؛ بایگانی برای این است که از جلوی چشم
+   * برداشته شود، ولی با `includeArchived` باز هم قابل دیدن است.
+   */
+  async list(workspaceId: string, includeArchived = false) {
+    const forms = await this.formRepo.find({
       where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
+    return includeArchived
+      ? forms
+      : forms.filter((form) => form.status !== FormStatus.ARCHIVED);
+  }
+
+  /**
+   * بایگانی یا بازگرداندن فرم.
+   *
+   * بایگانی برگشت‌پذیر است و هیچ داده‌ای را از بین نمی‌برد؛ فرم فقط از
+   * فهرست کنار می‌رود و لینک‌هایش هم بسته می‌شوند.
+   */
+  async setArchived(id: string, archived: boolean) {
+    const form = await this.formRepo.findOne({ where: { id } });
+    if (!form) throw new NotFoundException('فرم یافت نشد');
+
+    form.status = archived ? FormStatus.ARCHIVED : FormStatus.DRAFT;
+    await this.formRepo.save(form);
+
+    // لینک فرم بایگانی‌شده نباید پاسخ تازه بگیرد.
+    await this.publicationRepo.update(
+      { formId: id },
+      { isActive: !archived },
+    );
+
+    return this.get(id);
+  }
+
+  /** چند پاسخ روی این فرم ثبت شده؟ مبنای تایید حذف. */
+  async responseCount(id: string): Promise<number> {
+    return this.responseRepo
+      .createQueryBuilder('response')
+      .innerJoin('response.formVersion', 'version')
+      .where('version.formId = :id', { id })
+      .getCount();
+  }
+
+  /**
+   * حذف همیشگی فرم و همه‌ی پاسخ‌هایش.
+   *
+   * `acknowledgedResponses` باید با تعداد واقعی پاسخ‌ها برابر باشد. این
+   * فقط سخت‌گیری نیست: پاسخ‌ها با CASCADE پاک می‌شوند و برگشتی ندارند، و
+   * عددِ نادرست یعنی کاربر (یا رابطی که عدد کهنه نشان داده) نمی‌داند دارد
+   * چه چیزی را از بین می‌برد.
+   */
+  async remove(id: string, acknowledgedResponses: number) {
+    const form = await this.formRepo.findOne({ where: { id } });
+    if (!form) throw new NotFoundException('فرم یافت نشد');
+
+    const actual = await this.responseCount(id);
+    if (actual !== acknowledgedResponses) {
+      throw new BadRequestException(
+        `این فرم ${actual} پاسخ دارد؛ برای حذف همیشگی باید همین عدد تایید شود.`,
+      );
+    }
+
+    await this.formRepo.delete({ id });
+    return { ok: true, deletedResponses: actual };
   }
 
   async create(dto: CreateFormDto) {

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -14,6 +15,7 @@ import { TenantAccessService } from '../common/tenant-access.service';
 import {
   CreateFormDto,
   CreatePublicationDto,
+  SetArchivedDto,
   SetAuthModeDto,
   SetSlugDto,
   UpdateFormDto,
@@ -38,9 +40,10 @@ export class FormController {
   async list(
     @Query('workspaceId') workspaceId: string,
     @CurrentUser() user: JwtUser,
+    @Query('includeArchived') includeArchived?: string,
   ) {
     await this.tenant.assertWorkspace(workspaceId, user);
-    return this.formService.list(workspaceId);
+    return this.formService.list(workspaceId, includeArchived === 'true');
   }
 
   /**
@@ -136,6 +139,33 @@ export class FormController {
   ) {
     await this.tenant.assertForm(id, user);
     return this.formService.setAuthMode(id, dto.authMode, dto.password);
+  }
+
+  /** بایگانی یا بازگرداندن؛ برگشت‌پذیر و بدون از دست رفتن داده. */
+  @Patch(':id/archived')
+  async setArchived(
+    @Param('id') id: string,
+    @Body() dto: SetArchivedDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.tenant.assertForm(id, user);
+    return this.formService.setArchived(id, dto.archived);
+  }
+
+  /**
+   * حذف همیشگی فرم و همه‌ی پاسخ‌هایش.
+   *
+   * `acknowledgedResponses` باید با تعداد واقعی پاسخ‌ها برابر باشد؛ پاسخ‌ها
+   * برگشتی ندارند و کاربر باید بداند دارد چه چیزی را از بین می‌برد.
+   */
+  @Delete(':id')
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUser,
+    @Query('acknowledgedResponses') acknowledged?: string,
+  ) {
+    await this.tenant.assertForm(id, user);
+    return this.formService.remove(id, Number(acknowledged ?? NaN));
   }
 
   @Post(':id/publications')

@@ -198,3 +198,9 @@ export class SetAuthModeDto {
   @IsString()
   password?: string;
 }
+
+/** بایگانی یا بازگرداندن فرم. */
+export class SetArchivedDto {
+  @IsBoolean()
+  archived: boolean;
+}

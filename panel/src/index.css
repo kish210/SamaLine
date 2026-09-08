@@ -2397,3 +2397,30 @@ input[type='color'] {
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* کارت فرم: بخش کلیک‌شونده و دکمه‌های عملیات جدا. */
+.form-card > a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.form-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.form-card-actions button {
+  width: auto;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+/* گفتگوی حذف: قاب قرمز تا با کارت‌های معمولی اشتباه نشود. */
+.delete-dialog {
+  border-color: var(--danger-500);
+  border-inline-start-width: 3px;
+}

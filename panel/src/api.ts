@@ -65,9 +65,11 @@ export const workspaceApi = {
 };
 
 export const formsApi = {
-  list: (workspaceId: string) =>
+  list: (workspaceId: string, includeArchived = false) =>
     api
-      .get<FormSummary[]>('/forms', { params: { workspaceId } })
+      .get<FormSummary[]>('/forms', {
+        params: { workspaceId, includeArchived },
+      })
       .then((r) => r.data),
 
   get: (id: string) => api.get<FormDetail>(`/forms/${id}`).then((r) => r.data),
@@ -89,6 +91,23 @@ export const formsApi = {
 
   update: (id: string, body: Record<string, unknown>) =>
     api.patch<FormDetail>(`/forms/${id}`, body).then((r) => r.data),
+
+  /** بایگانی یا بازگرداندن؛ برگشت‌پذیر. */
+  setArchived: (id: string, archived: boolean) =>
+    api
+      .patch<FormDetail>(`/forms/${id}/archived`, { archived })
+      .then((r) => r.data),
+
+  /**
+   * حذف همیشگی. سرور تعداد پاسخ‌ها را با عددی که می‌فرستیم می‌سنجد و اگر
+   * برابر نباشد رد می‌کند — پس عدد باید تازه خوانده شده باشد.
+   */
+  remove: (id: string, acknowledgedResponses: number) =>
+    api
+      .delete<{ ok: boolean; deletedResponses: number }>(`/forms/${id}`, {
+        params: { acknowledgedResponses },
+      })
+      .then((r) => r.data),
 
   publishLink: (id: string) =>
     api.post<Publication>(`/forms/${id}/publish-link`).then((r) => r.data),

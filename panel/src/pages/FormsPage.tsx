@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { describeError, formsApi, workspaceApi } from '../api';
+import { describeError, formsApi, reportsApi, workspaceApi } from '../api';
 import { TemplatePicker } from './TemplatePicker';
 import type { FormPage } from '../types';
 
@@ -30,6 +30,10 @@ export function FormsPage() {
   const [templateKey, setTemplateKey] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(
+    null,
+  );
 
   const workspaces = useQuery({
     queryKey: ['workspaces'],
@@ -38,9 +42,19 @@ export function FormsPage() {
   const workspaceId = workspaces.data?.[0]?.id ?? '';
 
   const forms = useQuery({
-    queryKey: ['forms', workspaceId],
-    queryFn: () => formsApi.list(workspaceId),
+    queryKey: ['forms', workspaceId, showArchived],
+    queryFn: () => formsApi.list(workspaceId, showArchived),
     enabled: Boolean(workspaceId),
+  });
+
+  const refreshForms = () =>
+    void queryClient.invalidateQueries({ queryKey: ['forms'] });
+
+  const setArchived = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
+      formsApi.setArchived(id, archived),
+    onSuccess: refreshForms,
+    onError: (err) => setError(describeError(err)),
   });
 
   const createForm = useMutation({
@@ -105,19 +119,148 @@ export function FormsPage() {
         <p className="empty">هنوز فرمی نساخته‌اید. اولین فرم را بسازید.</p>
       )}
 
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={showArchived}
+          onChange={(e) => setShowArchived(e.target.checked)}
+        />
+        نمایش فرم‌های بایگانی‌شده
+      </label>
+
       <div className="card-grid">
         {forms.data?.map((form) => (
-          <Link key={form.id} to={`/forms/${form.id}`} className="card form-card">
-            <h3>{form.title}</h3>
-            <div className="meta">
-              <span className={`badge badge-${form.status}`}>
-                {STATUS_LABELS[form.status] ?? form.status}
-              </span>
-              <span className="slug">{form.slug}</span>
+          <div key={form.id} className="card form-card">
+            <Link to={`/forms/${form.id}`}>
+              <h3>{form.title}</h3>
+              <div className="meta">
+                <span className={`badge badge-${form.status}`}>
+                  {STATUS_LABELS[form.status] ?? form.status}
+                </span>
+                <span className="slug">{form.slug}</span>
+              </div>
+            </Link>
+
+            <div className="form-card-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  setArchived.mutate({
+                    id: form.id,
+                    archived: form.status !== 'archived',
+                  })
+                }
+              >
+                {form.status === 'archived' ? 'بازگرداندن' : 'بایگانی'}
+              </button>
+              {form.status === 'archived' && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => setDeleting(form)}
+                >
+                  حذف همیشگی
+                </button>
+              )}
             </div>
-          </Link>
+          </div>
         ))}
       </div>
+
+      {deleting && (
+        <DeleteFormDialog
+          form={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            refreshForms();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+interface DeleteDialogProps {
+  form: { id: string; title: string };
+  onClose: () => void;
+  onDeleted: () => void;
+}
+
+/**
+ * تایید حذف همیشگی فرم.
+ *
+ * تعداد پاسخ‌ها همین‌جا و همین حالا از سرور خوانده می‌شود، نه از فهرست
+ * فرم‌ها که ممکن است چند دقیقه پیش گرفته شده باشد. سرور هم همین عدد را
+ * دوباره می‌سنجد و اگر در این فاصله پاسخ تازه‌ای آمده باشد حذف را رد
+ * می‌کند — پس هیچ‌وقت داده‌ای که کاربر از وجودش خبر نداشته نابود نمی‌شود.
+ */
+function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
+  const [confirmText, setConfirmText] = useState('');
+  const [error, setError] = useState('');
+
+  const summary = useQuery({
+    queryKey: ['summary', form.id],
+    queryFn: () => reportsApi.summary(form.id),
+  });
+
+  /*
+   * «شروع‌شده» همان تعداد کلِ پاسخ‌نامه‌هاست (کامل و ناتمام)، و سرور هم
+   * دقیقا همین را می‌شمارد؛ پس عددی که کاربر تایید می‌کند با عددی که سرور
+   * می‌سنجد یکی است.
+   */
+  const responses = summary.data ? summary.data.started : null;
+
+  const remove = useMutation({
+    mutationFn: () => formsApi.remove(form.id, responses ?? -1),
+    onSuccess: onDeleted,
+    onError: (err) => setError(describeError(err)),
+  });
+
+  return (
+    <section className="card delete-dialog">
+      <h3>حذف همیشگی «{form.title}»</h3>
+
+      {summary.isLoading ? (
+        <p>در حال خواندن تعداد پاسخ‌ها…</p>
+      ) : (
+        <p className="error">
+          این کار برگشت‌ناپذیر است. فرم، ساختار، لینک‌ها و{' '}
+          <b>{responses ?? 0} پاسخ ثبت‌شده</b> برای همیشه پاک می‌شوند.
+        </p>
+      )}
+
+      <label>
+        <span className="field-label">
+          برای تایید، عنوان فرم را دقیقا بنویسید
+        </span>
+        <input
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder={form.title}
+        />
+      </label>
+
+      {error && <p className="error">{error}</p>}
+
+      <div className="inline-form">
+        <button
+          type="button"
+          className="danger"
+          disabled={
+            confirmText.trim() !== form.title.trim() ||
+            responses === null ||
+            remove.isPending
+          }
+          onClick={() => remove.mutate()}
+        >
+          {remove.isPending ? 'در حال حذف…' : 'حذف همیشگی'}
+        </button>
+        <button type="button" className="secondary" onClick={onClose}>
+          انصراف
+        </button>
+      </div>
+    </section>
   );
 }
