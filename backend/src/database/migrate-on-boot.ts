@@ -23,25 +23,6 @@ const SENTINEL_TABLE = 'organizations';
  * پیش از هر اجرای واقعی روی SQLite، از فایل کپی گرفته می‌شود.
  */
 export async function runMigrations(dataSource: DataSource): Promise<void> {
-  /*
-   * مهاجرت‌های موجود با گویش SQLite تولید شده‌اند.
-   *
-   * اجرای همان‌ها روی Postgres با خطای نحوی شکست می‌خورد (`datetime('now')`،
-   * بولین به شکل `(1)`، `varchar PRIMARY KEY`) — خطایی که فهمیدنش سخت
-   * است. شکست صریح با پیام روشن بهتر از آن است.
-   */
-  if (!IS_SQLITE) {
-    const pending = await dataSource.showMigrations();
-    if (pending) {
-      throw new Error(
-        'مهاجرت‌های این نسخه فقط برای SQLite تولید شده‌اند. برای Postgres ' +
-          'باید مهاجرت‌های همان گویش ساخته شود (npm run migration:generate با ' +
-          'DB_DRIVER=postgres روی یک پایگاه‌داده‌ی خالی).',
-      );
-    }
-    return;
-  }
-
   const isExisting = await hasTable(dataSource, SENTINEL_TABLE);
   const hasMigrationsTable = await hasTable(dataSource, 'migrations');
 
@@ -64,7 +45,14 @@ export async function runMigrations(dataSource: DataSource): Promise<void> {
    * لازم می‌شود که فهمیدنش دیر است.
    */
   const file = dataSource.options.database;
-  if (IS_SQLITE && typeof file === "string") backupSqlite(file);
+  if (IS_SQLITE && typeof file === "string") {
+    backupSqlite(file);
+  } else if (!IS_SQLITE) {
+    // Postgres فایل تکی نیست؛ پشتیبانش کار pg_dump است نه کپی فایل.
+    logger.warn(
+      "پیش از مهاجرت روی Postgres، خودتان با pg_dump پشتیبان بگیرید.",
+    );
+  }
 
   const applied = await dataSource.runMigrations({ transaction: 'all' });
   logger.log(

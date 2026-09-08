@@ -5,6 +5,7 @@ import { IS_SQLITE } from './column-types';
 import { ALL_ENTITIES } from './entities';
 import { Baseline1788846783305 } from './migrations/1788846783305-Baseline';
 import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
+import { PgBaseline1788878200721 } from './migrations/1788878200721-PgBaseline';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -12,8 +13,12 @@ import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
  * الگوی مسیر پس از build باید به `dist` اشاره کند و در توسعه به `src`؛
  * همین دوگانگی جایی از قلم می‌افتد و مهاجرت بی‌صدا اجرا نمی‌شود. وارد کردن
  * مستقیم، این خطا را غیرممکن می‌کند.
+ *
+ * هر گویش فهرست خودش را دارد: SQL تولیدشده برای SQLite روی Postgres خطای
+ * نحوی می‌دهد و برعکس. یک فهرست مشترک یعنی یکی از دو گویش همیشه خراب است.
  */
-const MIGRATIONS = [Baseline1788846783305, AddPortal1788865235241];
+const SQLITE_MIGRATIONS = [Baseline1788846783305, AddPortal1788865235241];
+const POSTGRES_MIGRATIONS = [PgBaseline1788878200721];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */
 export function sqliteDatabasePath(): string {
@@ -32,7 +37,7 @@ export function buildDataSourceOptions(
         type: 'better-sqlite3',
         database: sqliteDatabasePath(),
         entities: ALL_ENTITIES,
-        migrations: MIGRATIONS,
+        migrations: SQLITE_MIGRATIONS,
         /*
          * اسکیما با مهاجرت ساخته می‌شود، نه synchronize.
          *
@@ -48,7 +53,7 @@ export function buildDataSourceOptions(
         type: 'postgres',
         url: process.env.DATABASE_URL,
         entities: ALL_ENTITIES,
-        migrations: MIGRATIONS,
+        migrations: POSTGRES_MIGRATIONS,
         synchronize: false,
         migrationsRun: false,
       };
