@@ -82,9 +82,38 @@ export class TelegramDigestService implements OnModuleInit, OnModuleDestroy {
     return now.getTime() - new Date(last).getTime() >= period;
   }
 
+  /**
+   * گزارش فوری برای یک گفتگو، بدون توجه به موعد.
+   *
+   * پشت فرمان /report ربات است: مدیری که همین حالا عدد می‌خواهد نباید تا
+   * پایان دوره صبر کند.
+   */
+  async sendNow(
+    workspaceId: string,
+    chatId: string,
+    now = new Date(),
+  ): Promise<number> {
+    const rows = await this.recipientRepo.find({
+      where: { workspaceId, chatId },
+    });
+    let sent = 0;
+    for (const recipient of rows) {
+      // مقصدی که گزارش دوره‌ای ندارد هم باید بتواند گزارش فوری بگیرد؛
+      // بازه‌ی پیش‌فرض یک هفته است.
+      const period =
+        recipient.digest === "monthly" ? "monthly" : ("weekly" as const);
+      if (await this.sendDigest({ ...recipient, digest: period }, now, false)) {
+        sent += 1;
+      }
+    }
+    return sent;
+  }
+
   private async sendDigest(
     recipient: TelegramRecipientEntity,
     now: Date,
+    /** گزارش زمان‌بندی‌شده موعد را جلو می‌برد؛ گزارش فوری نباید. */
+    advanceSchedule = true,
   ): Promise<boolean> {
     const bot = await this.botRepo.findOne({
       where: { workspaceId: recipient.workspaceId },
@@ -127,8 +156,15 @@ export class TelegramDigestService implements OnModuleInit, OnModuleDestroy {
     await this.recipientRepo.update(
       { id: recipient.id },
       result.ok
-        ? { lastDigestAt: now, lastSentAt: now, lastError: null }
-        : { lastDigestAt: now, lastError: result.error.slice(0, 300) },
+        ? {
+            ...(advanceSchedule ? { lastDigestAt: now } : {}),
+            lastSentAt: now,
+            lastError: null,
+          }
+        : {
+            ...(advanceSchedule ? { lastDigestAt: now } : {}),
+            lastError: result.error.slice(0, 300),
+          },
     );
 
     return result.ok;

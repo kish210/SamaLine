@@ -7,6 +7,7 @@ import { TelegramIntegrationEntity } from '../database/entities/telegram-integra
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramApi } from './telegram-api';
+import { TelegramDigestService } from './telegram-digest.service';
 
 /** عمر کد اتصال. کوتاه است چون کد در تلگرام رد و بدل می‌شود. */
 const CODE_TTL_MINUTES = 30;
@@ -51,6 +52,7 @@ export class TelegramBotService {
     @InjectRepository(FormEntity)
     private readonly formRepo: Repository<FormEntity>,
     private readonly api: TelegramApi,
+    private readonly digest: TelegramDigestService,
   ) {}
 
   // ── کد اتصال ──────────────────────────────────────────────────────────
@@ -144,6 +146,10 @@ export class TelegramBotService {
       case '/راهنما':
         return this.help(bot);
 
+      case '/report':
+      case '/گزارش':
+        return this.sendReport(bot, chatId);
+
       case '/forms':
       case '/فرمها':
         return this.listForms(bot, chatId);
@@ -193,6 +199,7 @@ export class TelegramBotService {
       'برای وصل شدن به یک فرم، کدی که در پنل ساخته‌اید را همین‌جا بفرستید.',
       '',
       '<b>فرمان‌ها:</b>',
+      '/report — گزارش همین حالا',
       '/forms — فرم‌هایی که این گفتگو دریافت می‌کند',
       '/weekly — گزارش هفتگی روشن',
       '/monthly — گزارش ماهانه روشن',
@@ -262,6 +269,16 @@ export class TelegramBotService {
       'از این پس پاسخ‌های تازه اینجا می‌آید.',
       'برای خلاصه‌ی دوره‌ای: /weekly یا /monthly',
     ].join('\n');
+  }
+
+  /** گزارش فوری؛ خودِ پیام را سرویس گزارش می‌فرستد. */
+  private async sendReport(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<string | null> {
+    const sent = await this.digest.sendNow(bot.workspaceId, chatId);
+    // با ارسال موفق، پیام گزارش خودش رسیده؛ یک «باشه» اضافه فقط شلوغی است.
+    return sent > 0 ? null : 'این گفتگو به هیچ فرمی وصل نیست.';
   }
 
   private async listForms(

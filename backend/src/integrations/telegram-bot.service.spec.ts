@@ -38,6 +38,7 @@ interface Harness {
   updates: Array<Record<string, unknown>>;
   deletes: Array<Record<string, unknown>>;
   codeUpdates: Array<Record<string, unknown>>;
+  digestSends: Array<{ chatId: string }>;
 }
 
 function harness(options: {
@@ -49,6 +50,7 @@ function harness(options: {
   const updates: Harness['updates'] = [];
   const deletes: Harness['deletes'] = [];
   const codeUpdates: Harness['codeUpdates'] = [];
+  const digestSends: Array<{ chatId: string }> = [];
   const recipients = options.recipients ?? [];
 
   const api = {
@@ -93,9 +95,15 @@ function harness(options: {
     } as never,
     { findOne: async () => ({ id: 'form-1', title: 'نظرسنجی هتل' }) } as never,
     api,
+    {
+      sendNow: async () => {
+        digestSends.push({ chatId: 'called' });
+        return options.recipients?.length ? 1 : 0;
+      },
+    } as never,
   );
 
-  return { service, sent, saved, updates, deletes, codeUpdates };
+  return { service, sent, saved, updates, deletes, codeUpdates, digestSends };
 }
 
 const message = (text: string, chatId = '555') => ({
@@ -216,5 +224,20 @@ describe('TelegramBotService — فرمان‌های ربات', () => {
     // O/0 و I/1/l هنگام خواندن از صفحه و تایپ در تلگرام اشتباه می‌شوند.
     expect(code).not.toMatch(/[O0Il1]/);
     expect(code).toHaveLength(8);
+  });
+
+  it('/report گزارش فوری می‌فرستد و پیام اضافه نمی‌دهد', async () => {
+    const h = harness({ recipients: [{ id: 'r1' }] });
+    await h.service.handleUpdate('hook-abc', message('/report'));
+
+    expect(h.digestSends).toHaveLength(1);
+    // خودِ گزارش رفته؛ یک «باشه» اضافه فقط شلوغی است.
+    expect(h.sent).toHaveLength(0);
+  });
+
+  it('/report روی گفتگوی وصل‌نشده توضیح می‌دهد', async () => {
+    const h = harness({ recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('/report'));
+    expect(h.sent[0].text).toContain('وصل نیست');
   });
 });
