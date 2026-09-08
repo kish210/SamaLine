@@ -72,6 +72,18 @@ export class TelegramLinkCodeDto {
   @IsString()
   @MaxLength(120)
   label?: string;
+
+  /**
+   * چند نفر بتوانند با این کد وصل شوند.
+   *
+   * سقف ۵۰ عمدی است: کدی که صدها نفر بتوانند با آن پاسخ‌های یک فرم را
+   * ببینند، دیگر کنترل دسترسی نیست.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(50)
+  maxUses?: number;
 }
 
 export class TelegramRecipientPatchDto {
@@ -194,6 +206,7 @@ export class TelegramController {
       workspaceId,
       formId: dto.formId ?? null,
       label: dto.label ?? '',
+      maxUses: dto.maxUses ?? 1,
     });
   }
 

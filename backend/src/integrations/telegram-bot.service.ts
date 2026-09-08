@@ -9,8 +9,14 @@ import { TelegramRecipientEntity } from '../database/entities/telegram-recipient
 import { TelegramApi } from './telegram-api';
 import { TelegramDigestService } from './telegram-digest.service';
 
-/** عمر کد اتصال. کوتاه است چون کد در تلگرام رد و بدل می‌شود. */
+/**
+ * عمر کد اتصال.
+ *
+ * کد تک‌نفره کوتاه است چون در تلگرام رد و بدل می‌شود. کد گروهی باید فرصت
+ * بدهد همه‌ی اعضای تیم آن را ببینند و بفرستند، پس یک روز عمر دارد.
+ */
 const CODE_TTL_MINUTES = 30;
+const TEAM_CODE_TTL_MINUTES = 24 * 60;
 
 /**
  * حروف کد اتصال.
@@ -62,12 +68,18 @@ export class TelegramBotService {
     workspaceId: string;
     formId: string | null;
     label: string;
+    /** چند نفر بتوانند وصل شوند؛ `null` یعنی بی‌شمار تا انقضا. */
+    maxUses?: number | null;
   }) {
     // کدهای منقضی انباشته می‌شوند؛ همین‌جا پاک می‌شوند تا جدول رشد نکند.
     await this.codeRepo.delete({ expiresAt: LessThan(new Date()) });
 
+    const maxUses = input.maxUses === undefined ? 1 : input.maxUses;
+    const isTeamCode = maxUses === null || maxUses > 1;
+    const ttl = isTeamCode ? TEAM_CODE_TTL_MINUTES : CODE_TTL_MINUTES;
+
     const code = this.generateCode();
-    const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60_000);
+    const expiresAt = new Date(Date.now() + ttl * 60_000);
 
     await this.codeRepo.save(
       this.codeRepo.create({
@@ -76,6 +88,8 @@ export class TelegramBotService {
         formId: input.formId,
         label: input.label.trim(),
         expiresAt,
+        maxUses,
+        useCount: 0,
         usedAt: null,
       }),
     );
@@ -87,7 +101,8 @@ export class TelegramBotService {
     return {
       code,
       expiresAt,
-      expiresInMinutes: CODE_TTL_MINUTES,
+      expiresInMinutes: ttl,
+      maxUses,
       botUsername: bot?.botUsername ?? null,
     };
   }
@@ -220,8 +235,11 @@ export class TelegramBotService {
     const code = rawCode.trim().toUpperCase();
     const row = await this.codeRepo.findOne({ where: { code } });
 
-    if (!row || row.usedAt || row.expiresAt < new Date()) {
+    if (!row || row.expiresAt < new Date()) {
       return '❌ کد نامعتبر یا منقضی است. از پنل کد تازه بگیرید.';
+    }
+    if (row.maxUses !== null && row.useCount >= row.maxUses) {
+      return '❌ ظرفیت این کد پر شده است. از پنل کد تازه بگیرید.';
     }
     /*
      * کد فقط برای رباتِ همان فضای کاری معتبر است.
@@ -241,33 +259,57 @@ export class TelegramBotService {
       },
     });
 
+    const formName = await this.formName(row.formId);
+
     if (existing) {
+      /*
+       * گفتگوی از قبل وصل، ظرفیت کد را مصرف نمی‌کند.
+       *
+       * وگرنه یک نفر که کد را دو بار می‌فرستد، سهم یکی دیگر از تیم را
+       * می‌خورد — و کد گروهی دقیقا برای همان تیم ساخته شده.
+       */
       await this.recipientRepo.update(
         { id: existing.id },
         { isActive: true, label: row.label || existing.label },
       );
-    } else {
-      await this.recipientRepo.save(
-        this.recipientRepo.create({
-          workspaceId: row.workspaceId,
-          formId: row.formId,
-          chatId,
-          label: row.label || chatTitle(chat),
-          isActive: true,
-          notifyOnResponse: true,
-          digest: 'none',
-        }),
-      );
+      return `✅ این گفتگو از قبل به <b>${escapeHtml(formName)}</b> وصل بود.`;
     }
 
-    await this.codeRepo.update({ id: row.id }, { usedAt: new Date() });
+    await this.recipientRepo.save(
+      this.recipientRepo.create({
+        workspaceId: row.workspaceId,
+        formId: row.formId,
+        chatId,
+        label: row.label || chatTitle(chat),
+        isActive: true,
+        notifyOnResponse: true,
+        digest: 'none',
+      }),
+    );
 
-    const formName = await this.formName(row.formId);
+    /*
+     * شمارنده پیش از نوشتن در متغیر گرفته می‌شود.
+     *
+     * خواندن دوباره‌ی `row.useCount` پس از update به این بستگی دارد که
+     * لایه‌ی داده شیء را در جا عوض کرده باشد یا نه — و همان وابستگی باعث
+     * شد ظرفیت باقی‌مانده یکی کمتر گزارش شود.
+     */
+    const nextCount = row.useCount + 1;
+    await this.codeRepo.update(
+      { id: row.id },
+      { useCount: nextCount, usedAt: new Date() },
+    );
+
+    const remaining = row.maxUses === null ? null : row.maxUses - nextCount;
+
     return [
       `✅ این گفتگو به <b>${escapeHtml(formName)}</b> وصل شد.`,
       '',
       'از این پس پاسخ‌های تازه اینجا می‌آید.',
       'برای خلاصه‌ی دوره‌ای: /weekly یا /monthly',
+      ...(remaining !== null && remaining > 0
+        ? ['', `<i>ظرفیت باقی‌مانده‌ی این کد: ${remaining} نفر</i>`]
+        : []),
     ].join('\n');
   }
 

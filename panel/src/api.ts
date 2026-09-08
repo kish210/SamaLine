@@ -539,13 +539,14 @@ export const telegramApi = {
   /** کد یک‌بارمصرف برای وصل شدن مدیر از داخل خود ربات. */
   createLinkCode: (
     workspaceId: string,
-    body: { formId: string | null; label?: string },
+    body: { formId: string | null; label?: string; maxUses?: number },
   ) =>
     api
       .post<{
         code: string;
         expiresAt: string;
         expiresInMinutes: number;
+        maxUses: number | null;
         botUsername: string | null;
       }>("/integrations/telegram/link-code", body, { params: { workspaceId } })
       .then((r) => r.data),

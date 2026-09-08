@@ -31,14 +31,27 @@ export class TelegramLinkCodeEntity {
   @Column({ type: UUID_COLUMN, nullable: true })
   formId: string | null;
 
-  /** نامی که هنگام ساخت کد برای این مدیر گذاشته شده. */
+  /** نامی که هنگام ساخت کد گذاشته شده؛ مثلا «مدیران هتل کیش». */
   @Column({ type: 'varchar', length: 120, default: '' })
   label: string;
 
   @Column({ type: TIMESTAMP_COLUMN })
   expiresAt: Date;
 
-  /** پس از مصرف پر می‌شود؛ کد دوباره کار نمی‌کند. */
+  /**
+   * چند نفر می‌توانند با این کد وصل شوند. `null` یعنی بی‌شمار (تا انقضا).
+   *
+   * برای وصل کردن یک فرم به چند مدیر، ساختن یک کد به‌ازای هر نفر آزاردهنده
+   * است؛ یک کد گروهی برای همه‌ی آن‌ها فرستاده می‌شود.
+   */
+  @Column({ type: 'int', nullable: true, default: 1 })
+  maxUses: number | null;
+
+  /** چند بار تا حالا استفاده شده. */
+  @Column({ type: 'int', default: 0 })
+  useCount: number;
+
+  /** آخرین باری که کسی با این کد وصل شد. */
   @Column({ type: TIMESTAMP_COLUMN, nullable: true })
   usedAt: Date | null;
 

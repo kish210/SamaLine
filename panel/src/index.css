@@ -2357,3 +2357,19 @@ input[type='color'] {
   direction: ltr;
   user-select: all;
 }
+
+/* انتخابگر درون‌خطی کنار دکمه (ظرفیت کد دعوت). */
+.inline-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--gray-600);
+  white-space: nowrap;
+}
+
+.inline-select select {
+  width: auto;
+  margin: 0;
+}

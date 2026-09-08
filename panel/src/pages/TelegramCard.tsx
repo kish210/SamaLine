@@ -155,6 +155,7 @@ function RecipientList({
   const [label, setLabel] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
   const [threshold, setThreshold] = useState(5);
+  const [maxUses, setMaxUses] = useState(1);
 
   const chats = useQuery({
     queryKey: ['telegram-chats', workspaceId],
@@ -170,6 +171,7 @@ function RecipientList({
       telegramApi.createLinkCode(workspaceId, {
         formId: formId || null,
         label: label.trim(),
+        maxUses,
       }),
     onError: (error) => onMessage(describeError(error)),
   });
@@ -317,9 +319,10 @@ function RecipientList({
 
       <h4>دعوت مدیر با کد</h4>
       <p className="hint">
-        ساده‌ترین راه: کد بگیرید و برای مدیر بفرستید. او کد را در تلگرام به
-        ربات می‌دهد و خودش وصل می‌شود — نیازی نیست کسی شناسه‌ی عددی گفتگو را
-        پیدا کند.
+        کد بگیرید و برای مدیران بفرستید. هرکدام کد را در تلگرام به ربات
+        می‌دهد و خودش وصل می‌شود — نیازی نیست کسی شناسه‌ی عددی گفتگو را پیدا
+        کند. یک کد می‌تواند چند مدیر را به <b>همان فرم</b> وصل کند و پاسخ‌ها
+        برای همه‌شان می‌رود.
       </p>
 
       <div className="inline-form">
@@ -336,6 +339,19 @@ function RecipientList({
           value={label}
           onChange={(e) => setLabel(e.target.value)}
         />
+        <label className="inline-select">
+          برای
+          <select
+            value={maxUses}
+            onChange={(e) => setMaxUses(Number(e.target.value))}
+          >
+            <option value={1}>۱ نفر</option>
+            <option value={3}>۳ نفر</option>
+            <option value={5}>۵ نفر</option>
+            <option value={10}>۱۰ نفر</option>
+            <option value={25}>۲۵ نفر</option>
+          </select>
+        </label>
         <button
           type="button"
           onClick={() => linkCode.mutate()}
@@ -355,8 +371,10 @@ function RecipientList({
                 <b dir="ltr">@{linkCode.data.botUsername}</b> بفرستید.{' '}
               </>
             )}
-            تا {linkCode.data.expiresInMinutes} دقیقه معتبر است و یک‌بار
-            بیشتر کار نمی‌کند.
+            {linkCode.data.maxUses === 1
+              ? 'یک‌بار بیشتر کار نمی‌کند.'
+              : `تا ${linkCode.data.maxUses} نفر می‌توانند با همین کد وصل شوند.`}{' '}
+            اعتبار: {formatDuration(linkCode.data.expiresInMinutes)}.
           </span>
         </div>
       )}
@@ -464,4 +482,11 @@ function RecipientList({
       )}
     </>
   );
+}
+
+/** «۳۰ دقیقه» یا «۲۴ ساعت»؛ عدد خام دقیقه برای یک روز خوانده نمی‌شود. */
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} دقیقه`;
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `${hours} ساعت` : `${Math.round(hours / 24)} روز`;
 }

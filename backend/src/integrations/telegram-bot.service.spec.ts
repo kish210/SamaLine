@@ -26,6 +26,8 @@ function futureCode(
     formId: 'form-1',
     label: 'مدیر هتل',
     expiresAt: new Date(Date.now() + 60_000),
+    maxUses: 1,
+    useCount: 0,
     usedAt: null,
     ...over,
   };
@@ -90,6 +92,11 @@ function harness(options: {
       create: (v: unknown) => v,
       update: async (_w: unknown, patch: Record<string, unknown>) => {
         codeUpdates.push(patch);
+        // شمارنده روی همان ردیف اعمال می‌شود، وگرنه تست «ظرفیت پر شد»
+        // همیشه از صفر شروع می‌کند و چیزی را ثابت نمی‌کند.
+        if (options.code && typeof patch.useCount === "number") {
+          options.code.useCount = patch.useCount;
+        }
       },
       delete: async () => undefined,
     } as never,
@@ -143,11 +150,14 @@ describe('TelegramBotService — فرمان‌های ربات', () => {
     expect(h.sent[0].text).toContain('نامعتبر یا منقضی');
   });
 
-  it('کد مصرف‌شده دوباره کار نمی‌کند', async () => {
-    const h = harness({ code: futureCode({ usedAt: new Date() }) });
+  it('کد تک‌نفره پس از یک استفاده دیگر کار نمی‌کند', async () => {
+    // مبنا شمارنده است نه تاریخ مصرف، چون کد گروهی چند بار مصرف می‌شود.
+    const h = harness({
+      code: futureCode({ maxUses: 1, useCount: 1, usedAt: new Date() }),
+    });
     await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
     expect(h.saved).toHaveLength(0);
-    expect(h.sent[0].text).toContain('نامعتبر یا منقضی');
+    expect(h.sent[0].text).toContain('ظرفیت این کد پر شده');
   });
 
   it('کد فضای کاری دیگر روی این ربات کار نمی‌کند', async () => {
@@ -239,5 +249,42 @@ describe('TelegramBotService — فرمان‌های ربات', () => {
     const h = harness({ recipients: [] });
     await h.service.handleUpdate('hook-abc', message('/report'));
     expect(h.sent[0].text).toContain('وصل نیست');
+  });
+
+  describe('کد گروهی', () => {
+    it('یک کد چند مدیر را به همان فرم وصل می‌کند', async () => {
+      const code = futureCode({ maxUses: 3, useCount: 0 });
+      const h = harness({ code, recipients: [] });
+
+      await h.service.handleUpdate('hook-abc', message(code.code!, '111'));
+      await h.service.handleUpdate('hook-abc', message(code.code!, '222'));
+
+      expect(h.saved.map((r) => r.chatId)).toEqual(['111', '222']);
+      expect(h.saved.every((r) => r.formId === 'form-1')).toBe(true);
+    });
+
+    it('پس از پر شدن ظرفیت، کد کار نمی‌کند', async () => {
+      const code = futureCode({ maxUses: 2, useCount: 2 });
+      const h = harness({ code, recipients: [] });
+
+      await h.service.handleUpdate('hook-abc', message(code.code!, '333'));
+
+      expect(h.saved).toHaveLength(0);
+      expect(h.sent[0].text).toContain('ظرفیت این کد پر شده');
+    });
+
+    it('ظرفیت باقی‌مانده به کاربر گفته می‌شود', async () => {
+      const code = futureCode({ maxUses: 3, useCount: 0 });
+      const h = harness({ code, recipients: [] });
+      await h.service.handleUpdate('hook-abc', message(code.code!, '111'));
+      expect(h.sent[0].text).toContain('2 نفر');
+    });
+
+    it('کد بی‌شمار (null) هیچ‌وقت پر نمی‌شود', async () => {
+      const code = futureCode({ maxUses: null, useCount: 99 });
+      const h = harness({ code, recipients: [] });
+      await h.service.handleUpdate('hook-abc', message(code.code!, '444'));
+      expect(h.saved).toHaveLength(1);
+    });
   });
 });
