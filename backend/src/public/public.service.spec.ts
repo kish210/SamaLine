@@ -43,6 +43,7 @@ import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import type { MessagingService } from '../messaging/messaging.service';
 import { PublicService } from './public.service';
 import { TelegramService } from '../integrations/telegram.service';
+import { TelegramApi } from '../integrations/telegram-api';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { RespondentAuthService } from './respondent-auth.service';
@@ -184,10 +185,11 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         ds.getRepository(TelegramRecipientEntity),
         ds.getRepository(WorkspaceEntity),
         new PlatformSettingsService(
-        ds.getRepository(PlatformSettingsEntity),
-        ds.getRepository(UserEntity),
-        ds.getRepository(WorkspaceEntity),
-      ),
+          ds.getRepository(PlatformSettingsEntity),
+          ds.getRepository(UserEntity),
+          ds.getRepository(WorkspaceEntity),
+        ),
+        new TelegramApi(),
       ),
     );
   });

@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TelegramService } from './telegram.service';
+import { TelegramBotService } from './telegram-bot.service';
 
 export class TelegramBotDto {
   /** خالی بگذارید تا توکن ذخیره‌شده دست‌نخورده بماند. */
@@ -61,6 +62,18 @@ export class TelegramRecipientDto {
   isActive?: boolean;
 }
 
+export class TelegramLinkCodeDto {
+  /** خالی یعنی «همه‌ی فرم‌های این فضای کاری». */
+  @IsOptional()
+  @IsUUID()
+  formId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  label?: string;
+}
+
 export class TelegramRecipientPatchDto {
   @IsOptional()
   @IsString()
@@ -81,7 +94,10 @@ export class TelegramRecipientPatchDto {
 @Controller('integrations/telegram')
 @UseGuards(JwtAuthGuard)
 export class TelegramController {
-  constructor(private readonly telegramService: TelegramService) {}
+  constructor(
+    private readonly telegramService: TelegramService,
+    private readonly botService: TelegramBotService,
+  ) {}
 
   @Get()
   async getBot(
@@ -159,6 +175,26 @@ export class TelegramController {
   ) {
     await this.telegramService.assertAccess(workspaceId, user);
     return this.telegramService.removeRecipient(workspaceId, id);
+  }
+
+  /**
+   * ساخت کد یک‌بارمصرف برای وصل کردن یک گفتگو به یک فرم.
+   *
+   * جایگزین پیدا کردن دستی chat id: مدیر کد را در تلگرام به ربات می‌فرستد
+   * و خودش وصل می‌شود، بدون اینکه لازم باشد کسی شناسه‌ی عددی را پیدا کند.
+   */
+  @Post('link-code')
+  async createLinkCode(
+    @Query('workspaceId') workspaceId: string,
+    @Body() dto: TelegramLinkCodeDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.telegramService.assertAccess(workspaceId, user);
+    return this.botService.createLinkCode({
+      workspaceId,
+      formId: dto.formId ?? null,
+      label: dto.label ?? '',
+    });
   }
 
   @Post('recipients/:id/test')

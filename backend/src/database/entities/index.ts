@@ -30,6 +30,7 @@ import { UserEntity } from './user.entity';
 import { WebhookEntity } from './webhook.entity';
 import { TelegramIntegrationEntity } from './telegram-integration.entity';
 import { TelegramRecipientEntity } from './telegram-recipient.entity';
+import { TelegramLinkCodeEntity } from './telegram-link-code.entity';
 import { WorkspaceEntity } from './workspace.entity';
 
 /** تنها منبع حقیقت برای فهرست موجودیت‌ها (app.module، seed و تست‌ها از همین استفاده می‌کنند). */
@@ -67,4 +68,5 @@ export const ALL_ENTITIES = [
   DashboardEntity,
   TelegramIntegrationEntity,
   TelegramRecipientEntity,
+  TelegramLinkCodeEntity,
 ];

@@ -2333,3 +2333,27 @@ input[type='color'] {
 .ai-summary .hint {
   margin: 0;
 }
+
+/* کد دعوت مدیر به ربات تلگرام. */
+.link-code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--gold-50);
+  border: 1px solid var(--gold-300);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 8px 0 14px;
+  font-size: 12px;
+  color: var(--gray-700);
+}
+
+.link-code code {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--blue-800);
+  direction: ltr;
+  user-select: all;
+}

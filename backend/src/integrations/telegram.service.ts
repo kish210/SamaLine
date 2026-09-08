@@ -11,11 +11,8 @@ import { TelegramRecipientEntity } from '../database/entities/telegram-recipient
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import type { FormQuestionNode, FormStructure } from '../forms/logic-types';
-
-const TELEGRAM_API = 'https://api.telegram.org';
-
-/** حداکثر طول پیام تلگرام؛ پیام بلندتر رد می‌شود، پس بریده می‌شود. */
-const MAX_MESSAGE = 4096;
+import { randomBytes } from 'crypto';
+import { MAX_MESSAGE, TelegramApi } from './telegram-api';
 
 export interface TelegramBotInput {
   botToken?: string;
@@ -52,6 +49,7 @@ export class TelegramService {
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepo: Repository<WorkspaceEntity>,
     private readonly platformSettings: PlatformSettingsService,
+    private readonly api: TelegramApi,
   ) {}
 
   /**
@@ -102,12 +100,18 @@ export class TelegramService {
 
     let botUsername = existing?.botUsername ?? null;
     if (input.botToken?.trim()) {
-      const me = await this.getMe(token);
+      const me = await this.api.getMe(token);
       if (!me.ok) {
         throw new BadRequestException(`توکن ربات معتبر نیست: ${me.error}`);
       }
       botUsername = me.username;
     }
+
+    /*
+     * توکن وبهوک یک بار ساخته می‌شود و بعد ثابت می‌ماند؛ عوض شدنش یعنی
+     * نشانی ثبت‌شده در تلگرام دیگر کار نمی‌کند.
+     */
+    const webhookToken = existing?.webhookToken ?? randomBytes(24).toString("hex");
 
     await this.repo.save(
       this.repo.create({
@@ -115,13 +119,44 @@ export class TelegramService {
         workspaceId,
         botToken: token,
         botUsername,
+        webhookToken,
         isActive: input.isActive ?? existing?.isActive ?? true,
       }),
     );
+
+    await this.registerWebhook(token, webhookToken);
     return this.getBot(workspaceId);
   }
 
+  /**
+   * ثبت نشانی وبهوک در تلگرام.
+   *
+   * بدون `PUBLIC_URL` از این کار صرف‌نظر می‌شود و فقط هشدار می‌دهد: ارسال
+   * پاسخ‌ها و گزارش دوره‌ای بدون وبهوک هم کار می‌کند؛ چیزی که کار نمی‌کند
+   * فرمان‌های خودِ ربات است. شکستن کل ذخیره‌ی توکن به‌خاطر آن، بی‌دلیل است.
+   */
+  private async registerWebhook(botToken: string, webhookToken: string) {
+    const base = process.env.PUBLIC_URL?.replace(/\/+$/, '');
+    if (!base) {
+      this.logger.warn(
+        "PUBLIC_URL تنظیم نشده؛ وبهوک ثبت نشد و فرمان‌های ربات کار نمی‌کنند.",
+      );
+      return;
+    }
+
+    const url = `${base}/api/v1/public/telegram/webhook/${webhookToken}`;
+    const result = await this.api.setWebhook(botToken, url);
+    if (!result.ok) {
+      this.logger.warn(`ثبت وبهوک تلگرام ناموفق بود: ${result.error}`);
+    }
+  }
+
   async removeBot(workspaceId: string) {
+    const existing = await this.repo.findOne({ where: { workspaceId } });
+    // وبهوک پیش از حذف ردیف برداشته می‌شود، وگرنه تلگرام تا ابد به نشانی
+    // مرده پیام می‌فرستد.
+    if (existing?.botToken) await this.api.deleteWebhook(existing.botToken);
+
     await this.recipientRepo.delete({ workspaceId });
     await this.repo.delete({ workspaceId });
     return { ok: true };
@@ -202,7 +237,7 @@ export class TelegramService {
     });
     if (!recipient) throw new BadRequestException('مقصد یافت نشد');
 
-    const result = await this.send(
+    const result = await this.api.send(
       bot.botToken,
       recipient.chatId,
       '✅ اتصال SamaLine به این گفتگو برقرار است.',
@@ -231,40 +266,27 @@ export class TelegramService {
     const bot = await this.repo.findOne({ where: { workspaceId } });
     if (!bot) throw new BadRequestException('ابتدا ربات را تنظیم کنید');
 
-    try {
-      const response = await fetch(
-        `${TELEGRAM_API}/bot${bot.botToken}/getUpdates?limit=100`,
-        { signal: AbortSignal.timeout(8000) },
-      );
-      const body = (await response.json()) as {
-        ok?: boolean;
-        description?: string;
-        result?: Array<Record<string, { chat?: TelegramChat }>>;
-      };
-      if (!body.ok) {
-        throw new BadRequestException(
-          body.description ?? 'تلگرام پاسخ نداد',
-        );
-      }
-
-      const chats = new Map<string, { id: string; title: string }>();
-      for (const update of body.result ?? []) {
-        for (const value of Object.values(update)) {
-          const chat = value?.chat;
-          if (!chat) continue;
-          chats.set(String(chat.id), {
-            id: String(chat.id),
-            title: chatTitle(chat),
-          });
-        }
-      }
-      return [...chats.values()];
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+    const result = await this.api.getUpdates(bot.botToken);
+    if (!result.ok) {
       throw new BadRequestException(
-        `ارتباط با تلگرام برقرار نشد: ${(error as Error).message}`,
+        `ارتباط با تلگرام برقرار نشد: ${result.error}`,
       );
     }
+
+    const chats = new Map<string, { id: string; title: string }>();
+    for (const update of result.updates as Array<
+      Record<string, { chat?: TelegramChat }>
+    >) {
+      for (const value of Object.values(update)) {
+        const chat = value?.chat;
+        if (!chat) continue;
+        chats.set(String(chat.id), {
+          id: String(chat.id),
+          title: chatTitle(chat),
+        });
+      }
+    }
+    return [...chats.values()];
   }
 
   // ── ارسال خودکار ──────────────────────────────────────────────────────
@@ -305,7 +327,9 @@ export class TelegramService {
       // ارسال‌ها موازی‌اند: یک گفتگوی کند نباید بقیه را عقب بیندازد.
       await Promise.all(
         targets.map(async (recipient) => {
-          const result = await this.send(bot.botToken, recipient.chatId, message);
+          const result = await this.api.send(
+      bot.botToken,
+      recipient.chatId, message);
           await this.recipientRepo.update(
             { id: recipient.id },
             result.ok
@@ -368,63 +392,6 @@ export class TelegramService {
     return `${message.slice(0, MAX_MESSAGE - 40)}\n\n… (ادامه در پنل)`;
   }
 
-  private async getMe(
-    token: string,
-  ): Promise<
-    { ok: true; username: string | null } | { ok: false; error: string }
-  > {
-    try {
-      const response = await fetch(`${TELEGRAM_API}/bot${token}/getMe`, {
-        signal: AbortSignal.timeout(8000),
-      });
-      const body = (await response.json()) as {
-        ok?: boolean;
-        description?: string;
-        result?: { username?: string };
-      };
-      if (!body.ok) {
-        return { ok: false, error: body.description ?? `پاسخ ${response.status}` };
-      }
-      return { ok: true, username: body.result?.username ?? null };
-    } catch (error) {
-      return { ok: false, error: (error as Error).message };
-    }
-  }
-
-  private async send(
-    botToken: string,
-    chatId: string,
-    text: string,
-  ): Promise<{ ok: true } | { ok: false; error: string }> {
-    try {
-      const response = await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-          disable_web_page_preview: true,
-        }),
-        // بدون مهلت، یک تلگرام کند مسیر ثبت پاسخ را نگه می‌دارد.
-        signal: AbortSignal.timeout(8000),
-      });
-
-      const body = (await response.json()) as {
-        ok?: boolean;
-        description?: string;
-      };
-      if (!response.ok || !body.ok) {
-        return {
-          ok: false,
-          error: body.description ?? `پاسخ ${response.status}`,
-        };
-      }
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, error: (error as Error).message };
-    }
-  }
 }
 
 interface TelegramChat {

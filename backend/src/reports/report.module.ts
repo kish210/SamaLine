@@ -37,5 +37,7 @@ import { AnalyticsService } from './analytics.service';
     PublicDashboardController,
   ],
   providers: [ReportService, ExportService, DashboardService, AnalyticsService],
+  // گزارش دوره‌ای تلگرام از همین تجمیع استفاده می‌کند.
+  exports: [AnalyticsService],
 })
 export class ReportModule {}

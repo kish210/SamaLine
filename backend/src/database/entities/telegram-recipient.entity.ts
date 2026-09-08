@@ -45,6 +45,23 @@ export class TelegramRecipientEntity {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  /** با هر پاسخ کامل پیام بفرست. */
+  @Column({ type: 'boolean', default: true })
+  notifyOnResponse: boolean;
+
+  /**
+   * گزارش دوره‌ای برای این مقصد.
+   *
+   * جدا از اطلاع‌رسانی تک‌تک پاسخ‌هاست: مدیری که روزی صد پاسخ می‌گیرد
+   * اعلان هر پاسخ را خاموش می‌کند ولی خلاصه‌ی هفتگی را می‌خواهد.
+   */
+  @Column({ type: 'varchar', length: 16, default: 'none' })
+  digest: 'none' | 'weekly' | 'monthly';
+
+  /** آخرین باری که گزارش دوره‌ای فرستاده شد؛ مبنای «موعدش رسیده؟». */
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
+  lastDigestAt: Date | null;
+
   @Column({ type: 'varchar', length: 300, nullable: true })
   lastError: string | null;
 

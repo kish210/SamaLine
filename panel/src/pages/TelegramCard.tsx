@@ -135,6 +135,7 @@ interface RecipientListProps {
     label: string;
     scoreThreshold: number | null;
     isActive: boolean;
+    digest: 'none' | 'weekly' | 'monthly';
     lastError: string | null;
   }>;
   forms: Array<{ id: string; title: string }>;
@@ -162,6 +163,15 @@ function RecipientList({
     // می‌کند و نباید خودکار اجرا شود.
     enabled: false,
     retry: false,
+  });
+
+  const linkCode = useMutation({
+    mutationFn: () =>
+      telegramApi.createLinkCode(workspaceId, {
+        formId: formId || null,
+        label: label.trim(),
+      }),
+    onError: (error) => onMessage(describeError(error)),
   });
 
   const add = useMutation({
@@ -192,6 +202,18 @@ function RecipientList({
     onSuccess: onChanged,
   });
 
+  const setDigest = useMutation({
+    mutationFn: ({
+      id,
+      digest,
+    }: {
+      id: string;
+      digest: 'none' | 'weekly' | 'monthly';
+    }) => telegramApi.updateRecipient(workspaceId, id, { digest }),
+    onSuccess: onChanged,
+    onError: (error) => onMessage(describeError(error)),
+  });
+
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       telegramApi.updateRecipient(workspaceId, id, { isActive }),
@@ -220,6 +242,7 @@ function RecipientList({
                 <th>فرم</th>
                 <th>مدیر</th>
                 <th>شناسه‌ی گفتگو</th>
+                <th>گزارش دوره‌ای</th>
                 <th>فقط ناراضی‌ها</th>
                 <th>فعال</th>
                 <th />
@@ -231,6 +254,22 @@ function RecipientList({
                   <td>{formTitle(row.formId)}</td>
                   <td>{row.label || '—'}</td>
                   <td dir="ltr">{row.chatId}</td>
+                  <td>
+                    <select
+                      value={row.digest}
+                      onChange={(e) =>
+                        setDigest.mutate({
+                          id: row.id,
+                          digest: e.target
+                            .value as 'none' | 'weekly' | 'monthly',
+                        })
+                      }
+                    >
+                      <option value="none">ندارد</option>
+                      <option value="weekly">هفتگی</option>
+                      <option value="monthly">ماهانه</option>
+                    </select>
+                  </td>
                   <td>
                     {row.scoreThreshold === null
                       ? '—'
@@ -276,7 +315,53 @@ function RecipientList({
         </div>
       )}
 
-      <h4>افزودن مقصد</h4>
+      <h4>دعوت مدیر با کد</h4>
+      <p className="hint">
+        ساده‌ترین راه: کد بگیرید و برای مدیر بفرستید. او کد را در تلگرام به
+        ربات می‌دهد و خودش وصل می‌شود — نیازی نیست کسی شناسه‌ی عددی گفتگو را
+        پیدا کند.
+      </p>
+
+      <div className="inline-form">
+        <select value={formId} onChange={(e) => setFormId(e.target.value)}>
+          <option value="">همه‌ی فرم‌ها</option>
+          {forms.map((form) => (
+            <option key={form.id} value={form.id}>
+              {form.title}
+            </option>
+          ))}
+        </select>
+        <input
+          placeholder="نام مدیر"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => linkCode.mutate()}
+          disabled={linkCode.isPending}
+        >
+          {linkCode.isPending ? 'در حال ساخت…' : 'ساخت کد دعوت'}
+        </button>
+      </div>
+
+      {linkCode.data && (
+        <div className="link-code">
+          <code>{linkCode.data.code}</code>
+          <span>
+            {linkCode.data.botUsername && (
+              <>
+                این کد را در تلگرام به{' '}
+                <b dir="ltr">@{linkCode.data.botUsername}</b> بفرستید.{' '}
+              </>
+            )}
+            تا {linkCode.data.expiresInMinutes} دقیقه معتبر است و یک‌بار
+            بیشتر کار نمی‌کند.
+          </span>
+        </div>
+      )}
+
+      <h4>افزودن دستی مقصد</h4>
       <div className="form-grid">
         <label>
           <span className="field-label">فرم</span>

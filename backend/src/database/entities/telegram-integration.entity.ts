@@ -31,6 +31,16 @@ export class TelegramIntegrationEntity {
   @Column({ type: 'varchar', length: 120 })
   botToken: string;
 
+  /**
+   * توکن تصادفی داخل نشانی وبهوک.
+   *
+   * تلگرام هر پیام کاربران را به این نشانی می‌فرستد؛ چون نشانی عمومی است،
+   * توکن تصادفی داخل مسیر تنها چیزی است که ثابت می‌کند فراخوان واقعا از
+   * تلگرام آمده و کسی نشانی را حدس نزده.
+   */
+  @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
+  webhookToken: string | null;
+
   /** نام کاربری ربات (@…)، فقط برای نمایش در پنل. */
   @Column({ type: 'varchar', length: 64, nullable: true })
   botUsername: string | null;

@@ -452,6 +452,9 @@ export interface TelegramRecipient {
   label: string;
   scoreThreshold: number | null;
   isActive: boolean;
+  /** گزارش دوره‌ای؛ جدا از اعلان تک‌تک پاسخ‌ها. */
+  digest: 'none' | 'weekly' | 'monthly';
+  notifyOnResponse: boolean;
   lastError: string | null;
   lastSentAt: string | null;
 }
@@ -510,7 +513,13 @@ export const telegramApi = {
   updateRecipient: (
     workspaceId: string,
     id: string,
-    body: { label?: string; scoreThreshold?: number | null; isActive?: boolean },
+    body: {
+      label?: string;
+      scoreThreshold?: number | null;
+      isActive?: boolean;
+      digest?: 'none' | 'weekly' | 'monthly';
+      notifyOnResponse?: boolean;
+    },
   ) =>
     api
       .patch<TelegramRecipient>(
@@ -525,6 +534,20 @@ export const telegramApi = {
       .delete(`/integrations/telegram/recipients/${id}`, {
         params: { workspaceId },
       })
+      .then((r) => r.data),
+
+  /** کد یک‌بارمصرف برای وصل شدن مدیر از داخل خود ربات. */
+  createLinkCode: (
+    workspaceId: string,
+    body: { formId: string | null; label?: string },
+  ) =>
+    api
+      .post<{
+        code: string;
+        expiresAt: string;
+        expiresInMinutes: number;
+        botUsername: string | null;
+      }>("/integrations/telegram/link-code", body, { params: { workspaceId } })
       .then((r) => r.data),
 
   test: (workspaceId: string, id: string) =>

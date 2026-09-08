@@ -3,6 +3,7 @@ jest.mock('@nestjs/typeorm', () => ({
 }));
 
 import { TelegramService } from './telegram.service';
+import { TelegramApi } from './telegram-api';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import type { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 
@@ -57,6 +58,7 @@ function build(
     // این فایل مستقیم سرویس را صدا می‌زنند، پس دسترسی جای دیگری بررسی شده.
     { findOne: async () => ({ id: 'w1', organizationId: 'org-1' }) } as never,
     { isSuperAdmin: async () => false } as never,
+    new TelegramApi(),
   );
   return { service, updates };
 }
@@ -252,6 +254,7 @@ describe('TelegramService', () => {
         { find: async () => [] } as never,
         { findOne: async () => workspace } as never,
         { isSuperAdmin: async () => isSuperAdmin } as never,
+        new TelegramApi(),
       );
 
     const user = { sub: 'u1', organizationId: 'org-1' };

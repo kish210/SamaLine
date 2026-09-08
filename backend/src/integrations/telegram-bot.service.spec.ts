@@ -1,0 +1,220 @@
+jest.mock('@nestjs/typeorm', () => ({
+  InjectRepository: () => () => undefined,
+}));
+
+import { TelegramBotService } from './telegram-bot.service';
+import type { TelegramApi } from './telegram-api';
+import type { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
+import type { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
+
+const BOT = {
+  id: 'bot-1',
+  workspaceId: 'w1',
+  botToken: 'token-123',
+  botUsername: 'SamaLine_bot',
+  webhookToken: 'hook-abc',
+  isActive: true,
+};
+
+function futureCode(
+  over: Partial<TelegramLinkCodeEntity> = {},
+): Partial<TelegramLinkCodeEntity> {
+  return {
+    id: 'c1',
+    code: 'ABCD2345',
+    workspaceId: 'w1',
+    formId: 'form-1',
+    label: 'مدیر هتل',
+    expiresAt: new Date(Date.now() + 60_000),
+    usedAt: null,
+    ...over,
+  };
+}
+
+interface Harness {
+  service: TelegramBotService;
+  sent: Array<{ chatId: string; text: string }>;
+  saved: Array<Record<string, unknown>>;
+  updates: Array<Record<string, unknown>>;
+  deletes: Array<Record<string, unknown>>;
+  codeUpdates: Array<Record<string, unknown>>;
+}
+
+function harness(options: {
+  code?: Partial<TelegramLinkCodeEntity> | null;
+  recipients?: Array<Partial<TelegramRecipientEntity>>;
+}): Harness {
+  const sent: Harness['sent'] = [];
+  const saved: Harness['saved'] = [];
+  const updates: Harness['updates'] = [];
+  const deletes: Harness['deletes'] = [];
+  const codeUpdates: Harness['codeUpdates'] = [];
+  const recipients = options.recipients ?? [];
+
+  const api = {
+    send: async (_token: string, chatId: string, text: string) => {
+      sent.push({ chatId, text });
+      return { ok: true as const };
+    },
+  } as unknown as TelegramApi;
+
+  const service = new TelegramBotService(
+    {
+      // جست‌وجو واقعا بر اساس توکن انجام می‌شود؛ اگر مخزن هر توکنی را
+      // بپذیرد، تست «توکن ناشناخته» چیزی را ثابت نمی‌کند.
+      findOne: async (options_: { where: { webhookToken: string } }) =>
+        options_.where.webhookToken === BOT.webhookToken ? BOT : null,
+    } as never,
+    {
+      findOne: async () => recipients[0] ?? null,
+      find: async () => recipients,
+      create: (v: unknown) => v,
+      save: async (v: Record<string, unknown>) => {
+        saved.push(v);
+        return v;
+      },
+      update: async (where: unknown, patch: Record<string, unknown>) => {
+        updates.push(patch);
+        return { affected: recipients.length };
+      },
+      delete: async (where: Record<string, unknown>) => {
+        deletes.push(where);
+        return { affected: recipients.length };
+      },
+    } as never,
+    {
+      findOne: async () => (options.code === undefined ? null : options.code),
+      save: async (v: unknown) => v,
+      create: (v: unknown) => v,
+      update: async (_w: unknown, patch: Record<string, unknown>) => {
+        codeUpdates.push(patch);
+      },
+      delete: async () => undefined,
+    } as never,
+    { findOne: async () => ({ id: 'form-1', title: 'نظرسنجی هتل' }) } as never,
+    api,
+  );
+
+  return { service, sent, saved, updates, deletes, codeUpdates };
+}
+
+const message = (text: string, chatId = '555') => ({
+  message: { text, chat: { id: chatId, first_name: 'محمد' } },
+});
+
+describe('TelegramBotService — فرمان‌های ربات', () => {
+  it('کد معتبر گفتگو را به فرم وصل می‌کند و کد را مصرف‌شده می‌کند', async () => {
+    const h = harness({ code: futureCode(), recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+
+    expect(h.saved[0]).toMatchObject({
+      workspaceId: 'w1',
+      formId: 'form-1',
+      chatId: '555',
+      isActive: true,
+    });
+    // کد یک‌بارمصرف است؛ بدون این، هر کسی که کد را ببیند می‌تواند وصل شود.
+    expect(h.codeUpdates[0]).toHaveProperty('usedAt');
+    expect(h.sent[0].text).toContain('نظرسنجی هتل');
+  });
+
+  it('کد بدون اسلش هم پذیرفته می‌شود', async () => {
+    // کاربر معمولا کد را کپی می‌کند و بدون /start می‌فرستد.
+    const h = harness({ code: futureCode(), recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('ABCD2345'));
+    expect(h.saved).toHaveLength(1);
+  });
+
+  it('کد منقضی رد می‌شود', async () => {
+    const h = harness({
+      code: futureCode({ expiresAt: new Date(Date.now() - 1000) }),
+    });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+
+    expect(h.saved).toHaveLength(0);
+    expect(h.sent[0].text).toContain('نامعتبر یا منقضی');
+  });
+
+  it('کد مصرف‌شده دوباره کار نمی‌کند', async () => {
+    const h = harness({ code: futureCode({ usedAt: new Date() }) });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.saved).toHaveLength(0);
+    expect(h.sent[0].text).toContain('نامعتبر یا منقضی');
+  });
+
+  it('کد فضای کاری دیگر روی این ربات کار نمی‌کند', async () => {
+    /*
+     * بدون این بررسی، کدِ یک مجموعه را می‌شد به ربات مجموعه‌ی دیگری داد و
+     * مقصدی ساخت که ربات دیگری به آن پیام می‌دهد.
+     */
+    const h = harness({ code: futureCode({ workspaceId: 'w-other' }) });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+
+    expect(h.saved).toHaveLength(0);
+    expect(h.sent[0].text).toContain('ربات دیگری');
+  });
+
+  it('توکن وبهوک ناشناخته هیچ کاری نمی‌کند', async () => {
+    const h = harness({ code: futureCode() });
+    await h.service.handleUpdate('توکن-غلط', message('/start ABCD2345'));
+
+    expect(h.saved).toHaveLength(0);
+    expect(h.sent).toHaveLength(0);
+  });
+
+  it('فرمان ناشناخته راهنما می‌دهد، نه خطا', async () => {
+    const h = harness({ recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('سلام'));
+    expect(h.sent[0].text).toContain('فرمان‌ها');
+  });
+
+  it('/weekly گزارش هفتگی را روشن می‌کند', async () => {
+    const h = harness({ recipients: [{ id: 'r1' }] });
+    await h.service.handleUpdate('hook-abc', message('/weekly'));
+
+    expect(h.updates[0]).toMatchObject({ digest: 'weekly' });
+    // مبدأ شمارش از حالا، وگرنه اولین گزارش بلافاصله می‌رفت.
+    expect(h.updates[0]).toHaveProperty('lastDigestAt');
+    expect(h.sent[0].text).toContain('هفتگی');
+  });
+
+  it('/mute فقط اعلان هر پاسخ را خاموش می‌کند', async () => {
+    const h = harness({ recipients: [{ id: 'r1' }] });
+    await h.service.handleUpdate('hook-abc', message('/mute'));
+
+    expect(h.updates[0]).toEqual({ notifyOnResponse: false });
+    expect(h.sent[0].text).toContain('گزارش دوره‌ای دست‌نخورده');
+  });
+
+  it('/stop گفتگو را از همه‌ی فرم‌ها قطع می‌کند', async () => {
+    const h = harness({ recipients: [{ id: 'r1' }] });
+    await h.service.handleUpdate('hook-abc', message('/stop'));
+
+    expect(h.deletes[0]).toEqual({ workspaceId: 'w1', chatId: '555' });
+  });
+
+  it('فرمان با نام ربات (@bot) هم شناخته می‌شود', async () => {
+    // در گروه‌ها تلگرام فرمان را به شکل /weekly@SamaLine_bot می‌فرستد.
+    const h = harness({ recipients: [{ id: 'r1' }] });
+    await h.service.handleUpdate('hook-abc', message('/weekly@SamaLine_bot'));
+    expect(h.updates[0]).toMatchObject({ digest: 'weekly' });
+  });
+
+  it('به‌روزرسانی بدون متن نادیده گرفته می‌شود', async () => {
+    const h = harness({ recipients: [] });
+    await h.service.handleUpdate('hook-abc', { message: { chat: { id: '5' } } });
+    expect(h.sent).toHaveLength(0);
+  });
+
+  it('کد ساخته‌شده حروف مبهم ندارد', async () => {
+    const h = harness({});
+    const { code } = await h.service.createLinkCode({
+      workspaceId: 'w1',
+      formId: null,
+      label: 'مدیر',
+    });
+    // O/0 و I/1/l هنگام خواندن از صفحه و تایپ در تلگرام اشتباه می‌شوند.
+    expect(code).not.toMatch(/[O0Il1]/);
+    expect(code).toHaveLength(8);
+  });
+});
