@@ -247,14 +247,24 @@ function checks(): array
         'help' => 'اگر نبود، نصاب خودکار به نسخه‌ی بدون کامپایل سوییچ می‌کند.',
     ];
 
+    /*
+     * همان تابعی که تصمیمِ نحوه‌ی اجرا را می‌گیرد اینجا هم استفاده می‌شود.
+     *
+     * اگر این نمایش با آن تصمیم فرق کند، کاربر روی صفحه «Passenger: نیست»
+     * می‌بیند ولی نصاب مسیر Passenger را می‌رود — و بعد دنبال سرویسی
+     * می‌گردد که هیچ‌وقت اجرا نشده.
+     */
+    $passenger = has_passenger();
     $items[] = [
         'key' => 'passenger',
         'title' => 'Passenger (اجرای دائمی)',
-        'ok' => (bool) run('command -v passenger-config'),
+        'ok' => $passenger,
         'fatal' => false,
-        'value' => run('command -v passenger-config') ? 'هست' : 'نیست',
-        'help' => 'با Passenger سامانه بدون پورت جدا و زیر همان دامنه اجرا می‌شود.'
-            . ' بدون آن، روی یک پورت جدا اجرا می‌شود.',
+        'value' => $passenger ? 'هست' : 'نیست',
+        'help' => $passenger
+            ? 'اجرای سامانه با خودِ cPanel است؛ پس از نصب، فایل شروع را روی '
+                . 'app.js بگذارید و Restart بزنید.'
+            : 'بدون Passenger، سامانه روی یک پورت جدا اجرا می‌شود.',
     ];
 
     return [
@@ -270,10 +280,43 @@ function checks(): array
 
 // ── اجرای نصب ─────────────────────────────────────────────────────────
 
+/**
+ * آیا این هاست Passenger دارد؟
+ *
+ * روی cPanel، «Setup Node.js App» با Passenger کار می‌کند و خودش پروسه را
+ * می‌گرداند. وجود `passenger-config` یا پوشه‌ی `nodevenv` نشانه‌ی همین است.
+ */
+function has_passenger(): bool
+{
+    if (run('command -v passenger-config')) {
+        return true;
+    }
+    $home = getenv('HOME') ?: '';
+    return $home !== '' && is_dir($home . '/nodevenv');
+}
+
 /** رشته‌ی تصادفی امن برای کلیدها. */
 function random_key(int $bytes): string
 {
     return bin2hex(random_bytes($bytes));
+}
+
+/**
+ * جایگزینی یک کلید در فایل .env، یا افزودنش اگر نبود.
+ *
+ * `preg_replace` به‌تنهایی کافی نیست: اگر کلید در فایل نباشد بی‌صدا هیچ
+ * کاری نمی‌کند و مقدار هرگز نوشته نمی‌شود. همین باعث شده بود `PUBLIC_URL`
+ * در نصب‌های بعدی ننشیند و وبهوک ربات تلگرام بی‌صدا ثبت نشود.
+ */
+function set_env_line(string $env, string $key, string $value): string
+{
+    $pattern = '/^' . preg_quote($key, '/') . '=.*$/m';
+    $line = $key . '=' . $value;
+
+    if (preg_match($pattern, $env)) {
+        return (string) preg_replace($pattern, $line, $env);
+    }
+    return rtrim($env, "\n") . "\n" . $line . "\n";
 }
 
 /**
@@ -304,24 +347,88 @@ function start_install(array $config): array
             . "DB_DRIVER=sqlite\n"
             . "SQLITE_PATH=data/samaline.sqlite\n"
             . "UPLOAD_DIR=data/uploads\n"
+            . "PUBLIC_URL={$publicUrl}\n"
             . 'JWT_SECRET=' . random_key(32) . "\n"
             . 'RESPONDENT_KEY_SALT=' . random_key(16) . "\n"
             . 'SECRET_BOX_KEY=' . random_key(32) . "\n";
         file_put_contents($envPath, $env);
         @chmod($envPath, 0600);
     } else {
-        // فقط پورت به‌روز می‌شود؛ عوض کردن کلیدها یعنی همه‌ی توکن‌های
-        // صادرشده و داده‌ی رمزشده از کار می‌افتد.
+        // فقط پورت و نشانی عمومی به‌روز می‌شوند؛ عوض کردن کلیدها یعنی همه‌ی
+        // توکن‌های صادرشده و داده‌ی رمزشده از کار می‌افتد.
         $env = (string) file_get_contents($envPath);
-        $env = preg_replace('/^PORT=.*$/m', 'PORT=' . $port, $env) ?? $env;
+        $env = set_env_line($env, 'PORT', (string) $port);
+        if ($publicUrl !== '') {
+            $env = set_env_line($env, 'PUBLIC_URL', $publicUrl);
+        }
         file_put_contents($envPath, $env);
     }
+
+    /*
+     * نقطه‌ی ورود Passenger.
+     *
+     * cPanel اپ Node را از ریشه‌ی برنامه اجرا می‌کند، ولی مسیر پایگاه‌داده و
+     * پوشه‌ی آپلود نسبت به پوشه‌ی کاری حساب می‌شوند (`data/samaline.sqlite`).
+     * بدون این فایل، Passenger پایگاه‌داده را در ریشه می‌سازد و اجرای دستی
+     * در `backend/` — یعنی دو پایگاه‌داده‌ی جدا، و کاربر با یک سامانه‌ی
+     * خالی روبه‌رو می‌شود در حالی که داده‌اش جای دیگری سالم است.
+     *
+     * این فایل در مخزن هم هست تا بشود پیش از نصب در cPanel انتخابش کرد؛
+     * اینجا دوباره نوشته می‌شود تا نصب روی نسخه‌های قدیمی‌تر هم درستش کند.
+     */
+    $entry = <<<JS
+// این فایل را نصاب ساخته است. «Application startup file» در cPanel باید
+// همین باشد، نه backend/dist/main.js.
+process.chdir(__dirname + '/backend');
+require('./backend/dist/main.js');
+JS;
+    file_put_contents($root . '/app.js', $entry);
+
+    /*
+     * روی هاست Passenger‌دار، خودِ Passenger برنامه را اجرا می‌کند.
+     *
+     * راه انداختن یک پروسه‌ی جدا با nohup کنار آن، دو مشکل دارد: هر دو
+     * سر یک پورت دعوا می‌کنند، و روی هاست اشتراکی پروسه‌های پس‌زمینه‌ی
+     * بی‌صاحب به‌هرحال کشته می‌شوند. پس فقط ساخته می‌شود و کاربر در cPanel
+     * دکمه‌ی Restart را می‌زند.
+     */
+    $runSection = has_passenger()
+        ? <<<SH
+echo "Passenger روی این هاست هست؛ اجرای سامانه با خودِ cPanel است."
+echo "در «Setup Node.js App» فایل شروع را روی app.js بگذارید و Restart بزنید."
+echo "done" > "{$root}/installer/install.state"
+exit 0
+SH
+        : <<<SH
+# فقط پروسه‌ی همین نصب کشته می‌شود، نه هر Node دیگری از همین کاربر.
+pkill -f "{$root}/backend/dist/main" 2>/dev/null || true
+sleep 1
+cd "{$root}/backend"
+nohup "{$nodeBin}" dist/main > "{$root}/installer/runtime.log" 2>&1 &
+sleep 6
+
+step "بررسی سلامت"
+for i in \$(seq 1 20); do
+  if curl -fsS -o /dev/null "http://127.0.0.1:{$port}/api/docs" 2>/dev/null; then
+    echo "سامانه بالا آمد."
+    echo "done" > "{$root}/installer/install.state"
+    exit 0
+  fi
+  sleep 2
+done
+
+tail -30 "{$root}/installer/runtime.log" 2>/dev/null
+fail "سامانه بالا نیامد"
+SH;
 
     // نشانی API نسبی است تا فرقی نکند سامانه روی کدام دامنه بالا می‌آید.
     $script = <<<SH
 #!/bin/bash
 set -uo pipefail
 export PATH="{$nodeDir}:\$PATH"
+# روی هاست اشتراکی حافظه کم است و build فرم و پنل بدون سقف صریح با
+# «JavaScript heap out of memory» می‌افتد — بی‌آنکه علتش روشن باشد.
+export NODE_OPTIONS="\${NODE_OPTIONS:---max-old-space-size=512}"
 cd "{$root}"
 
 step() { printf '\\n=== %s\\n' "\$1"; }
@@ -351,25 +458,8 @@ step "پاک‌سازی وابستگی‌های توسعه"
 npm --prefix backend prune --omit=dev >/dev/null 2>&1 || true
 rm -rf form-renderer/node_modules panel/node_modules
 
-step "اجرای سامانه"
-pkill -f "node .*backend/dist/main" 2>/dev/null || true
-sleep 1
-cd "{$root}/backend"
-nohup "{$nodeBin}" dist/main > "{$root}/installer/runtime.log" 2>&1 &
-sleep 6
-
-step "بررسی سلامت"
-for i in \$(seq 1 20); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:{$port}/api/docs" 2>/dev/null; then
-    echo "سامانه بالا آمد."
-    echo "done" > "{$root}/installer/install.state"
-    exit 0
-  fi
-  sleep 2
-done
-
-tail -30 "{$root}/installer/runtime.log" 2>/dev/null
-fail "سامانه بالا نیامد"
+step "آماده‌سازی اجرا"
+{$runSection}
 SH;
 
     $scriptPath = __DIR__ . '/run-install.sh';
