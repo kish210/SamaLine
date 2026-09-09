@@ -58,88 +58,139 @@ function run(string $command): ?string
 }
 
 /**
+ * آیا PHP با open_basedir محدود شده؟
+ *
+ * روی cPanel این تقریبا همیشه روشن است و PHP را به پوشه‌ی خانگی محدود
+ * می‌کند. اهمیتش اینجاست که `is_file()` و `glob()` برای مسیرهایی مثل
+ * `/opt/cpanel/...` بی‌صدا false می‌دهند — حتی وقتی همان مسیر از پوسته
+ * کاملا قابل دیدن و اجراست.
+ */
+function open_basedir_limited(): bool
+{
+    return trim((string) ini_get('open_basedir')) !== '';
+}
+
+/**
  * پیدا کردن مفسر Node.
  *
- * روی cPanel نسخه‌ی سیستمی معمولا قدیمی یا غایب است و نسخه‌ی واقعی زیر
- * ea-nodejs یا nodevenv کاربر است؛ پس چند مسیر شناخته‌شده هم بررسی می‌شود.
+ * همه‌ی جست‌وجو از راه پوسته انجام می‌شود، نه توابع فایل PHP.
+ *
+ * دلیلش open_basedir است: روی cPanel، PHP معمولا فقط پوشه‌ی خانگی را
+ * می‌بیند، پس `is_file('/opt/cpanel/ea-nodejs20/bin/node')` مقدار false
+ * برمی‌گرداند در حالی که همان فایل هست و اجرا هم می‌شود. نسخه‌ی قبلی
+ * دقیقا به همین دلیل روی هاست واقعی «Node پیدا نشد» می‌داد.
  */
 function find_node(): ?array
 {
-    $candidates = [];
-
     /*
-     * مسیر دستی، بالاترین اولویت.
+     * مسیر دستی، بالاترین اولویت و بدون هیچ حدس دیگری.
      *
-     * روی cPanel مفسر Node معمولا زیر ~/nodevenv/<app>/<version>/bin است و
-     * در PATH وب‌سرور نیست؛ کاربر باید بتواند مسیرش را مستقیم بدهد.
+     * کاربری که مسیر را می‌داند نباید با انتخاب خودکار ما بجنگد.
      */
     $manual = $_POST['nodePath'] ?? $_GET['nodePath'] ?? getenv('SAMALINE_NODE');
-    if (is_string($manual) && $manual !== '') {
-        $candidates[] = $manual;
+    if (is_string($manual) && trim($manual) !== '') {
+        return probe_node(trim($manual));
     }
 
+    $home = getenv('HOME') ?: '~';
+    $patterns = [
+        '/opt/cpanel/ea-nodejs*/bin/node',
+        '/opt/alt/alt-nodejs*/root/usr/bin/node',
+        $home . '/nodevenv/*/*/bin/node',
+        $home . '/.nvm/versions/node/*/bin/node',
+        '/opt/nodejs*/bin/node',
+        '/usr/local/lib/nodejs/*/bin/node',
+        '/usr/local/bin/node',
+        '/usr/bin/node',
+    ];
+
+    $candidates = [];
     $which = run('command -v node');
     if ($which) {
         $candidates[] = $which;
     }
 
-    // مسیرهای رایج cPanel/CloudLinux و nvm
-    $globs = [
-        '/opt/cpanel/ea-nodejs*/bin/node',
-        '/opt/alt/alt-nodejs*/root/usr/bin/node',
-        getenv('HOME') . '/nodevenv/*/*/bin/node',
-        getenv('HOME') . '/.nvm/versions/node/*/bin/node',
-        '/usr/local/bin/node',
-        '/usr/bin/node',
-    ];
-    foreach ($globs as $pattern) {
-        foreach ((array) glob($pattern) as $path) {
-            $candidates[] = $path;
+    /*
+     * `ls` به‌جای `glob()`.
+     *
+     * الگوها عمدا بدون escapeshellarg می‌آیند چون باید توسط پوسته باز
+     * شوند؛ محتوایشان ثابت و از کد خودمان است، نه ورودی کاربر.
+     */
+    $listing = run('ls -d ' . implode(' ', $patterns) . ' 2>/dev/null');
+    foreach (preg_split('/\r?\n/', (string) $listing) ?: [] as $line) {
+        $line = trim($line);
+        if ($line !== '') {
+            $candidates[] = $line;
         }
-    }
-
-    // با مسیر دستی، بقیه نادیده گرفته می‌شوند تا انتخاب کاربر قطعی باشد.
-    if (is_string($manual) && $manual !== '') {
-        $candidates = [$manual];
     }
 
     $best = null;
     foreach (array_unique($candidates) as $path) {
-        if (!is_file($path) || !is_executable($path)) {
-            continue;
-        }
-        $version = run(escapeshellarg($path) . ' -v');
-        if (!$version || !preg_match('/^v(\d+)\./', $version, $m)) {
-            continue;
-        }
-        $major = (int) $m[1];
+        $found = probe_node($path);
         // بالاترین نسخه‌ی موجود انتخاب می‌شود، نه اولین.
-        if ($best === null || $major > $best['major']) {
-            $best = ['path' => $path, 'version' => $version, 'major' => $major];
+        if ($found && ($best === null || $found['major'] > $best['major'])) {
+            $best = $found;
         }
     }
 
     return $best;
 }
 
-/** npm کنار همان Node انتخاب‌شده. */
+/** آزمودن یک مسیر با اجرای واقعی `node -v`؛ تنها سنجه‌ی قابل اعتماد. */
+function probe_node(string $path): ?array
+{
+    $version = run(escapeshellarg($path) . ' -v');
+    if (!$version || !preg_match('/^v(\d+)\./', $version, $m)) {
+        return null;
+    }
+    return [
+        'path' => $path,
+        'version' => trim($version),
+        'major' => (int) $m[1],
+    ];
+}
+
+/**
+ * npm کنار همان Node انتخاب‌شده.
+ *
+ * وجود فایل با پوسته سنجیده می‌شود نه `is_file()`، به همان دلیل
+ * open_basedir که در `find_node()` توضیح داده شد.
+ */
 function find_npm(?array $node): ?string
 {
     if ($node) {
         $sibling = dirname($node['path']) . '/npm';
-        if (is_file($sibling)) {
+        if (run('test -f ' . escapeshellarg($sibling) . ' && echo yes')) {
             return $sibling;
+        }
+        // نصب‌های تازه‌ی Node گاهی فقط npm-cli.js دارند.
+        $cli = dirname($node['path']) . '/../lib/node_modules/npm/bin/npm-cli.js';
+        if (run('test -f ' . escapeshellarg($cli) . ' && echo yes')) {
+            return $node['path'] . ' ' . $cli;
         }
     }
     $which = run('command -v npm');
     return $which ?: null;
 }
 
-/** فضای آزاد دیسک بر حسب مگابایت. */
+/**
+ * فضای آزاد دیسک بر حسب مگابایت.
+ *
+ * روی هاست اشتراکی با سهمیه (quota)، `disk_free_space` معمولا صفر یا
+ * false می‌دهد. صفر را «نامشخص» می‌شماریم نه «هیچ فضایی نیست»: نمایش
+ * «۰ مگابایت آزاد» کاربر را الکی می‌ترساند در حالی که چیزی معلوم نشده.
+ */
 function free_mb(): ?int
 {
     $bytes = @disk_free_space(APP_ROOT);
-    return $bytes === false ? null : (int) round($bytes / 1048576);
+    if ($bytes === false || $bytes <= 0) {
+        // تلاش دوم از راه پوسته، که محدودیت open_basedir ندارد.
+        $df = run('df -Pm ' . escapeshellarg(APP_ROOT) . " | awk 'NR==2{print \$4}'");
+        return is_string($df) && preg_match('/^\d+$/', trim($df))
+            ? (int) trim($df)
+            : null;
+    }
+    return (int) round($bytes / 1048576);
 }
 
 function is_installed(): bool
@@ -198,8 +249,21 @@ function checks(): array
         'value' => $node
             ? $node['version'] . ' (' . $node['path'] . ')'
             : 'پیدا نشد',
-        'help' => 'در cPanel از بخش «Setup Node.js App» یک اپ با نسخه‌ی '
-            . MIN_NODE_MAJOR . ' یا بالاتر بسازید، بعد این صفحه را دوباره باز کنید.',
+        /*
+         * وقتی چیزی پیدا نشد، فهرست پوشه‌ی nodevenv هم نشان داده می‌شود.
+         *
+         * تفاوت «هنوز اپ Node نساخته‌اید» با «ساخته‌اید ولی جای دیگری
+         * است» را فقط همین فهرست روشن می‌کند؛ بدون آن کاربر نمی‌داند کدام
+         * یک از دو کار را باید بکند.
+         */
+        'help' => $node
+            ? 'همین مفسر برای نصب استفاده می‌شود.'
+            : 'در cPanel از بخش «Setup Node.js App» یک اپ با نسخه‌ی '
+                . MIN_NODE_MAJOR . ' یا بالاتر بسازید، بعد این صفحه را دوباره'
+                . ' باز کنید. اپ‌های Node موجود روی این حساب: '
+                . (run('ls -1 ' . escapeshellarg((getenv('HOME') ?: '~') . '/nodevenv')
+                    . ' 2>/dev/null | tr "\n" " "') ?: 'هیچ‌کدام')
+                . ' — اگر مسیر مفسر را می‌دانید، در کادر پایین بگذارید.',
     ];
 
     $items[] = [
@@ -238,13 +302,41 @@ function checks(): array
         'help' => 'نصب وابستگی‌ها حدود ۸۰۰ مگابایت فضای موقت می‌خواهد.',
     ];
 
+    /*
+     * نبود کامپایلر معمولا مشکلی نیست چون better-sqlite3 برای نسخه‌های
+     * رایج Node فایل ازپیش‌ساخته دارد و npm همان را دانلود می‌کند.
+     *
+     * متن قبلی می‌گفت «نصاب خودکار به نسخه‌ی بدون کامپایل سوییچ می‌کند» —
+     * که درست نبود؛ چنین منطقی وجود نداشت و اگر ساخت شکست می‌خورد، کاربر
+     * دنبال قابلیتی می‌گشت که هیچ‌وقت نوشته نشده بود.
+     */
+    $cc = run('command -v cc') ?: run('command -v gcc');
     $items[] = [
         'key' => 'compiler',
         'title' => 'کامپایلر (برای پایگاه‌داده)',
-        'ok' => run('command -v cc') !== null && run('command -v cc') !== '',
+        'ok' => (bool) $cc,
         'fatal' => false,
-        'value' => run('command -v cc') ?: 'پیدا نشد',
-        'help' => 'اگر نبود، نصاب خودکار به نسخه‌ی بدون کامپایل سوییچ می‌کند.',
+        'value' => $cc ?: 'پیدا نشد',
+        'help' => 'معمولا لازم نیست: نسخه‌ی ازپیش‌ساخته‌ی پایگاه‌داده دانلود'
+            . ' می‌شود. فقط اگر برای نسخه‌ی Node این هاست فایل آماده نبود،'
+            . ' نصب در همین مرحله شکست می‌خورد و باید از پشتیبانی هاست'
+            . ' کامپایلر بخواهید.',
+    ];
+
+    /*
+     * open_basedir خودش مانع نصب نیست، ولی توضیح‌دهنده‌ی خیلی از
+     * «پیدا نشد»هاست؛ نمایشش باعث می‌شود کاربر دنبال مقصر اشتباه نگردد.
+     */
+    $items[] = [
+        'key' => 'open_basedir',
+        'title' => 'محدودیت open_basedir',
+        'ok' => true,
+        'fatal' => false,
+        'value' => open_basedir_limited() ? (string) ini_get('open_basedir') : 'ندارد',
+        'help' => open_basedir_limited()
+            ? 'PHP فقط این مسیرها را می‌بیند. جست‌وجوی Node از راه پوسته انجام'
+                . ' می‌شود، پس این محدودیت مانع نصب نیست.'
+            : 'محدودیتی روی مسیرهای PHP نیست.',
     ];
 
     /*
@@ -643,7 +735,7 @@ $installed = is_installed();
     <label>
       پورت اجرا
       <input type="number" id="port" value="8080" min="1024" max="65535">
-      <span class="help">پورتی که روی هاست آزاد باشد. اگر Passenger دارید، این عدد فقط داخلی است.</span>
+      <span class="help">پورتی که روی هاست آزاد باشد. با Passenger (cPanel) این عدد استفاده نمی‌شود؛ پورت را خود cPanel می‌دهد.</span>
     </label>
     <label>
       مسیر Node (اختیاری)
@@ -657,7 +749,7 @@ $installed = is_installed();
     <label>
       نشانی عمومی سامانه (اختیاری)
       <input type="text" id="publicUrl" placeholder="https://survey.example.com" dir="ltr">
-      <span class="help">فقط برای نمایش در پایان نصب استفاده می‌شود.</span>
+      <span class="help">در تنظیمات ذخیره می‌شود. بدون آن، وبهوک ربات تلگرام ثبت نمی‌شود و فرمان‌های ربات کار نمی‌کنند.</span>
     </label>
     <button id="startBtn">شروع نصب</button>
     <p class="muted">نصب چند دقیقه طول می‌کشد. بستن این صفحه نصب را متوقف نمی‌کند.</p>
