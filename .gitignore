@@ -17,3 +17,6 @@ backend/data/outbox/
 # لاگ سرورهای توسعه
 *.dev.log
 .dev-backend.log
+
+# بسته‌ی آماده‌ی آپلود؛ از روی همین مخزن ساخته می‌شود و نباید در آن باشد
+samaline-cpanel.zip
