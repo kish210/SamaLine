@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import type { FormPage, SkipRule } from '../../types';
-
-const OPERATORS: Array<{ value: string; label: string; needsValue: boolean }> = [
-  { value: 'equals', label: 'برابر باشد با', needsValue: true },
-  { value: 'not_equals', label: 'برابر نباشد با', needsValue: true },
-  { value: 'contains', label: 'شامل باشد', needsValue: true },
-  { value: 'starts_with', label: 'شروع شود با', needsValue: true },
-  { value: 'gt', label: 'بیشتر باشد از', needsValue: true },
-  { value: 'lt', label: 'کمتر باشد از', needsValue: true },
-  { value: 'is_empty', label: 'خالی باشد', needsValue: false },
-  { value: 'is_not_empty', label: 'خالی نباشد', needsValue: false },
-];
+import {
+  OPERATORS,
+  coerce,
+  needsValue as operatorNeedsValue,
+} from './logic-operators';
 
 const END = '__end__';
 
@@ -61,8 +55,7 @@ export function SkipRuleEditor({ pages, rule, onSave, onCancel }: Props) {
   );
   const [always, setAlways] = useState(!rule?.when);
 
-  const needsValue =
-    OPERATORS.find((o) => o.value === operator)?.needsValue ?? true;
+  const needsValue = operatorNeedsValue(operator);
 
   /**
    * پرش به همان صفحه یعنی حلقه‌ی بی‌پایان؛ سرور هم ردش می‌کند، ولی گفتنش
@@ -202,17 +195,3 @@ export function SkipRuleEditor({ pages, rule, onSave, onCancel }: Props) {
   );
 }
 
-/**
- * مقدار متنی را در صورت عددی بودن به عدد تبدیل می‌کند.
- *
- * اپراتورهای `gt`/`lt` روی رشته مقایسه‌ی الفبایی می‌کنند و «10» کمتر از «9»
- * درمی‌آید؛ نگه داشتن نوع عددی جلوی این را می‌گیرد.
- */
-function coerce(text: string): string | number {
-  const trimmed = text.trim();
-  if (trimmed === '') return trimmed;
-  const asNumber = Number(trimmed);
-  return Number.isFinite(asNumber) && /^-?\d+(\.\d+)?$/.test(trimmed)
-    ? asNumber
-    : trimmed;
-}

@@ -184,6 +184,39 @@ export interface SkipRule {
   };
 }
 
+/**
+ * یک قانون نمایش، همان شکلی که در logic.display ذخیره می‌شود.
+ *
+ * معنای اجرایی‌اش را بک‌اند تعیین می‌کند (LogicRuntimeService):
+ * هدفی که هیچ قانونی ندارد دیده می‌شود؛ قانون `show` تا وقتی شرطش برقرار
+ * نشده هدف را پنهان می‌کند و `hide` با برقراری شرط پنهانش می‌کند. اگر چند
+ * قانون روی یک هدف باشد، همه باید اجازه بدهند.
+ */
+export interface DisplayRule {
+  targetQuestionId?: string;
+  targetPageId?: string;
+  action?: 'show' | 'hide';
+  /*
+   * شکل ساده‌ی قدیمی، که قالب‌های آماده (مثل سوال‌های دروازه‌ای هتل) با آن
+   * نوشته شده‌اند. بک‌اند هر دو شکل را می‌فهمد و `when` را مقدم می‌داند، پس
+   * این فیلدها باید در نوع بمانند وگرنه ویرایشگر هنگام ذخیره بی‌صدا شرطِ
+   * قانون‌های قالب را دور می‌ریخت و سوال‌های دروازه‌ای همیشه‌نمایان می‌شدند.
+   */
+  sourceQuestionId?: string;
+  operator?: string;
+  value?: unknown;
+  valueTo?: unknown;
+  when?: {
+    combinator: 'and' | 'or';
+    conditions: Array<{
+      source: string;
+      operator: string;
+      value?: unknown;
+      valueTo?: unknown;
+    }>;
+  };
+}
+
 export interface ContactList {
   id: string;
   name: string;

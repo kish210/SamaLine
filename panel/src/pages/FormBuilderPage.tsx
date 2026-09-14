@@ -5,8 +5,11 @@ import { describeError, formsApi } from '../api';
 import { formUrl } from '../renderer-url';
 import type { FormPage, Question, QuestionType } from '../types';
 import { CustomLinkCard } from './builder/CustomLinkCard';
+import { DisplayRuleEditor } from './builder/DisplayRuleEditor';
 import { FlowChart } from './builder/FlowChart';
 import { AddQuestionMenu } from './builder/AddQuestionMenu';
+import { QuestionBankMenu } from './builder/QuestionBankMenu';
+import type { BankQuestion } from '../question-bank';
 import { AiReviewCard } from './builder/AiReviewCard';
 import { EdgePagesEditor } from './builder/EdgePagesEditor';
 import { LivePreview } from './builder/LivePreview';
@@ -15,6 +18,7 @@ import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
 import { ResponsesPanel } from './builder/ResponsesPanel';
 import { IndicatorEditor, useIndicators } from './builder/IndicatorEditor';
+import { useDisplayRules } from './builder/useDisplayRules';
 import { useSkipRules } from './builder/useSkipRules';
 
 type Tab = 'build' | 'design' | 'flow' | 'report';
@@ -28,6 +32,27 @@ const newQuestion = (
   title: 'سوال جدید',
   required: false,
 });
+
+/**
+ * شناسه دادن به سوال‌هایی که از بانک می‌آیند.
+ *
+ * شناسه‌ها در یک حلقه ساخته می‌شوند و هرکدام بلافاصله به مجموعه‌ی گرفته‌شده‌ها
+ * اضافه می‌شود؛ بدون این، افزودن سه سوال با هم هر سه را `q5` می‌نامید — چون
+ * هیچ‌کدام هنوز در صفحه ننشسته‌اند تا شماره‌ی بعدی را جلو ببرند.
+ */
+function withFreshIds(
+  questions: BankQuestion[],
+  taken: Set<string>,
+): Question[] {
+  const used = new Set(taken);
+  return questions.map((question) => {
+    let index = 1;
+    while (used.has(`q${index}`)) index += 1;
+    const id = `q${index}`;
+    used.add(id);
+    return { ...question, id };
+  });
+}
 
 /**
  * شناسه‌ی یکتا برای سوال کپی‌شده.
@@ -76,13 +101,18 @@ export function FormBuilderPage() {
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
   /*
-   * قوانین نمایش و Piping اینجا ویرایش نمی‌شوند ولی باید حفظ شوند؛ اگر
-   * فقط  فرستاده شود، سرور کل logic را جایگزین می‌کند و قوانین
-   * نمایشِ قالب (مثل سوال‌های دروازه‌ای هتل) از بین می‌روند.
+   * سرور کل `logic` را جایگزین می‌کند، نه ادغام. پس هر بار باید تمامش
+   * فرستاده شود وگرنه کلیدهایی که اینجا ویرایشگر ندارند (مثل Piping) بی‌صدا
+   * پاک می‌شوند.
    */
   const existingLogic = form.data?.latestVersion?.structure.logic ?? {};
 
   const [skipRules, setSkipRules] = useSkipRules(
+    form.data?.latestVersion?.structure.logic,
+    loadedVersionId ?? '',
+  );
+
+  const [displayRules, setDisplayRules] = useDisplayRules(
     form.data?.latestVersion?.structure.logic,
     loadedVersionId ?? '',
   );
@@ -97,7 +127,7 @@ export function FormBuilderPage() {
       formsApi.update(formId, {
         pages,
         scoreConfig: { indices: indexes },
-        logic: { ...existingLogic, skip: skipRules },
+        logic: { ...existingLogic, skip: skipRules, display: displayRules },
       }),
     onSuccess: async () => {
       setError(null);
@@ -362,16 +392,29 @@ export function FormBuilderPage() {
                 />
               ))}
 
-              <AddQuestionMenu
-                onPick={(type) =>
-                  updatePage(pageIndex, {
-                    questions: [
-                      ...page.questions,
-                      newQuestion(nextQuestionNumber(), type),
-                    ],
-                  })
-                }
-              />
+              <div className="inline-form">
+                <AddQuestionMenu
+                  onPick={(type) =>
+                    updatePage(pageIndex, {
+                      questions: [
+                        ...page.questions,
+                        newQuestion(nextQuestionNumber(), type),
+                      ],
+                    })
+                  }
+                />
+
+                <QuestionBankMenu
+                  onPick={(bankQuestions) =>
+                    updatePage(pageIndex, {
+                      questions: [
+                        ...page.questions,
+                        ...withFreshIds(bankQuestions, allQuestionIds()),
+                      ],
+                    })
+                  }
+                />
+              </div>
             </section>
           ))}
 
@@ -445,6 +488,15 @@ export function FormBuilderPage() {
               ))}
             </div>
           )}
+          <DisplayRuleEditor
+            pages={pages}
+            rules={displayRules}
+            onChange={(next) => {
+              setDisplayRules(next);
+              setDirty(true);
+            }}
+          />
+
           {flow.data && (
             <FlowChart
               graph={flow.data}

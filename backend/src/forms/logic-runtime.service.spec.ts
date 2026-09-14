@@ -451,4 +451,104 @@ describe('LogicRuntimeService', () => {
       expect(rt.stripHiddenAnswers({}, { q1: 'x' })).toEqual({ q1: 'x' });
     });
   });
+
+  /**
+   * شکلی که ویرایشگر «قوانین نمایش» در پنل می‌نویسد.
+   *
+   * ویرایشگر همیشه شکل گروهی (`when`) را ذخیره می‌کند، نه شکل مسطحی که
+   * قالب‌های آماده دارند. آزمون‌های بالا فقط شکل مسطح را پوشش می‌دادند، پس
+   * اگر ارزیابی شکل گروهی می‌شکست، هیچ تستی نمی‌فهمید و نتیجه‌اش این بود که
+   * قانون ساخته‌شده در پنل بی‌صدا بی‌اثر می‌ماند.
+   */
+  describe('منطق نمایشِ ساخته‌شده در پنل (شکل گروهی)', () => {
+    const gated = (action: 'show' | 'hide'): FormStructure => ({
+      pages: [{ id: 'p1', questions: [{ id: 'gate' }, { id: 'rating' }] }],
+      logic: {
+        display: [
+          {
+            targetQuestionId: 'rating',
+            action,
+            when: {
+              combinator: 'and',
+              conditions: [
+                {
+                  source: 'gate',
+                  operator: 'equals',
+                  value: 'استفاده کردم',
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    it('قانون show تا برقرار نشدن شرط، هدف را پنهان می‌کند', () => {
+      const s = gated('show');
+      expect(rt.visibleQuestionIds(s, ctx({})).has('rating')).toBe(false);
+      expect(
+        rt.visibleQuestionIds(s, ctx({ gate: 'استفاده نکردم' })).has('rating'),
+      ).toBe(false);
+      expect(
+        rt.visibleQuestionIds(s, ctx({ gate: 'استفاده کردم' })).has('rating'),
+      ).toBe(true);
+    });
+
+    it('قانون hide با برقراری شرط، هدف را پنهان می‌کند', () => {
+      const s = gated('hide');
+      expect(rt.visibleQuestionIds(s, ctx({})).has('rating')).toBe(true);
+      expect(
+        rt.visibleQuestionIds(s, ctx({ gate: 'استفاده کردم' })).has('rating'),
+      ).toBe(false);
+    });
+
+    it('هدفِ صفحه‌ای هم با همین شکل کار می‌کند', () => {
+      const s: FormStructure = {
+        pages: [
+          { id: 'p1', questions: [{ id: 'gate' }] },
+          { id: 'p2', questions: [{ id: 'inner' }] },
+        ],
+        logic: {
+          display: [
+            {
+              targetPageId: 'p2',
+              action: 'show',
+              when: {
+                combinator: 'and',
+                conditions: [
+                  { source: 'gate', operator: 'equals', value: 'بله' },
+                ],
+              },
+            },
+          ],
+        },
+      };
+
+      expect(rt.visibleQuestionIds(s, ctx({})).has('inner')).toBe(false);
+      expect(
+        rt.visibleQuestionIds(s, ctx({ gate: 'بله' })).has('inner'),
+      ).toBe(true);
+    });
+
+    it('اپراتور بدون مقدار (خالی نباشد) هم پذیرفته می‌شود', () => {
+      const s: FormStructure = {
+        pages: [{ id: 'p1', questions: [{ id: 'gate' }, { id: 'why' }] }],
+        logic: {
+          display: [
+            {
+              targetQuestionId: 'why',
+              action: 'show',
+              when: {
+                combinator: 'and',
+                conditions: [{ source: 'gate', operator: 'is_not_empty' }],
+              },
+            },
+          ],
+        },
+      };
+
+      expect(rt.visibleQuestionIds(s, ctx({})).has('why')).toBe(false);
+      expect(rt.visibleQuestionIds(s, ctx({ gate: 'x' })).has('why')).toBe(true);
+    });
+  });
 });
