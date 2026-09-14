@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { aiApi, describeError } from '../../api';
 import type { AnalyticsQuestion, FormAnalytics } from '../../types';
 import { todayJalali } from '../../jalali';
+import { RadarChart } from './RadarChart';
 
 /**
  * نمودارهای گزارش فرم.
@@ -65,6 +66,10 @@ export function QuestionCharts({
             ))}
           </div>
         </section>
+      )}
+
+      {data.scores.filter((s) => s.rate !== null).length >= 3 && (
+        <RadarChart scores={data.scores} />
       )}
 
       {data.trend.length > 1 && <TrendChart trend={data.trend} />}

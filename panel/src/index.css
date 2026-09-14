@@ -2068,6 +2068,55 @@ input[type='color'] {
   display: none;
 }
 
+
+/* نمودار رادار شاخص‌ها */
+.radar-card .hint {
+  margin: 0 0 8px;
+}
+
+.radar-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.radar {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: var(--gray-200);
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: var(--gray-200);
+  stroke-width: 1;
+}
+
+.radar-shape {
+  fill: color-mix(in srgb, var(--blue-500, #3b5bdb) 22%, transparent);
+  stroke: var(--blue-500, #3b5bdb);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.radar-dot {
+  fill: var(--blue-500, #3b5bdb);
+}
+
+.radar-label {
+  font-size: 11px;
+  fill: var(--gray-700, #374151);
+}
+
+.radar-label-value {
+  font-weight: 700;
+  fill: var(--blue-600, #2544c7);
+}
+
 @media print {
   /*
    * چاپ فقط گزارش را می‌خواهد. سایدبار، تاپ‌بار، دکمه‌ها و فیلترها روی
