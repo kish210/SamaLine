@@ -442,7 +442,16 @@ function start_install(array $config): array
             . "PUBLIC_URL={$publicUrl}\n"
             . 'JWT_SECRET=' . random_key(32) . "\n"
             . 'RESPONDENT_KEY_SALT=' . random_key(16) . "\n"
-            . 'SECRET_BOX_KEY=' . random_key(32) . "\n";
+            . 'SECRET_BOX_KEY=' . random_key(32) . "\n"
+            /*
+             * پیامک برای «یادآوری فرم نیمه‌تمام» و تایید شماره لازم است.
+             * خاموش گذاشته می‌شود تا نصب بدون درگاه پیامک هم کار کند؛ برای
+             * روشن کردن، مقدار SMS_PROVIDER را kavenegar کنید و کلید را
+             * بگذارید. بدون این‌ها یادآوری بی‌صدا رد می‌شود، نه اینکه خطا بدهد.
+             */
+            . "# SMS_PROVIDER=kavenegar\n"
+            . "# KAVENEGAR_API_KEY=\n"
+            . "# KAVENEGAR_SENDER=\n";
         file_put_contents($envPath, $env);
         @chmod($envPath, 0600);
     } else {

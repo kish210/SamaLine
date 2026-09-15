@@ -20,6 +20,7 @@ import { BillingModule } from './billing/billing.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { SpecializedModule } from './specialized/specialized.module';
+import { RemindersModule } from './reminders/reminders.module';
 import { buildDataSourceOptions } from './database/data-source';
 
 @Module({
@@ -45,6 +46,7 @@ import { buildDataSourceOptions } from './database/data-source';
     MessagingModule,
     ContactsModule,
     SpecializedModule,
+    RemindersModule,
   ],
 })
 export class AppModule {}

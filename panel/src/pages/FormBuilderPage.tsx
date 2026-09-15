@@ -12,6 +12,7 @@ import { QuestionBankMenu } from './builder/QuestionBankMenu';
 import type { BankQuestion } from '../question-bank';
 import { AiReviewCard } from './builder/AiReviewCard';
 import { EdgePagesEditor } from './builder/EdgePagesEditor';
+import { ReminderEditor } from './builder/ReminderEditor';
 import { LivePreview } from './builder/LivePreview';
 import { PublishCard } from './builder/PublishCard';
 import { QuestionEditor } from './builder/QuestionEditor';
@@ -513,6 +514,7 @@ export function FormBuilderPage() {
         <div className="design-tab">
           <ThemeEditor formId={formId} settings={form.data.settings} />
           <EdgePagesEditor formId={formId} settings={form.data.settings} />
+          <ReminderEditor formId={formId} settings={form.data.settings} />
           <IndicatorEditor
             pages={pages}
             indexes={indexes}
