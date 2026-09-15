@@ -257,6 +257,38 @@ export function FormBuilderPage() {
     );
   };
 
+  /**
+   * جابه‌جایی سوال از یک جایگاه به جایگاه دیگر (کشیدن و رها کردن).
+   *
+   * برخلاف moveQuestion که فقط یک پله بالا/پایین می‌برد، این سوال را از هرجا
+   * به هرجای همان صفحه می‌برد. splice به‌جای جابه‌جایی دوتایی است چون بردن
+   * سوال ۱ به جای ۵ باید سه سوال میانی را یکی‌یکی سُر بدهد، نه اینکه دوتا را
+   * با هم عوض کند.
+   */
+  const reorderQuestion = (pageIndex: number, from: number, to: number) => {
+    if (from === to) return;
+    markDirty();
+    setPages((prev) =>
+      prev.map((page, i) => {
+        if (i !== pageIndex) return page;
+        const questions = [...page.questions];
+        const [moved] = questions.splice(from, 1);
+        questions.splice(to, 0, moved);
+        return { ...page, questions };
+      }),
+    );
+  };
+
+  /*
+   * وضعیت کشیدن: کدام صفحه، از کدام جایگاه، و الان روی کدام جایگاه است.
+   * `over` برای نشان دادن محل رها شدن پیش از رها کردن است.
+   */
+  const [drag, setDrag] = useState<{
+    page: number;
+    from: number;
+    over: number;
+  } | null>(null);
+
   if (form.isLoading) return <div className="page">در حال بارگذاری…</div>;
   if (!form.data) return <div className="page">فرم یافت نشد.</div>;
 
@@ -369,12 +401,41 @@ export function FormBuilderPage() {
 
               {page.questions.map((question, questionIndex) => (
                 <QuestionEditor
-                  key={`${page.id}-${questionIndex}`}
+                  key={question.id}
                   question={question}
                   index={questionIndex}
                   total={page.questions.length}
                   scoreIndexKeys={indexes}
                   earlierQuestions={earlierQuestions(pageIndex, questionIndex)}
+                  dragging={
+                    drag?.page === pageIndex && drag.from === questionIndex
+                  }
+                  dropTarget={
+                    drag?.page === pageIndex &&
+                    drag.over === questionIndex &&
+                    drag.from !== questionIndex
+                  }
+                  onDragStart={() =>
+                    setDrag({
+                      page: pageIndex,
+                      from: questionIndex,
+                      over: questionIndex,
+                    })
+                  }
+                  onDragOverCard={() =>
+                    setDrag((d) =>
+                      d && d.page === pageIndex && d.over !== questionIndex
+                        ? { ...d, over: questionIndex }
+                        : d,
+                    )
+                  }
+                  onDropCard={() => {
+                    if (drag && drag.page === pageIndex) {
+                      reorderQuestion(pageIndex, drag.from, questionIndex);
+                    }
+                    setDrag(null);
+                  }}
+                  onDragEnd={() => setDrag(null)}
                   onChange={(patch) =>
                     updateQuestion(pageIndex, questionIndex, patch)
                   }

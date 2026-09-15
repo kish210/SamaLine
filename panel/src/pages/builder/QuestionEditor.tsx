@@ -13,6 +13,14 @@ interface Props {
   onMove: (direction: -1 | 1) => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  /** این سوال همان چیزی است که دارد کشیده می‌شود. */
+  dragging: boolean;
+  /** سوالِ زیر مکان‌نما؛ محل رها شدن با یک خط نشان داده می‌شود. */
+  dropTarget: boolean;
+  onDragStart: () => void;
+  onDragOverCard: () => void;
+  onDropCard: () => void;
+  onDragEnd: () => void;
 }
 
 /** نوع‌هایی که فهرست گزینه دارند. */
@@ -34,6 +42,12 @@ export function QuestionEditor({
   onMove,
   onDuplicate,
   onRemove,
+  dragging,
+  dropTarget,
+  onDragStart,
+  onDragOverCard,
+  onDropCard,
+  onDragEnd,
 }: Props) {
   const hasChoices = CHOICE_TYPES.includes(question.type);
   const meta = (question.meta ?? {}) as Record<string, unknown>;
@@ -67,10 +81,47 @@ export function QuestionEditor({
     setShowVars(false);
   };
 
+  /*
+   * فقط دستگیره draggable است، نه کل کارت.
+   *
+   * اگر کل کارت را کشیدنی می‌کردیم، انتخاب متن داخل کادرهای عنوان و توضیح از
+   * کار می‌افتاد؛ مرورگر به‌جای انتخاب، شروع به کشیدن می‌کرد.
+   */
+  const cardClass = [
+    'card',
+    'question-editor',
+    hidden ? 'is-hidden' : '',
+    dragging ? 'dragging' : '',
+    dropTarget ? 'drop-target' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={hidden ? 'card question-editor is-hidden' : 'card question-editor'}>
+    <div
+      className={cardClass}
+      onDragOver={(e) => {
+        // بدون preventDefault، مرورگر رها کردن را نمی‌پذیرد و onDrop اجرا نمی‌شود.
+        e.preventDefault();
+        onDragOverCard();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropCard();
+      }}
+    >
       <div className="question-head">
         <span className="index">
+          <span
+            className="drag-handle"
+            draggable
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            title="برای جابه‌جایی بکشید"
+            aria-label="جابه‌جایی سوال"
+          >
+            ⠿
+          </span>
           سوال {index + 1} · {typeLabel(question.type)}
           {hidden && <span className="badge-off">خاموش</span>}
         </span>

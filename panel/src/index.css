@@ -584,8 +584,46 @@ button:disabled {
 }
 
 .question-head .index {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  user-select: none;
+  touch-action: none;
+}
+
+.drag-handle:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* سوالی که دارد کشیده می‌شود کم‌رنگ می‌شود تا محل اصلی‌اش گم نشود. */
+.question-editor.dragging {
+  opacity: 0.4;
+}
+
+/*
+ * خطِ محل رها شدن.
+ *
+ * روی خودِ کارتِ هدف کشیده می‌شود نه بین کارت‌ها، چون با HTML5 drag & drop
+ * فضای بین دو کارت رویداد dragover نمی‌گیرد و خط سوسو می‌زد.
+ */
+.question-editor.drop-target {
+  box-shadow: 0 -3px 0 -1px var(--accent);
 }
 
 .question-actions {
