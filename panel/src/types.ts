@@ -147,6 +147,8 @@ export interface ResponseRow {
   durationSeconds: number | null;
   answers: Record<string, unknown>;
   scores: Record<string, number>;
+  /** متادیتای پاسخ: source (نوع انتشار)، ip، params و … */
+  meta?: Record<string, unknown>;
 }
 
 export interface FlowEdge {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Ip, Param, Post } from '@nestjs/common';
 import {
   LoginPasswordDto,
   NextStepDto,
@@ -79,9 +79,10 @@ export class PublicController {
   submit(
     @Param('token') token: string,
     @Body() dto: SubmitResponseDto,
+    @Ip() ip: string,
     @Headers(RESPONDENT_HEADER) accessToken?: string,
   ) {
-    return this.publicService.submitByToken(token, dto, accessToken);
+    return this.publicService.submitByToken(token, dto, accessToken, { ip });
   }
 
   @Post(':token/save-progress')

@@ -18,6 +18,23 @@ type StatusFilter = 'all' | 'completed' | 'partial';
 /** تعداد ردیف در هر صفحه‌ی جدول پاسخ‌ها. */
 const PAGE_SIZE = 25;
 
+/** برچسب فارسی نوع انتشار (منبعِ پاسخ). */
+const SOURCE_LABELS: Record<string, string> = {
+  link: 'لینک',
+  sms: 'پیامک',
+  email: 'ایمیل',
+  kiosk: 'کیوسک',
+  portal: 'پرتال',
+  iframe: 'آی‌فریم',
+  api: 'API',
+};
+
+function sourceLabel(meta: Record<string, unknown> | undefined): string {
+  const source = meta?.source;
+  if (typeof source !== 'string' || !source) return '—';
+  return SOURCE_LABELS[source] ?? source;
+}
+
 /**
  * تاریخ و ساعت شمسی از یک ISO.
  *
@@ -293,6 +310,7 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                     <tr>
                       <th>تاریخ</th>
                       <th>پاسخ‌دهنده</th>
+                      <th>منبع</th>
                       <th>وضعیت</th>
                       <th>مدت</th>
                       {questionIds.map((id) => (
@@ -309,6 +327,7 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                           {jalaliDateTime(row.submittedAt ?? row.createdAt)}
                         </td>
                         <td>{row.respondentKey ?? '—'}</td>
+                        <td className="nowrap">{sourceLabel(row.meta)}</td>
                         <td>
                           <span
                             className={
@@ -437,10 +456,20 @@ function ResponseDetail({
             <dt>مدت پاسخ</dt>
             <dd>{formatDuration(row.durationSeconds)}</dd>
           </div>
+          <div>
+            <dt>منبع</dt>
+            <dd>{sourceLabel(row.meta)}</dd>
+          </div>
           {row.respondentKey && (
             <div>
               <dt>پاسخ‌دهنده</dt>
               <dd>{row.respondentKey}</dd>
+            </div>
+          )}
+          {typeof row.meta?.ip === 'string' && (
+            <div>
+              <dt>IP</dt>
+              <dd>{row.meta.ip as string}</dd>
             </div>
           )}
         </dl>

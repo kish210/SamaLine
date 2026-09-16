@@ -33,6 +33,8 @@ import {
 
 type PublicFormPayload = {
   publicationId: string;
+  /** نوع انتشار (لینک/پیامک/کیوسک/…)؛ به‌عنوان «منبع» پاسخ ذخیره می‌شود. */
+  publicationType: string;
   formId: string;
   organizationId: string;
   workspaceId: string;
@@ -203,6 +205,7 @@ export class PublicService {
 
     return {
       publicationId: publication.id,
+      publicationType: publication.type,
       formId: publication.formId,
       organizationId: publication.form.workspace.organizationId,
       workspaceId: publication.form.workspaceId,
@@ -363,8 +366,21 @@ export class PublicService {
     token: string,
     dto: SubmitResponseDto,
     accessToken?: string,
+    context?: { ip?: string | null },
   ) {
     const formData = await this.getByToken(token, accessToken);
+    /*
+     * IP و «منبع» (نوع انتشار) کنار خودِ پاسخ در meta می‌نشینند.
+     *
+     * meta جدول JSON است، پس این نه ستون تازه می‌خواهد نه مهاجرت. source از
+     * نوع انتشار می‌آید (لینک/پیامک/کیوسک/…) تا در گزارش معلوم شود پاسخ از
+     * کدام کانال آمده. IP فقط وقتی نوشته می‌شود که پشت پراکسی واقعی باشد.
+     */
+    const withContext = (base: Record<string, unknown> | undefined) => ({
+      ...(base ?? {}),
+      source: formData.publicationType,
+      ...(context?.ip ? { ip: context.ip } : {}),
+    });
     const respondentKey = this.resolveRespondentKey(
       dto.respondentKey,
       dto.meta,
@@ -450,7 +466,7 @@ export class PublicService {
         ),
       );
       response.answers = answers;
-      response.meta = dto.meta ?? response.meta;
+      response.meta = withContext(dto.meta ?? response.meta);
       response.respondentKey = respondentKey ?? response.respondentKey;
       response.scores = scores;
       response = await this.responseRepo.save(response);
@@ -464,7 +480,7 @@ export class PublicService {
           startedAt,
           submittedAt,
           durationSeconds: 0,
-          meta: dto.meta ?? {},
+          meta: withContext(dto.meta),
           answers,
           scores,
         }),

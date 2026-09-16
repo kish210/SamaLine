@@ -84,6 +84,15 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   /*
+   * پشت پراکسیِ محلی (nginx) هستیم.
+   *
+   * بدون این، req.ip همیشه 127.0.0.1 می‌شود و IPِ ذخیره‌شده در گزارش بی‌معنی
+   * است. «loopback» یعنی فقط به پراکسیِ روی همین ماشین اعتماد کن و اولین IPِ
+   * X-Forwarded-For را بردار — نه اینکه به هر هدرِ جعلی از بیرون اعتماد کنی.
+   */
+  app.set('trust proxy', 'loopback');
+
+  /*
    * مهاجرت‌ها پیش از پذیرش درخواست اجرا می‌شوند.
    *
    * اگر اسکیما عقب باشد و برنامه درخواست بگیرد، خطاهای «ستون وجود ندارد»
