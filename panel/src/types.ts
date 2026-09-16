@@ -142,6 +142,7 @@ export interface ResponseRow {
   id: string;
   respondentKey: string | null;
   status: string;
+  createdAt: string;
   submittedAt: string | null;
   durationSeconds: number | null;
   answers: Record<string, unknown>;

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { reportsApi } from '../../api';
+import type { ResponseRow } from '../../types';
+import { isoToJalaliText } from '../../jalali';
 import { QuestionCharts } from './QuestionCharts';
 import { DateRangeFilter, type DateRange } from './DateRangeFilter';
 
@@ -11,6 +13,27 @@ interface Props {
 }
 
 type Tab = 'charts' | 'table';
+type StatusFilter = 'all' | 'completed' | 'partial';
+
+/** تعداد ردیف در هر صفحه‌ی جدول پاسخ‌ها. */
+const PAGE_SIZE = 25;
+
+/**
+ * تاریخ و ساعت شمسی از یک ISO.
+ *
+ * تابع تاریخِ موجود فقط روز را می‌دهد؛ در جدول پاسخ‌ها ساعت هم لازم است تا دو
+ * پاسخ در یک روز از هم قابل تشخیص باشند.
+ */
+function jalaliDateTime(iso: string | null): string {
+  if (!iso) return '—';
+  const date = isoToJalaliText(iso);
+  if (!date) return '—';
+  const time = new Date(iso).toLocaleTimeString('fa-IR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${date} ${time}`;
+}
 
 /** داشبورد فرم و جدول پاسخ‌نامه‌ها (بند ۸ سند). */
 /**
@@ -31,6 +54,11 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
   const [tab, setTab] = useState<Tab>('charts');
   const [range, setRange] = useState<DateRange>({});
   const [advancedExport, setAdvancedExport] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  /** پاسخ‌نامه‌ای که نمای کاملش باز است. */
+  const [detail, setDetail] = useState<ResponseRow | null>(null);
 
   const summary = useQuery({
     queryKey: ['summary', formId],
@@ -56,6 +84,42 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
     }
     return [...ids];
   }, [responses.data]);
+
+  /*
+   * فیلتر و جستجو روی داده‌ی بارگذاری‌شده انجام می‌شود، نه با درخواست تازه.
+   *
+   * اندپوینت حداکثر ۵۰۰ ردیف می‌دهد و همه یک‌جا در دست است؛ فیلترِ سمت مرورگر
+   * فوری است و به هر تایپ، رفت‌وبرگشت سرور اضافه نمی‌کند. جستجو روی متنِ همه‌ی
+   * پاسخ‌های یک ردیف است تا «هر جوابی که این کلمه را دارد» پیدا شود.
+   */
+  const filtered = useMemo(() => {
+    const rows = responses.data ?? [];
+    const needle = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter === 'completed' && row.status !== 'completed') {
+        return false;
+      }
+      if (statusFilter === 'partial' && row.status === 'completed') {
+        return false;
+      }
+      if (!needle) return true;
+      const haystack = [
+        row.respondentKey ?? '',
+        ...Object.values(row.answers ?? {}).map((v) => formatAnswer(v)),
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [responses.data, statusFilter, search]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // اگر فیلتر تعداد را کم کرد و صفحه‌ی فعلی دیگر وجود ندارد، به صفحه‌ی آخر برگرد.
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(
+    safePage * PAGE_SIZE,
+    safePage * PAGE_SIZE + PAGE_SIZE,
+  );
 
   /**
    * عنوان خوانای هر سوال برای سرستون جدول.
@@ -180,40 +244,227 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
         )}
 
         {(responses.data?.length ?? 0) > 0 && (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>پاسخ‌دهنده</th>
-                  <th>وضعیت</th>
-                  {questionIds.map((id) => (
-                    <th key={id}>{titleOf(id)}</th>
-                  ))}
-                  <th>شاخص‌ها</th>
-                </tr>
-              </thead>
-              <tbody>
-                {responses.data?.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.respondentKey ?? '—'}</td>
-                    <td>
-                      {row.status === 'completed' ? 'تکمیل‌شده' : 'ناتمام'}
-                    </td>
-                    {questionIds.map((id) => (
-                      <td key={id}>{formatAnswer(row.answers?.[id])}</td>
-                    ))}
-                    <td>
-                      {Object.entries(row.scores ?? {})
-                        .map(([key, value]) => `${key}: ${value}`)
-                        .join('، ') || '—'}
-                    </td>
-                  </tr>
+          <>
+            <div className="table-toolbar">
+              <div className="quick-filter">
+                {(
+                  [
+                    ['all', 'همه'],
+                    ['completed', 'کامل'],
+                    ['partial', 'ناقص'],
+                  ] as Array<[StatusFilter, string]>
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={statusFilter === key ? 'active' : ''}
+                    onClick={() => {
+                      setStatusFilter(key);
+                      setPage(0);
+                    }}
+                  >
+                    {label}
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              <input
+                className="table-search"
+                type="search"
+                placeholder="جستجو در پاسخ‌ها…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+              />
+
+              <span className="table-count">
+                {filtered.length} از {responses.data?.length} پاسخ
+              </span>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="empty">پاسخی با این فیلتر پیدا نشد.</p>
+            ) : (
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>تاریخ</th>
+                      <th>پاسخ‌دهنده</th>
+                      <th>وضعیت</th>
+                      <th>مدت</th>
+                      {questionIds.map((id) => (
+                        <th key={id}>{titleOf(id)}</th>
+                      ))}
+                      <th>شاخص‌ها</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row) => (
+                      <tr key={row.id}>
+                        <td className="nowrap">
+                          {jalaliDateTime(row.submittedAt ?? row.createdAt)}
+                        </td>
+                        <td>{row.respondentKey ?? '—'}</td>
+                        <td>
+                          <span
+                            className={
+                              row.status === 'completed'
+                                ? 'badge-status done'
+                                : 'badge-status partial'
+                            }
+                          >
+                            {row.status === 'completed' ? 'کامل' : 'ناقص'}
+                          </span>
+                        </td>
+                        <td className="nowrap">
+                          {formatDuration(row.durationSeconds)}
+                        </td>
+                        {questionIds.map((id) => (
+                          <td key={id}>{formatAnswer(row.answers?.[id])}</td>
+                        ))}
+                        <td>
+                          {Object.entries(row.scores ?? {})
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join('، ') || '—'}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="secondary row-view"
+                            title="نمای کامل پاسخ‌نامه"
+                            onClick={() => setDetail(row)}
+                          >
+                            نمایش
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {pageCount > 1 && (
+              <div className="pager">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={safePage === 0}
+                  onClick={() => setPage(safePage - 1)}
+                >
+                  ← قبلی
+                </button>
+                <span>
+                  صفحه {safePage + 1} از {pageCount}
+                </span>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() => setPage(safePage + 1)}
+                >
+                  بعدی →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
+
+      {detail && (
+        <ResponseDetail
+          row={detail}
+          titleOf={titleOf}
+          questionIds={questionIds}
+          onClose={() => setDetail(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * نمای کامل یک پاسخ‌نامه.
+ *
+ * جدول پهن است و در آن همه‌ی سوال‌ها ستون‌اند؛ برای خواندن یک پاسخِ خاص،
+ * دیدنِ همه‌ی جواب‌هایش زیر هم بسیار خواناتر از افقی اسکرول کردن است.
+ */
+function ResponseDetail({
+  row,
+  titleOf,
+  questionIds,
+  onClose,
+}: {
+  row: ResponseRow;
+  titleOf: (id: string) => string;
+  questionIds: string[];
+  onClose: () => void;
+}) {
+  // سوال‌هایی که در این پاسخ جوابی دارند، به ترتیب ستون‌های جدول.
+  const answered = questionIds.filter(
+    (id) => row.answers?.[id] !== undefined && row.answers?.[id] !== null,
+  );
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal-card"
+        role="dialog"
+        aria-label="نمای کامل پاسخ‌نامه"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="section-head">
+          <h3>پاسخ‌نامه</h3>
+          <button type="button" className="secondary" onClick={onClose}>
+            بستن
+          </button>
+        </div>
+
+        <dl className="detail-meta">
+          <div>
+            <dt>تاریخ</dt>
+            <dd>{jalaliDateTime(row.submittedAt ?? row.createdAt)}</dd>
+          </div>
+          <div>
+            <dt>وضعیت</dt>
+            <dd>{row.status === 'completed' ? 'کامل' : 'ناقص'}</dd>
+          </div>
+          <div>
+            <dt>مدت پاسخ</dt>
+            <dd>{formatDuration(row.durationSeconds)}</dd>
+          </div>
+          {row.respondentKey && (
+            <div>
+              <dt>پاسخ‌دهنده</dt>
+              <dd>{row.respondentKey}</dd>
+            </div>
+          )}
+        </dl>
+
+        <dl className="detail-answers">
+          {answered.map((id) => (
+            <div key={id}>
+              <dt>{titleOf(id)}</dt>
+              <dd>{formatAnswer(row.answers?.[id])}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {Object.keys(row.scores ?? {}).length > 0 && (
+          <dl className="detail-answers scores">
+            {Object.entries(row.scores).map(([key, value]) => (
+              <div key={key}>
+                <dt>{key}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
     </div>
   );
 }
