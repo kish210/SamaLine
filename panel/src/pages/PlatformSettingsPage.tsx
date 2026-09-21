@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { describeError, platformApi } from '../api';
 import type { PlatformSettings } from '../api';
 import { TelegramCard } from './TelegramCard';
+import { ServiceMonitorCard } from './ServiceMonitorCard';
 
 const EMPTY: PlatformSettings = {
   footerEnabled: true,
@@ -137,6 +138,8 @@ export function PlatformSettingsPage() {
           {value.footerText || 'شرکت سماع رایانه کیش'}
         </div>
       </section>
+
+      <ServiceMonitorCard />
 
       <PlatformTelegram />
     </div>

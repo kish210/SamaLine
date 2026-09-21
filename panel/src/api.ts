@@ -606,3 +606,28 @@ export const portalsApi = {
   remove: (workspaceId: string, id: string) =>
     api.delete(`/portals/${id}`, { params: { workspaceId } }).then((r) => r.data),
 };
+
+export interface ServiceStatus {
+  name: string;
+  description: string;
+  activeState: string;
+  subState: string;
+  isSelf: boolean;
+  since: string | null;
+  memoryBytes: number | null;
+}
+
+/** پایش و کنترل سرویس‌های سامانه؛ فقط سوپرادمین. */
+export const opsApi = {
+  services: () =>
+    api
+      .get<{ supported: boolean; services: ServiceStatus[] }>('/ops/services')
+      .then((r) => r.data),
+
+  control: (name: string, action: 'start' | 'stop' | 'restart') =>
+    api
+      .post<{ ok: boolean; message: string }>(
+        `/ops/services/${encodeURIComponent(name)}/${action}`,
+      )
+      .then((r) => r.data),
+};
