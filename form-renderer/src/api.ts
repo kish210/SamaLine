@@ -6,7 +6,7 @@ import type {
   ResolvePageResponse,
 } from './types';
 
-const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1';
+const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 const client = axios.create({ baseURL: apiBase });
 

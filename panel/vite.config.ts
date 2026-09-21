@@ -11,4 +11,14 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: process.env.BASE_PATH ?? '/panel/',
   plugins: [react()],
+  /*
+   * در توسعه، `/api` و `/uploads` نسبی به بک‌اند روی ۳۰۰۰ پراکسی می‌شوند تا
+   * نشانی API در کد نسبی بماند و همان بسته در production بی‌تغییر کار کند.
+   */
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/uploads': 'http://localhost:3000',
+    },
+  },
 });
