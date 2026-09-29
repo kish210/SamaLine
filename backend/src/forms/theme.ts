@@ -252,7 +252,7 @@ export const THEME_PRESET_LABELS: Record<string, string> = {
   default: 'پیش‌فرض',
   aseman: 'آسمان',
   oghyanus: 'اقیانوس',
-  'daryā': 'دریا',
+  daryā: 'دریا',
   sahel: 'ساحل',
   barf: 'برف',
   jangal: 'جنگل',

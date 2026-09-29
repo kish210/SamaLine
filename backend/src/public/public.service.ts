@@ -4,14 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { FormStatus } from '../database/entities/form.entity';
-import {
-  PublicationEntity,
-  PublicationType,
-} from '../database/entities/publication.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import {
   ResponseEntity,
   ResponseStatus,
@@ -291,7 +287,6 @@ export class PublicService {
     if (!publication) throw new NotFoundException('لینک معتبر نیست');
     return this.respondentAuth.verifyOtp(publication, destination, code);
   }
-
 
   async getProgressByToken(
     token: string,

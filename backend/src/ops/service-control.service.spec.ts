@@ -60,9 +60,9 @@ describe('ServiceControlService', () => {
   it('کارِ نامعتبر را رد می‌کند', async () => {
     const s = new TestService();
     // enable/mask و هرچیز غیر از سه‌تای مجاز.
-    await expect(
-      s.control('samaline', 'enable' as never),
-    ).rejects.toThrow('مجاز نیست');
+    await expect(s.control('samaline', 'enable' as never)).rejects.toThrow(
+      'مجاز نیست',
+    );
     expect(s.calls).toHaveLength(0);
   });
 
@@ -114,9 +114,7 @@ describe('ServiceControlService', () => {
   it('control روی سکوی غیرلینوکسی خطای روشن می‌دهد', async () => {
     const s = new ServiceControlService(); // supportedِ واقعی
     if (!s.supported) {
-      await expect(s.control('samaline', 'restart')).rejects.toThrow(
-        'لینوکسی',
-      );
+      await expect(s.control('samaline', 'restart')).rejects.toThrow('لینوکسی');
     }
   });
 });

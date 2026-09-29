@@ -242,7 +242,9 @@ describe('LogicRuntimeService', () => {
           ],
         },
       };
-      expect(rt.visibleQuestionIds(s, ctx({ q1: 'بله' })).has('q2')).toBe(false);
+      expect(rt.visibleQuestionIds(s, ctx({ q1: 'بله' })).has('q2')).toBe(
+        false,
+      );
     });
 
     it('قانون hide با برقراری شرط سوال را پنهان می‌کند', () => {
@@ -525,9 +527,9 @@ describe('LogicRuntimeService', () => {
       };
 
       expect(rt.visibleQuestionIds(s, ctx({})).has('inner')).toBe(false);
-      expect(
-        rt.visibleQuestionIds(s, ctx({ gate: 'بله' })).has('inner'),
-      ).toBe(true);
+      expect(rt.visibleQuestionIds(s, ctx({ gate: 'بله' })).has('inner')).toBe(
+        true,
+      );
     });
 
     it('اپراتور بدون مقدار (خالی نباشد) هم پذیرفته می‌شود', () => {
@@ -548,7 +550,9 @@ describe('LogicRuntimeService', () => {
       };
 
       expect(rt.visibleQuestionIds(s, ctx({})).has('why')).toBe(false);
-      expect(rt.visibleQuestionIds(s, ctx({ gate: 'x' })).has('why')).toBe(true);
+      expect(rt.visibleQuestionIds(s, ctx({ gate: 'x' })).has('why')).toBe(
+        true,
+      );
     });
   });
 });

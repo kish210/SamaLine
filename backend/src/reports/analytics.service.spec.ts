@@ -12,10 +12,7 @@ import type { ResponseEntity } from '../database/entities/response.entity';
 /** پارامترهای ثبت‌شده‌ی آخرین پرس‌وجو؛ برای بررسی اعمال بازه. */
 const lastParams: Record<string, unknown> = {};
 
-function makeService(
-  structure: unknown,
-  rows: Array<Partial<ResponseEntity>>,
-) {
+function makeService(structure: unknown, rows: Array<Partial<ResponseEntity>>) {
   for (const key of Object.keys(lastParams)) delete lastParams[key];
 
   // سازنده‌ی پرس‌وجوی زنجیره‌ای: هر متد خودش را برمی‌گرداند تا ترتیب

@@ -151,9 +151,7 @@ describe('قالب هتل دروازه‌دار', () => {
       const gate = questions.findIndex(
         (q) => q.id === rule.when.conditions[0].source,
       );
-      const target = questions.findIndex(
-        (q) => q.id === rule.targetQuestionId,
-      );
+      const target = questions.findIndex((q) => q.id === rule.targetQuestionId);
       expect(gate).toBeGreaterThanOrEqual(0);
       expect(gate).toBeLessThan(target);
     }

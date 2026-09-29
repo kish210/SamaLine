@@ -124,7 +124,10 @@ describe('FormService — بایگانی و حذف', () => {
       });
       await ds
         .getRepository(ResponseEntity)
-        .update({ status: ResponseStatus.COMPLETED }, { submittedAt: new Date('2026-09-20T10:00:00Z') });
+        .update(
+          { status: ResponseStatus.COMPLETED },
+          { submittedAt: new Date('2026-09-20T10:00:00Z') },
+        );
 
       const [row] = await service.list(workspace.id);
       expect(row.responseCount).toBe(2);

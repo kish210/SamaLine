@@ -45,12 +45,12 @@ export async function runMigrations(dataSource: DataSource): Promise<void> {
    * لازم می‌شود که فهمیدنش دیر است.
    */
   const file = dataSource.options.database;
-  if (IS_SQLITE && typeof file === "string") {
+  if (IS_SQLITE && typeof file === 'string') {
     backupSqlite(file);
   } else if (!IS_SQLITE) {
     // Postgres فایل تکی نیست؛ پشتیبانش کار pg_dump است نه کپی فایل.
     logger.warn(
-      "پیش از مهاجرت روی Postgres، خودتان با pg_dump پشتیبان بگیرید.",
+      'پیش از مهاجرت روی Postgres، خودتان با pg_dump پشتیبان بگیرید.',
     );
   }
 

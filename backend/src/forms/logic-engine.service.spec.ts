@@ -244,7 +244,13 @@ describe('LogicEngineService', () => {
     it('گروه تو در تو را داخل پرانتز می‌گذارد', () => {
       const graph = engine.buildFlowGraph({
         pages: [
-          { id: 'p1', questions: [{ id: 'a', title: 'الف' }, { id: 'b', title: 'ب' }] },
+          {
+            id: 'p1',
+            questions: [
+              { id: 'a', title: 'الف' },
+              { id: 'b', title: 'ب' },
+            ],
+          },
           { id: 'p2', questions: [] },
         ],
         logic: {
@@ -286,7 +292,9 @@ describe('LogicEngineService', () => {
               toEnd: true,
               when: {
                 combinator: 'and',
-                conditions: [{ source: 'q1', operator: 'equals', value: 'خیر' }],
+                conditions: [
+                  { source: 'q1', operator: 'equals', value: 'خیر' },
+                ],
               },
             },
           ],

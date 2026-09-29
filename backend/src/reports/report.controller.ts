@@ -36,10 +36,7 @@ export class ReportController {
   ) {}
 
   @Get('forms/:formId/summary')
-  async summary(
-    @Param('formId') formId: string,
-    @CurrentUser() user: JwtUser,
-  ) {
+  async summary(@Param('formId') formId: string, @CurrentUser() user: JwtUser) {
     await this.tenant.assertForm(formId, user);
     return this.reportService.formSummary(formId);
   }

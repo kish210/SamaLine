@@ -38,10 +38,7 @@ export class OpsController {
    * نمی‌رود.
    */
   @Post('services/:name/:action')
-  async control(
-    @Param('name') name: string,
-    @Param('action') action: string,
-  ) {
+  async control(@Param('name') name: string, @Param('action') action: string) {
     if (!SERVICE_ACTIONS.includes(action as ServiceAction)) {
       throw new BadRequestException('کارِ درخواستی مجاز نیست.');
     }

@@ -94,7 +94,7 @@ function harness(options: {
         codeUpdates.push(patch);
         // شمارنده روی همان ردیف اعمال می‌شود، وگرنه تست «ظرفیت پر شد»
         // همیشه از صفر شروع می‌کند و چیزی را ثابت نمی‌کند.
-        if (options.code && typeof patch.useCount === "number") {
+        if (options.code && typeof patch.useCount === 'number') {
           options.code.useCount = patch.useCount;
         }
       },
@@ -220,7 +220,9 @@ describe('TelegramBotService — فرمان‌های ربات', () => {
 
   it('به‌روزرسانی بدون متن نادیده گرفته می‌شود', async () => {
     const h = harness({ recipients: [] });
-    await h.service.handleUpdate('hook-abc', { message: { chat: { id: '5' } } });
+    await h.service.handleUpdate('hook-abc', {
+      message: { chat: { id: '5' } },
+    });
     expect(h.sent).toHaveLength(0);
   });
 

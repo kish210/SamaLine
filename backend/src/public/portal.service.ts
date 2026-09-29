@@ -67,7 +67,8 @@ export class PortalService {
 
     // همان اعتبارسنجی لینک اختصاصی فرم‌ها؛ دو قاعده‌ی موازی با هم واگرا می‌شوند.
     const check = validateSlug(input.slug ?? existing?.slug ?? '');
-    if (!check.valid) throw new BadRequestException(check.reason ?? 'نشانی نامعتبر');
+    if (!check.valid)
+      throw new BadRequestException(check.reason ?? 'نشانی نامعتبر');
     const slug = check.normalized;
 
     const clash = await this.portalRepo.findOne({

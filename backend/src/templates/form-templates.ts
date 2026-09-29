@@ -215,11 +215,7 @@ const GATED_SERVICES: Array<[string, string, string]> = [
     'آیا از رستوران هتل استفاده کرده‌اید؟',
     'کیفیت نوشیدنی و غذا در رستوران',
   ],
-  [
-    't_cafe',
-    'آیا از کافی‌شاپ هتل استفاده کرده‌اید؟',
-    'کیفیت خدمات کافی‌شاپ',
-  ],
+  ['t_cafe', 'آیا از کافی‌شاپ هتل استفاده کرده‌اید؟', 'کیفیت خدمات کافی‌شاپ'],
   [
     't_roomservice',
     'آیا از روم سرویس هتل استفاده کرده‌اید؟',
@@ -275,7 +271,10 @@ function hotelGatedTemplate(): FormTemplate {
       'به‌طور کلی رضایتمندی شما در خصوص تور و آژانس چگونه است؟',
     ),
     rating('t_reception', 'نحوه عملکرد و سرعت پذیرشگر در هنگام ورود'),
-    rating('t_bellboy', 'میزان رضایتمندی شما در خصوص اطلاع‌رسانی و توضیحات بل‌بوی'),
+    rating(
+      't_bellboy',
+      'میزان رضایتمندی شما در خصوص اطلاع‌رسانی و توضیحات بل‌بوی',
+    ),
   ];
 
   const display: Array<Record<string, unknown>> = [];
@@ -295,10 +294,7 @@ function hotelGatedTemplate(): FormTemplate {
       'میزان راحتی شما در بخش اقامت از نظر نزدیکی به معیار خواسته‌های شما',
     ],
     ['t_services', 'میزان رضایتمندی شما از دریافت خدمات'],
-    [
-      't_overall',
-      'به‌طور کلی رضایتمندی شما در خصوص اقامت اخیر خود چگونه است؟',
-    ],
+    ['t_overall', 'به‌طور کلی رضایتمندی شما در خصوص اقامت اخیر خود چگونه است؟'],
   ]) {
     questions.push(rating(id, title));
     ratingIds.push(id);
@@ -543,8 +539,7 @@ export const FORM_TEMPLATES: FormTemplate[] = [
             {
               id: 't_static',
               type: 'static_text',
-              title:
-                'متن ثابت — این یک توضیح است و پاسخی نمی‌گیرد.',
+              title: 'متن ثابت — این یک توضیح است و پاسخی نمی‌گیرد.',
             },
             { id: 't_email', type: 'email', title: 'ایمیل' },
             { id: 't_url', type: 'url', title: 'وب‌سایت' },
@@ -682,7 +677,12 @@ export const FORM_TEMPLATES: FormTemplate[] = [
           id: 'p1',
           title: 'صفحه ۱',
           questions: [
-            { id: 'q1', type: 'short_text', title: 'سوال اول', required: false },
+            {
+              id: 'q1',
+              type: 'short_text',
+              title: 'سوال اول',
+              required: false,
+            },
           ],
         },
       ],

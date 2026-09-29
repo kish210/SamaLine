@@ -33,11 +33,12 @@ function serveStaticIfBuilt(
     prefix,
     // index.html از مسیر پوششی SPA داده می‌شود تا سربرگ کش یکسان بماند.
     index: false,
-    setHeaders: (res: { setHeader: (k: string, v: string) => void }, path: string) =>
-      res.setHeader('Cache-Control', cacheControlFor(path)),
+    setHeaders: (
+      res: { setHeader: (k: string, v: string) => void },
+      path: string,
+    ) => res.setHeader('Cache-Control', cacheControlFor(path)),
   });
 }
-
 
 /**
  * مسیر پوششی SPA.
@@ -60,8 +61,7 @@ function useSpaFallback(
     const path = req.path ?? '';
 
     // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های نوشتنی رد می‌شوند.
-    const isApiPath =
-      path.startsWith('/api') || path.startsWith('/uploads');
+    const isApiPath = path.startsWith('/api') || path.startsWith('/uploads');
     const inScope = prefix === '/' ? true : path.startsWith(prefix);
     const wantsHtml = (req.headers?.accept ?? '').includes('text/html');
 

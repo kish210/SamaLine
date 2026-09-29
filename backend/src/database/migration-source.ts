@@ -12,5 +12,5 @@ export default new DataSource(
   buildDataSourceOptions({
     synchronize: false,
     migrations: ['src/database/migrations/*.ts'],
-  } as never),
+  }),
 );

@@ -24,9 +24,7 @@ export class SuperAdminGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context
-      .switchToHttp()
-      .getRequest<{ user?: JwtUser }>();
+    const request = context.switchToHttp().getRequest<{ user?: JwtUser }>();
     const userId = request.user?.sub;
     if (!userId) throw new ForbiddenException('دسترسی مجاز نیست');
 

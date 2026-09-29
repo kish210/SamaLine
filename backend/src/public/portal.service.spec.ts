@@ -28,8 +28,9 @@ function repo(rows: Row[]) {
     find: async (options?: { where?: Row }) =>
       options?.where ? rows.filter((r) => matches(r, options.where!)) : rows,
     findOne: async (options?: { where?: Row }) =>
-      (options?.where ? rows.filter((r) => matches(r, options.where!)) : rows)[0] ??
-      null,
+      (options?.where
+        ? rows.filter((r) => matches(r, options.where!))
+        : rows)[0] ?? null,
     create: (v: Row) => v,
     save: async (v: Row) => v,
     delete: async () => undefined,
@@ -100,8 +101,20 @@ describe('PortalService', () => {
           { id: 'f2', title: 'فرم دو', status: FormStatus.ACTIVE },
         ],
         publications: [
-          { formId: 'f1', token: 't1', slug: null, type: PublicationType.LINK, isActive: true },
-          { formId: 'f2', token: 't2', slug: null, type: PublicationType.LINK, isActive: true },
+          {
+            formId: 'f1',
+            token: 't1',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+          },
+          {
+            formId: 'f2',
+            token: 't2',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+          },
         ],
       });
 

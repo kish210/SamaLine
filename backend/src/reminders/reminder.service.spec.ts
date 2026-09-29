@@ -100,7 +100,9 @@ describe('ReminderService', () => {
     expect(h.sent[0].channel).toBe('sms');
     expect(h.sent[0].recipient).toBe('09121234567');
     // لینک باید توکن انتشار و کلید پاسخ‌دهنده را داشته باشد تا از همان‌جا ادامه دهد.
-    expect(h.sent[0].body).toContain('https://i.kishvip.com/f/tok-abc?r=user-1');
+    expect(h.sent[0].body).toContain(
+      'https://i.kishvip.com/f/tok-abc?r=user-1',
+    );
   });
 
   it('پاسخ را «یادآوری‌شده» علامت می‌زند تا دوباره نرود', async () => {

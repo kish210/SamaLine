@@ -236,5 +236,4 @@ describe('TelegramService', () => {
     const { service } = build(null, []);
     expect(await service.getBot('w1')).toMatchObject({ configured: false });
   });
-
 });
