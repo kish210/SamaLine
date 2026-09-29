@@ -369,7 +369,15 @@ button {
     border-color var(--dur-fast) var(--ease);
 }
 
-button:hover:not(:disabled) {
+/*
+ * hover دکمه‌ی اصلی با ویژگی صفر (:where).
+ *
+ * پیش از این این قاعده از هر قاعده‌ی کلاسی ویژه‌تر بود و هر دکمه‌ی روشنی
+ * (زبانه، کارت تم، دکمه‌های نوار سوال…) با نشستن ماوس آبی تیره می‌شد و
+ * متنش دیده نمی‌شد. حالا فقط دکمه‌ای تیره می‌شود که رنگ خودش را تعریف
+ * نکرده باشد.
+ */
+button:where(:hover:not(:disabled)) {
   background: var(--blue-700);
   border-color: var(--blue-700);
 }
@@ -2972,4 +2980,51 @@ input[type='color'] {
 .page-loading {
   color: var(--muted);
   padding-top: 24px;
+}
+
+/*
+ * حالت hover دکمه‌های روشن.
+ *
+ * قاعده‌ی سراسری `button:hover` پس‌زمینه را آبی تیره می‌کند و از قواعد
+ * کلاسی مثل `.tabs button` ویژه‌تر است؛ دکمه‌های روشن بدون hover خودشان
+ * با نشستن ماوس، متن تیره روی زمینه‌ی تیره می‌شدند و خوانده نمی‌شدند
+ * (با سنجش کنتراست در مرورگر پیدا شد).
+ */
+.tabs button:hover:not(:disabled) {
+  background: none;
+  border-color: transparent;
+  border-bottom-color: var(--line);
+  color: var(--ink);
+}
+
+.tabs button.active:hover:not(:disabled) {
+  border-bottom-color: var(--accent);
+}
+
+.publish-tabs button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--blue-300);
+  color: var(--text-body);
+}
+
+.publish-tabs button.active:hover:not(:disabled) {
+  background: var(--blue-700);
+  border-color: var(--blue-700);
+  color: var(--text-on-brand);
+}
+
+.link-button:hover:not(:disabled) {
+  background: none;
+  border: none;
+  color: #1d4ed8;
+}
+
+.preset-card:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+.preset-card.active:hover:not(:disabled) {
+  border-color: #111827;
 }

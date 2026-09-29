@@ -355,6 +355,8 @@ button:disabled {
   width: 100%;
 }
 
+/* صفحه‌ی شروع همان کارت سوال‌ها را دارد تا شروع و ادامه‌ی فرم یک‌دست باشند. */
+.container.centered .start-page,
 .container.centered form {
   background: var(--form-surface);
   border-radius: var(--form-radius);

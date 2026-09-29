@@ -150,10 +150,10 @@ http://localhost:5173/f/nazarsanji-1405                    ← اختصاصی
 ```bash
 npm run start:dev    # اجرا با watch
 npm run typecheck    # بررسی نوع‌ها
-npm test             # ۵۱۲ تست واحد و ادغام
+npm test             # ۵۱۷ تست واحد و ادغام
 npm run smoke        # دود تست چرخه‌ی کامل روی سرور در حال اجرا
 npm run release      # بیلد + داده‌ی اولیه + اجرای تولید
-npm run lint         # اسلینت
+npm run lint         # اسلینت (بدون خطا)
 npm run db:seed      # بازنشانی پلن‌ها به مقدار پیش‌فرض
 npm run superadmin -- you@example.com   # تعیین مدیر کل سامانه
 npm run reset-2fa -- you@example.com    # خاموش کردن ورود دومرحله‌ای (گوشی گم‌شده)
