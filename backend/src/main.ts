@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { uploadDirectory } from './uploads/upload.service';
+import { cacheControlFor } from './common/static-cache';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
@@ -27,8 +28,16 @@ function serveStaticIfBuilt(
   dir: string,
   prefix: string,
 ): void {
-  if (isBuilt(dir)) app.useStaticAssets(dir, { prefix });
+  if (!isBuilt(dir)) return;
+  app.useStaticAssets(dir, {
+    prefix,
+    // index.html از مسیر پوششی SPA داده می‌شود تا سربرگ کش یکسان بماند.
+    index: false,
+    setHeaders: (res: { setHeader: (k: string, v: string) => void }, path: string) =>
+      res.setHeader('Cache-Control', cacheControlFor(path)),
+  });
 }
+
 
 /**
  * مسیر پوششی SPA.
@@ -50,13 +59,15 @@ function useSpaFallback(
   app.use((req: SpaRequest, res: SpaResponse, next: () => void) => {
     const path = req.path ?? '';
 
-    // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های غیر GET رد می‌شوند.
+    // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های نوشتنی رد می‌شوند.
     const isApiPath =
       path.startsWith('/api') || path.startsWith('/uploads');
     const inScope = prefix === '/' ? true : path.startsWith(prefix);
     const wantsHtml = (req.headers?.accept ?? '').includes('text/html');
 
-    if (req.method !== 'GET' || isApiPath || !inScope || !wantsHtml) {
+    // HEAD هم پذیرفته می‌شود تا پایشگرهای بیرونی (uptime) ۴۰۴ نگیرند.
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
+    if (!isRead || isApiPath || !inScope || !wantsHtml) {
       next();
       return;
     }
@@ -67,6 +78,7 @@ function useSpaFallback(
       return;
     }
 
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(join(dir, 'index.html'));
   });
 }
@@ -78,6 +90,7 @@ interface SpaRequest {
 }
 
 interface SpaResponse {
+  setHeader: (name: string, value: string) => void;
   sendFile: (path: string) => void;
 }
 

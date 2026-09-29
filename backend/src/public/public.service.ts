@@ -342,6 +342,12 @@ export class PublicService {
       order: { createdAt: 'DESC' },
     });
 
+    // پیش‌نویسِ خالی ساخته نمی‌شود؛ فقط آمار «شروع‌شده» را بی‌دلیل بالا می‌برد.
+    const hasAnswers = Object.keys(dto.answers ?? {}).length > 0;
+    if (!existing && !hasAnswers) {
+      return { id: null, status: 'skipped' };
+    }
+
     const progress = existing
       ? Object.assign(existing, {
           answers: dto.answers,

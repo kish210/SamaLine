@@ -137,7 +137,9 @@ export function FormsPage() {
                 <span className={`badge badge-${form.status}`}>
                   {STATUS_LABELS[form.status] ?? form.status}
                 </span>
-                <span className="slug">{form.slug}</span>
+                <span className="form-card-stats">
+                  {describeResponses(form.responseCount, form.lastResponseAt)}
+                </span>
               </div>
             </Link>
 
@@ -263,4 +265,21 @@ function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
       </div>
     </section>
   );
+}
+
+/**
+ * خلاصه‌ی پاسخ‌های کارت فرم: «۱۲ پاسخ، آخرین: ۱۴۰۵/۷/۷».
+ *
+ * پیش از این نشانک داخلی فرم (مثل `hotel-1790657206382`) نمایش داده می‌شد
+ * که برای کاربر معنایی نداشت.
+ */
+function describeResponses(
+  count: number | undefined,
+  lastAt: string | null | undefined,
+): string {
+  if (!count) return 'هنوز پاسخی نیامده';
+  const total = `${count.toLocaleString('fa-IR')} پاسخ`;
+  if (!lastAt) return total;
+  const date = new Date(lastAt).toLocaleDateString('fa-IR');
+  return `${total}، آخرین: ${date}`;
 }

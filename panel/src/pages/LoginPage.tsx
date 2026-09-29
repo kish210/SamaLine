@@ -52,7 +52,13 @@ export function LoginPage() {
   return (
     <div className="auth-page">
       <form className="card auth-card" onSubmit={submit}>
-        <h1>سامانه نظرسنجی سماء‌لاین</h1>
+        <div className="auth-brand">
+          <span className="brand-mark" aria-hidden="true">
+            س
+          </span>
+          <h1>سماء‌لاین</h1>
+          <p>سامانه‌ی نظرسنجی، فرم‌ساز و گزارش‌گیری</p>
+        </div>
 
         <div className="tabs">
           <button

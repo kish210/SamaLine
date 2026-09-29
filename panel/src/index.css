@@ -909,11 +909,12 @@ code {
     transform: translateX(100%);
     transition: transform var(--dur) var(--ease);
     overflow-y: auto;
-    box-shadow: -8px 0 24px rgb(0 0 0 / 18%);
   }
 
+  /* سایه فقط وقتی کشو باز است؛ کشوی بسته نواری تیره روی لبه‌ی صفحه می‌انداخت. */
   .app-shell.drawer-open .sidebar {
     transform: translateX(0);
+    box-shadow: -8px 0 24px rgb(0 0 0 / 18%);
   }
 
   /* لیبل‌ها در کشو همیشه دیده می‌شوند، حتی اگر حالت جمع ذخیره شده باشد. */
@@ -941,8 +942,9 @@ code {
 
   .grid-2,
   .two-col,
+  /* دو ستون روی موبایل؛ یک‌ستونی شش کارت را زیر هم می‌چید و صفحه بی‌جهت بلند می‌شد. */
   .stat-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2850,4 +2852,124 @@ input[type='color'] {
   background: rgba(128, 128, 128, 0.1);
   border-radius: 4px;
   word-break: break-all;
+}
+
+/* ─── پرداخت نهایی چیدمان (۱.۳) ─────────────────────────────── */
+
+/*
+ * فرم ساخت کنار عنوان صفحه (فرم‌ها، داشبوردها).
+ *
+ * بدون این، فرم به اندازه‌ی محتوایش جمع می‌شد و دکمه‌ی «ساخت» زیر کادر
+ * متن می‌افتاد؛ حالا یک ردیف است و فقط روی نمایشگر باریک می‌شکند.
+ */
+.page-header > .inline-form {
+  flex: 1 1 380px;
+  max-width: 620px;
+  justify-content: flex-end;
+}
+
+.page-header > .inline-form button,
+.inline-form > button,
+.inline-form > .button-like {
+  flex: none;
+  width: auto;
+  white-space: nowrap;
+}
+
+/* زبانه‌ها روی نمایشگر باریک اسکرول افقی می‌خورند نه اینکه دو خطی شوند. */
+.tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs button {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* نشانی‌های بلند (لینک فرم) نباید صفحه را افقی سرریز کنند. */
+.info-list dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.info-list a[href^='http'] {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+@media (max-width: 640px) {
+  .info-list {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+
+  .info-list dd {
+    margin-bottom: 8px;
+  }
+}
+
+/* آمار کارت فرم: تعداد پاسخ و تاریخ آخرین پاسخ. */
+.form-card-stats {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* نوار وضعیت روی موبایل: فقط اتصال و ایمیل، بدون شکستن به دو خط. */
+.statusbar > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .statusbar .statusbar-extra {
+    display: none;
+  }
+}
+
+/* صفحه‌ی ورود: نشان برند و یک خط معرفی بالای کارت. */
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.auth-brand .brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--gold-500);
+  color: var(--blue-900);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.auth-brand h1 {
+  margin: 0;
+}
+
+.auth-brand p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.custom-slug-label {
+  margin-top: 14px;
+}
+
+.page-loading {
+  color: var(--muted);
+  padding-top: 24px;
 }

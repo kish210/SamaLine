@@ -92,6 +92,10 @@ export interface FormSummary {
   slug: string;
   status: 'draft' | 'active' | 'closed' | 'archived';
   createdAt: string;
+  /** تعداد پاسخ‌های کامل (فقط در فهرست فرم‌ها). */
+  responseCount?: number;
+  /** زمان آخرین پاسخ کامل (ISO) یا null. */
+  lastResponseAt?: string | null;
 }
 
 export interface Publication {

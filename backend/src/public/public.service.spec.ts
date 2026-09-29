@@ -388,6 +388,16 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       ).rejects.toThrow('برای ذخیره پیشرفت، respondentKey لازم است');
     });
 
+    it('بازدید بدون پاسخ، پیش‌نویس خالی نمی‌سازد', async () => {
+      await seed();
+      const result = await service.saveProgressByToken(publicationToken, {
+        respondentKey: 'r-empty',
+        answers: {},
+      });
+      expect(result.status).toBe('skipped');
+      expect(await ds.getRepository(ResponseEntity).count()).toBe(0);
+    });
+
     it('ثبت نهایی همان پیش‌نویس را تکمیل می‌کند نه رکورد جدید', async () => {
       await seed();
       await service.saveProgressByToken(publicationToken, {

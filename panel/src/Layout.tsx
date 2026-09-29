@@ -186,9 +186,9 @@ export function Layout() {
           متصل
         </span>
         <span>{user?.email}</span>
-        {isSuperAdmin && <span>مدیر کل سامانه</span>}
+        {isSuperAdmin && <span className="statusbar-extra">مدیر کل سامانه</span>}
         <span className="spacer" />
-        <span>شرکت سماع رایانه کیش</span>
+        <span className="statusbar-extra">شرکت سماع رایانه کیش</span>
       </footer>
     </div>
   );

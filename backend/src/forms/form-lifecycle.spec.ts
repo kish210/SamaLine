@@ -108,6 +108,37 @@ describe('FormService — بایگانی و حذف', () => {
     await ds.destroy();
   });
 
+  describe('فهرست فرم‌ها', () => {
+    it('تعداد پاسخ کامل و زمان آخرین پاسخ هر فرم را می‌دهد', async () => {
+      const { version, publication, workspace } = await seed();
+      await addResponse(version.id, publication.id);
+      await addResponse(version.id, publication.id);
+      // پاسخ ناقص شمرده نمی‌شود.
+      await ds.getRepository(ResponseEntity).save({
+        formVersionId: version.id,
+        publicationId: publication.id,
+        status: ResponseStatus.PARTIAL,
+        answers: {},
+        scores: {},
+        meta: {},
+      });
+      await ds
+        .getRepository(ResponseEntity)
+        .update({ status: ResponseStatus.COMPLETED }, { submittedAt: new Date('2026-09-20T10:00:00Z') });
+
+      const [row] = await service.list(workspace.id);
+      expect(row.responseCount).toBe(2);
+      expect(row.lastResponseAt).toBe('2026-09-20T10:00:00.000Z');
+    });
+
+    it('فرم بدون پاسخ صفر نشان می‌دهد', async () => {
+      const { workspace } = await seed();
+      const [row] = await service.list(workspace.id);
+      expect(row.responseCount).toBe(0);
+      expect(row.lastResponseAt).toBeNull();
+    });
+  });
+
   describe('بایگانی', () => {
     it('فرم را از فهرست برمی‌دارد ولی داده را نگه می‌دارد', async () => {
       const { form, version, publication, workspace } = await seed();

@@ -9,7 +9,10 @@ import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { ResponseEntity } from '../database/entities/response.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
 import {
   PublicationAuthMode,
   PublicationEntity,
@@ -51,13 +54,49 @@ export class FormService {
    * برداشته شود، ولی با `includeArchived` باز هم قابل دیدن است.
    */
   async list(workspaceId: string, includeArchived = false) {
-    const forms = await this.formRepo.find({
+    const all = await this.formRepo.find({
       where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
-    return includeArchived
-      ? forms
-      : forms.filter((form) => form.status !== FormStatus.ARCHIVED);
+    const forms = includeArchived
+      ? all
+      : all.filter((form) => form.status !== FormStatus.ARCHIVED);
+    if (!forms.length) return [];
+
+    /*
+     * تعداد پاسخ کامل و زمان آخرین پاسخ هر فرم، با یک کوئری گروه‌بندی‌شده.
+     *
+     * کارت فرم در پنل بدون این فقط عنوان و نشانک داخلی نشان می‌داد؛ کاربر
+     * برای دیدن اینکه فرمی پاسخ گرفته یا نه باید تک‌تک بازشان می‌کرد.
+     */
+    const stats = await this.responseRepo
+      .createQueryBuilder('response')
+      .innerJoin('response.publication', 'publication')
+      .select('publication.formId', 'formId')
+      .addSelect('COUNT(response.id)', 'count')
+      .addSelect('MAX(response.submittedAt)', 'lastAt')
+      .where('publication.formId IN (:...ids)', {
+        ids: forms.map((form) => form.id),
+      })
+      .andWhere('response.status = :status', {
+        status: ResponseStatus.COMPLETED,
+      })
+      .groupBy('publication.formId')
+      .getRawMany<{
+        formId: string;
+        count: string | number;
+        lastAt: string | Date | null;
+      }>();
+    const byForm = new Map(stats.map((row) => [row.formId, row]));
+
+    return forms.map((form) => {
+      const row = byForm.get(form.id);
+      return {
+        ...form,
+        responseCount: Number(row?.count ?? 0),
+        lastResponseAt: row?.lastAt ? new Date(row.lastAt).toISOString() : null,
+      };
+    });
   }
 
   /**
@@ -74,10 +113,7 @@ export class FormService {
     await this.formRepo.save(form);
 
     // لینک فرم بایگانی‌شده نباید پاسخ تازه بگیرد.
-    await this.publicationRepo.update(
-      { formId: id },
-      { isActive: !archived },
-    );
+    await this.publicationRepo.update({ formId: id }, { isActive: !archived });
 
     return this.get(id);
   }
@@ -116,7 +152,9 @@ export class FormService {
 
   async create(dto: CreateFormDto) {
     // قالب فقط جای خالی‌ها را پر می‌کند؛ هرچه در درخواست آمده مقدم است.
-    const template = dto.templateKey ? findTemplate(dto.templateKey) : undefined;
+    const template = dto.templateKey
+      ? findTemplate(dto.templateKey)
+      : undefined;
     if (dto.templateKey && !template) {
       throw new BadRequestException('قالب انتخاب‌شده وجود ندارد');
     }
@@ -142,17 +180,17 @@ export class FormService {
         status: FormStatus.DRAFT,
         settings: dto.settings ??
           template?.settings ?? {
-          theme: 'default',
-          languages: ['fa'],
-          startPageEnabled: true,
-          endPageEnabled: true,
-          startPageText: 'به نظرسنجی خوش آمدید',
-          endPageText: 'از مشارکت شما سپاسگزاریم',
-          allowEditAnswer: false,
-          displayMode: 'single',
-          preventDuplicate: false,
-          saveProgress: true,
-        },
+            theme: 'default',
+            languages: ['fa'],
+            startPageEnabled: true,
+            endPageEnabled: true,
+            startPageText: 'به نظرسنجی خوش آمدید',
+            endPageText: 'از مشارکت شما سپاسگزاریم',
+            allowEditAnswer: false,
+            displayMode: 'single',
+            preventDuplicate: false,
+            saveProgress: true,
+          },
       }),
     );
 

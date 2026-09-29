@@ -330,6 +330,13 @@ export function useFormFlow(
   useEffect(() => {
     if (!token || !respondentKey || view !== 'form' || kiosk) return;
     if (form?.settings?.saveProgress === false) return;
+    /*
+     * باز کردن فرم بدون پاسخ دادن، پیش‌نویس نمی‌سازد.
+     *
+     * پیش از این هر بازدید یک پاسخ «ناقص» خالی ثبت می‌کرد که آمار
+     * «شروع‌شده» را بالا و نرخ تکمیل را پایین نشان می‌داد.
+     */
+    if (Object.keys(answers).length === 0) return;
 
     const timer = setTimeout(() => {
       void formApi
