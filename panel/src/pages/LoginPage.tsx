@@ -10,6 +10,9 @@ export function LoginPage() {
   const signIn = useAuth((s) => s.signIn);
   const [mode, setMode] = useState<Mode>('login');
   const [error, setError] = useState<string | null>(null);
+  // حساب با ورود دومرحله‌ای: پس از رمز درست، کد برنامه‌ی احراز هویت.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -24,9 +27,19 @@ export function LoginPage() {
   const mutation = useMutation({
     mutationFn: () =>
       mode === 'login'
-        ? authApi.login({ email: form.email, password: form.password })
+        ? authApi.login({
+            email: form.email,
+            password: form.password,
+            totpCode: needsCode ? totpCode : undefined,
+          })
         : authApi.register(form),
-    onSuccess: signIn,
+    onSuccess: (data) => {
+      if ('twoFactorRequired' in data) {
+        setNeedsCode(true);
+        return;
+      }
+      signIn(data);
+    },
     onError: (err) => setError(describeError(err)),
   });
 
@@ -45,14 +58,20 @@ export function LoginPage() {
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
-            onClick={() => setMode('login')}
+            onClick={() => {
+              setMode('login');
+              setNeedsCode(false);
+            }}
           >
             ورود
           </button>
           <button
             type="button"
             className={mode === 'register' ? 'active' : ''}
-            onClick={() => setMode('register')}
+            onClick={() => {
+              setMode('register');
+              setNeedsCode(false);
+            }}
           >
             ثبت‌نام
           </button>
@@ -107,6 +126,23 @@ export function LoginPage() {
             onChange={(e) => set('password', e.target.value)}
           />
         </label>
+
+        {needsCode && mode === 'login' && (
+          <label>
+            کد ورود دومرحله‌ای
+            <input
+              required
+              autoFocus
+              dir="ltr"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={7}
+              placeholder="۶ رقم از برنامه‌ی احراز هویت"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+            />
+          </label>
+        )}
 
         {error && <p className="error">{error}</p>}
 

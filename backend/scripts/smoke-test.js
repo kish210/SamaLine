@@ -233,6 +233,47 @@ async function main() {
     ),
   );
 
+  /*
+   * جداسازی مستاجرها: کاربر یک سازمان دیگر نباید به انتشار، کمپین،
+   * فهرست سازمان‌ها یا تغییر پلن دسترسی داشته باشد.
+   */
+  const ownerToken = token;
+  const intruder = await call('POST', '/auth/register', {
+    fullName: 'مهاجم',
+    email: `intruder${Date.now()}@test.local`,
+    password: 'Passw0rd!',
+    organizationName: 'سازمان دیگر',
+    workspaceName: 'فضا',
+  });
+  token = intruder.data.accessToken ?? '';
+
+  const foreignCampaign = await call('POST', '/messaging/campaigns', {
+    publicationId: pub.data.id,
+    channel: 'sms',
+    template: '{{link}}',
+    recipients: [{ to: '09120000000' }],
+  });
+  check('کمپین روی انتشار سازمان دیگر رد می‌شود', foreignCampaign.status === 403);
+
+  const foreignPending = await call(
+    'GET',
+    `/messaging/campaigns/${pub.data.id}/pending`,
+  );
+  check('گیرندگان سازمان دیگر دیده نمی‌شوند', foreignPending.status === 403);
+
+  const overview = await call('GET', '/admin/organizations-overview');
+  check('فهرست همه‌ی سازمان‌ها فقط برای مدیر کل', overview.status === 403);
+
+  const selfUpgrade = await call('POST', '/billing/subscriptions', {
+    planCode: 'enterprise',
+  });
+  check('ارتقای پلن بدون مدیر کل رد می‌شود', selfUpgrade.status === 403);
+
+  token = ownerToken;
+
+  const health = await call('GET', '/health');
+  check('بررسی سلامت', health.data?.status === 'ok');
+
   const failed = results.filter((r) => !r.ok);
   console.log(
     `\n${results.length - failed.length}/${results.length} گام موفق`,

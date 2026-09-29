@@ -2839,3 +2839,15 @@ input[type='color'] {
   border-color: var(--danger-500);
   border-inline-start-width: 3px;
 }
+
+/* کلید ورود دومرحله‌ای برای وارد کردن دستی؛ گروه‌های چهارتایی خواناترند. */
+.secret-code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  padding: 6px 8px;
+  margin: 4px 0 8px;
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 4px;
+  word-break: break-all;
+}

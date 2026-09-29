@@ -47,8 +47,11 @@ export class OrganizationService {
     });
   }
 
-  async revokeApiKey(id: string) {
-    const key = await this.apiKeyRepo.findOne({ where: { id } });
+  async revokeApiKey(id: string, organizationId: string) {
+    // فقط کلیدِ سازمان خودِ کاربر؛ کلید سازمان دیگر «یافت نشد» می‌گیرد.
+    const key = await this.apiKeyRepo.findOne({
+      where: { id, organizationId },
+    });
     if (!key) throw new NotFoundException('کلید API یافت نشد');
     key.isActive = false;
     await this.apiKeyRepo.save(key);

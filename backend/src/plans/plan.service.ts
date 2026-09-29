@@ -30,6 +30,10 @@ export class PlanService {
       where: { organizationId, isActive: true },
       order: { createdAt: 'DESC' },
     });
+    // اشتراکِ منقضی‌شده دیگر امتیازی نمی‌دهد و سازمان به پلن رایگان برمی‌گردد.
+    if (subscription?.expiresAt && subscription.expiresAt < new Date()) {
+      return PlanCode.FREE;
+    }
     return subscription?.planCode ?? PlanCode.FREE;
   }
 

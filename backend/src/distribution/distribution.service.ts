@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
@@ -38,6 +42,10 @@ export class DistributionService {
   }
 
   async createChannelPublication(formId: string, type: PublicationType) {
+    // نوع از مسیر نشانی می‌آید؛ مقدار ناشناخته نباید به دیتابیس برسد.
+    if (!Object.values(PublicationType).includes(type)) {
+      throw new BadRequestException('نوع انتشار نامعتبر است');
+    }
     const publication = this.publicationRepo.create({
       formId,
       type,
@@ -54,7 +62,14 @@ export class DistributionService {
     });
     if (!publication) throw new NotFoundException('انتشار پیدا نشد');
 
-    const formUrl = `https://survey.local/f/${publication.token}`;
+    /*
+     * پیش از این نشانی ثابت `survey.local` برمی‌گشت که هیچ‌جا باز نمی‌شد.
+     * حالا از PUBLIC_URL ساخته می‌شود؛ بدون آن نشانی نسبی است و پنل خودش
+     * میزبان را جلویش می‌گذارد.
+     */
+    const base = (process.env.PUBLIC_URL ?? '').replace(/\/+$/, '');
+    const path = publication.type === PublicationType.KIOSK ? 'k' : 'f';
+    const formUrl = `${base}/${path}/${publication.token}`;
     return {
       publicationId,
       type: publication.type,

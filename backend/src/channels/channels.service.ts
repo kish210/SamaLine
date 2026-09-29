@@ -42,6 +42,20 @@ export class ChannelsService {
     return this.kioskRepo.save(session);
   }
 
+  /** شناسه‌ی انتشارِ یک جلسه‌ی کیوسک، برای بررسی مالکیت پیش از تغییر. */
+  async kioskPublicationId(id: string): Promise<string> {
+    const session = await this.kioskRepo.findOne({ where: { id } });
+    if (!session) throw new NotFoundException('جلسه کیوسک یافت نشد');
+    return session.publicationId;
+  }
+
+  /** شناسه‌ی انتشارِ یک سهمیه‌ی پرسشگر، برای بررسی مالکیت پیش از تغییر. */
+  async quotaPublicationId(id: string): Promise<string> {
+    const quota = await this.quotaRepo.findOne({ where: { id } });
+    if (!quota) throw new NotFoundException('سهمیه یافت نشد');
+    return quota.publicationId;
+  }
+
   listKioskSessions(publicationId: string) {
     return this.kioskRepo.find({
       where: { publicationId },

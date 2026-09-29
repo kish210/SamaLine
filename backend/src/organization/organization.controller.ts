@@ -31,8 +31,11 @@ export class OrganizationController {
   }
 
   @Delete('api-keys/:id')
-  revokeApiKey(@Param('id') id: string) {
-    return this.organizationService.revokeApiKey(id);
+  revokeApiKey(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.organizationService.revokeApiKey(id, organizationId);
   }
 
   @Post('identity-providers')

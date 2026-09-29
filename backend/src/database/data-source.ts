@@ -6,6 +6,8 @@ import { ALL_ENTITIES } from './entities';
 import { Baseline1788846783305 } from './migrations/1788846783305-Baseline';
 import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
 import { PgBaseline1788878200721 } from './migrations/1788878200721-PgBaseline';
+import { AddTotp1790656139923 } from './migrations/1790656139923-AddTotp';
+import { PgAddTotp1790656139924 } from './migrations/1790656139924-PgAddTotp';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -17,8 +19,15 @@ import { PgBaseline1788878200721 } from './migrations/1788878200721-PgBaseline';
  * هر گویش فهرست خودش را دارد: SQL تولیدشده برای SQLite روی Postgres خطای
  * نحوی می‌دهد و برعکس. یک فهرست مشترک یعنی یکی از دو گویش همیشه خراب است.
  */
-const SQLITE_MIGRATIONS = [Baseline1788846783305, AddPortal1788865235241];
-const POSTGRES_MIGRATIONS = [PgBaseline1788878200721];
+export const SQLITE_MIGRATIONS = [
+  Baseline1788846783305,
+  AddPortal1788865235241,
+  AddTotp1790656139923,
+];
+export const POSTGRES_MIGRATIONS = [
+  PgBaseline1788878200721,
+  PgAddTotp1790656139924,
+];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */
 export function sqliteDatabasePath(): string {

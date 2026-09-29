@@ -1,17 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formApi } from './api';
 import { isNetworkError, offlineOutbox } from './offline-outbox';
-import { resolveRespondentKey } from './respondent-key';
+import { randomKey, resolveRespondentKey } from './respondent-key';
 import type { Answers, Page, PublicForm } from './types';
 
 type View = 'start' | 'form' | 'end';
+
+export interface FormFlowOptions {
+  /**
+   * حالت کیوسک: یک دستگاه مشترک برای پاسخ‌دهنده‌های پشت‌سرهم.
+   *
+   * هر نفر شناسه‌ی تازه می‌گیرد و پیشرفت ذخیره یا بازیابی نمی‌شود؛ وگرنه
+   * نفر بعدی پاسخ‌های نفر قبلی را می‌دید و «جلوگیری از تکرار» همه را جز
+   * نفر اول رد می‌کرد.
+   */
+  kiosk?: boolean;
+}
+
+/**
+ * جلوگیری از ارسال هم‌زمان صندوق آفلاین.
+ *
+ * چند فراخوانی هم‌زمان (رویداد online + بارگذاری دوباره‌ی جلسه‌ی کیوسک)
+ * یک پاسخ ذخیره‌شده را دو بار می‌فرستادند.
+ */
+let flushing = false;
 
 /** پارامترهای آدرس یک بار هنگام بارگذاری خوانده می‌شوند. */
 function readUrlState() {
   const params = new URLSearchParams(window.location.search);
   const hidden: Record<string, string> = {};
   params.forEach((value, key) => {
-    if (!['respondentKey', 'r', 'lang'].includes(key)) hidden[key] = value;
+    // reset و idle تنظیم کیوسک‌اند، نه پارامتر مخفی فرم.
+    if (!['respondentKey', 'r', 'lang', 'reset', 'idle'].includes(key)) {
+      hidden[key] = value;
+    }
   });
 
   return {
@@ -30,7 +52,11 @@ function readUrlState() {
  * پیش از این، رندرر نسخه‌ی دوم و ناقصی از موتور منطق را داشت که با
  * موتور سرور واگرا می‌شد.
  */
-export function useFormFlow(token: string | undefined) {
+export function useFormFlow(
+  token: string | undefined,
+  options: FormFlowOptions = {},
+) {
+  const kiosk = Boolean(options.kiosk);
   const [urlState] = useState(readUrlState);
   const [form, setForm] = useState<PublicForm | null>(null);
   const [page, setPageState] = useState<Page | null>(null);
@@ -47,13 +73,30 @@ export function useFormFlow(token: string | undefined) {
    * واقعی مخاطب را برمی‌گرداند) از داخل همین هوک عوض می‌شود.
    */
   const [respondentKey, setRespondentKey] = useState(() =>
-    resolveRespondentKey(token, urlState.respondentKey),
+    kiosk ? randomKey() : resolveRespondentKey(token, urlState.respondentKey),
   );
   const [authMode, setAuthMode] = useState<string | null | undefined>(
     undefined,
   );
   const [authenticated, setAuthenticated] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  /*
+   * قطعی شبکه هنگام رفتن بین صفحات.
+   *
+   * منطق فرم سمت سرور است، پس گام بعد بدون شبکه معلوم نمی‌شود. پیش از این
+   * همین خطا کل فرم را با صفحه‌ی خطا عوض می‌کرد و پاسخ‌های پرشده عملا از
+   * دست می‌رفت؛ حالا فرم و پاسخ‌ها سر جایشان می‌مانند و فقط پیام می‌آید.
+   */
+  const [networkIssue, setNetworkIssue] = useState(false);
+
+  /** خطای شبکه فقط پیام گذرا می‌دهد؛ خطای واقعی سرور صفحه‌ی خطا. */
+  const handleStepError = useCallback((err: unknown) => {
+    if (isNetworkError(err)) {
+      setNetworkIssue(true);
+      return;
+    }
+    setError(describeError(err));
+  }, []);
   const [lang, setLang] = useState(urlState.lang ?? 'fa');
   const hiddenParams = urlState.hiddenParams;
 
@@ -117,7 +160,7 @@ export function useFormFlow(token: string | undefined) {
 
   // بازیابی پیشرفت ذخیره‌شده
   useEffect(() => {
-    if (!token || !respondentKey) return;
+    if (!token || !respondentKey || kiosk) return;
     formApi
       .getProgress(token, respondentKey)
       .then((data) => {
@@ -127,7 +170,7 @@ export function useFormFlow(token: string | undefined) {
         }
       })
       .catch(() => undefined);
-  }, [token, respondentKey]);
+  }, [token, respondentKey, kiosk]);
 
   const loadFirstPage = useCallback(async () => {
     if (!token) return;
@@ -137,6 +180,7 @@ export function useFormFlow(token: string | undefined) {
         answers: answersRef.current,
         params: hiddenParams,
       });
+      setNetworkIssue(false);
       setScores(step.scores);
       if (step.finished || !step.page) {
         setView('end');
@@ -146,11 +190,11 @@ export function useFormFlow(token: string | undefined) {
         setView('form');
       }
     } catch (err) {
-      setError(describeError(err));
+      handleStepError(err);
     } finally {
       setLoading(false);
     }
-  }, [token, hiddenParams, setCurrentPage]);
+  }, [token, hiddenParams, setCurrentPage, handleStepError]);
 
   /** صفحه‌ی جاری را با پاسخ‌های تازه بازخوانی می‌کند (منطق نمایش درون‌صفحه‌ای). */
   const refreshPage = useCallback(async () => {
@@ -179,6 +223,7 @@ export function useFormFlow(token: string | undefined) {
         answers: answersRef.current,
         params: hiddenParams,
       });
+      setNetworkIssue(false);
       setScores(step.scores);
 
       if (step.finished || !step.page) return { finished: true };
@@ -187,12 +232,12 @@ export function useFormFlow(token: string | undefined) {
       setCurrentPage(step.page);
       return { finished: false };
     } catch (err) {
-      setError(describeError(err));
+      handleStepError(err);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [token, page, hiddenParams, setCurrentPage]);
+  }, [token, page, hiddenParams, setCurrentPage, handleStepError]);
 
   /** بازگشت با تاریخچه‌ی واقعی مسیر، چون پرش‌ها ترتیب صفحات را می‌شکنند. */
   const goBack = useCallback(async () => {
@@ -204,15 +249,16 @@ export function useFormFlow(token: string | undefined) {
         answers: answersRef.current,
         params: hiddenParams,
       });
+      setNetworkIssue(false);
       setCurrentPage(data.page);
       setScores(data.scores);
       setHistory((prev) => prev.slice(0, -1));
     } catch (err) {
-      setError(describeError(err));
+      handleStepError(err);
     } finally {
       setLoading(false);
     }
-  }, [token, history, hiddenParams, setCurrentPage]);
+  }, [token, history, hiddenParams, setCurrentPage, handleStepError]);
 
   const submit = useCallback(async () => {
     if (!token) return false;
@@ -220,7 +266,12 @@ export function useFormFlow(token: string | undefined) {
     const payload = {
       respondentKey: respondentKey || undefined,
       answers: answersRef.current,
-      meta: { respondentKey, lang, params: hiddenParams },
+      meta: {
+        respondentKey,
+        lang,
+        params: hiddenParams,
+        ...(kiosk ? { kiosk: true } : {}),
+      },
     };
 
     try {
@@ -241,33 +292,35 @@ export function useFormFlow(token: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [token, respondentKey, lang, hiddenParams]);
+  }, [token, respondentKey, lang, hiddenParams, kiosk]);
 
   /** ارسال پاسخ‌های ذخیره‌شده‌ی آفلاین. */
   const flushOutbox = useCallback(async () => {
-    for (const item of offlineOutbox.list()) {
-      try {
-        await formApi.submit(item.token, {
-          respondentKey: item.respondentKey,
-          answers: item.answers,
-          meta: item.meta,
-        });
-        offlineOutbox.remove(item.id);
-      } catch (err) {
-        // هنوز آفلاین است؛ دفعه‌ی بعد دوباره تلاش می‌کنیم.
-        if (isNetworkError(err)) break;
-        // خطای منطقی سرور (مثل سقف پلن) با تلاش مجدد حل نمی‌شود.
-        offlineOutbox.remove(item.id);
-      }
+    if (flushing) return;
+    flushing = true;
+    try {
+      await sendPending();
+    } finally {
+      flushing = false;
     }
     setPendingCount(offlineOutbox.count());
   }, []);
 
   useEffect(() => {
+    const onOnline = () => void flushOutbox();
     void flushOutbox();
-    window.addEventListener('online', () => void flushOutbox());
-    return () => window.removeEventListener('online', () => void flushOutbox());
-  }, [flushOutbox]);
+    window.addEventListener('online', onOnline);
+    /*
+     * رویداد online همیشه قابل اتکا نیست (مثلا وقتی وای‌فای وصل است ولی
+     * اینترنت نه). کیوسک ساعت‌ها روشن می‌ماند، پس دوره‌ای هم تلاش می‌کند.
+     */
+    const timer = kiosk ? setInterval(onOnline, 60_000) : null;
+    return () => {
+      // باید همان تابع ثبت‌شده برداشته شود؛ تابع تازه هیچ‌چیز را برنمی‌دارد.
+      window.removeEventListener('online', onOnline);
+      if (timer) clearInterval(timer);
+    };
+  }, [flushOutbox, kiosk]);
 
   const setAnswer = useCallback((questionId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -275,7 +328,7 @@ export function useFormFlow(token: string | undefined) {
 
   // ذخیره‌ی خودکار پیشرفت
   useEffect(() => {
-    if (!token || !respondentKey || view !== 'form') return;
+    if (!token || !respondentKey || view !== 'form' || kiosk) return;
     if (form?.settings?.saveProgress === false) return;
 
     const timer = setTimeout(() => {
@@ -289,7 +342,7 @@ export function useFormFlow(token: string | undefined) {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [answers, form, hiddenParams, lang, respondentKey, token, view]);
+  }, [answers, form, hiddenParams, lang, respondentKey, token, view, kiosk]);
 
   return {
     form,
@@ -314,7 +367,8 @@ export function useFormFlow(token: string | undefined) {
       ? Math.min(95, Math.round((history.length / (history.length + 2)) * 100))
       : null,
     pendingCount,
-    setLang,
+    networkIssue,
+    setLang,
     setAnswer,
     loadFirstPage,
     refreshPage,
@@ -323,4 +377,23 @@ export function useFormFlow(token: string | undefined) {
     submit,
     setView,
   };
+}
+
+/** ارسال تک‌تک پاسخ‌های صندوق آفلاین تا اولین خطای شبکه. */
+async function sendPending() {
+  for (const item of offlineOutbox.list()) {
+    try {
+      await formApi.submit(item.token, {
+        respondentKey: item.respondentKey,
+        answers: item.answers,
+        meta: item.meta,
+      });
+      offlineOutbox.remove(item.id);
+    } catch (err) {
+      // هنوز آفلاین است؛ دفعه‌ی بعد دوباره تلاش می‌کنیم.
+      if (isNetworkError(err)) break;
+      // خطای منطقی سرور (مثل سقف پلن) با تلاش مجدد حل نمی‌شود.
+      offlineOutbox.remove(item.id);
+    }
+  }
 }

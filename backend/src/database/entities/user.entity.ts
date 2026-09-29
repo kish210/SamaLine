@@ -33,6 +33,23 @@ export class UserEntity {
   @Column({ type: 'boolean', default: false })
   isSuperAdmin: boolean;
 
+  /**
+   * کلید TOTP ورود دومرحله‌ای، رمزشده با secret-box.
+   *
+   * هنگام «راه‌اندازی» پر می‌شود ولی تا تایید اولین کد، `totpEnabled`
+   * خاموش می‌ماند؛ پس کلیدی که کاربر هرگز در برنامه‌اش ثبت نکرده، او را
+   * بیرون نمی‌گذارد.
+   */
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
+  totpSecret: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  totpEnabled: boolean;
+
+  /** آخرین بازه‌ی زمانی مصرف‌شده؛ جلوی استفاده‌ی دوباره از یک کد را می‌گیرد. */
+  @Column({ type: 'integer', nullable: true, select: false })
+  totpLastStep: number | null;
+
   @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
 

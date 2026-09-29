@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PlanCode } from '../database/entities/plan-policy.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrganizationEntity } from '../database/entities/organization.entity';
@@ -15,6 +20,35 @@ export class AdminService {
     @InjectRepository(UsageCounterEntity)
     private readonly usageRepo: Repository<UsageCounterEntity>,
   ) {}
+
+  async setPlan(
+    organizationId: string,
+    planCode: PlanCode,
+    expiresAt?: string,
+  ) {
+    const organization = await this.orgRepo.findOne({
+      where: { id: organizationId },
+    });
+    if (!organization) throw new NotFoundException('سازمان یافت نشد');
+
+    const expiry = expiresAt ? new Date(expiresAt) : null;
+    if (expiry && Number.isNaN(expiry.getTime())) {
+      throw new BadRequestException('تاریخ انقضا نامعتبر است');
+    }
+
+    await this.subRepo.update(
+      { organizationId, isActive: true },
+      { isActive: false },
+    );
+    return this.subRepo.save(
+      this.subRepo.create({
+        organizationId,
+        planCode,
+        isActive: true,
+        expiresAt: expiry,
+      }),
+    );
+  }
 
   async organizationsOverview() {
     const organizations = await this.orgRepo.find({

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../database/entities/user.entity';
 import { SuperAdminGuard } from '../common/super-admin.guard';
+import { DailyBackupService } from './daily-backup.service';
+import { HealthController } from './health.controller';
 import { OpsController } from './ops.controller';
 import { ServiceControlService } from './service-control.service';
 
@@ -13,7 +15,7 @@ import { ServiceControlService } from './service-control.service';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity])],
-  controllers: [OpsController],
-  providers: [ServiceControlService, SuperAdminGuard],
+  controllers: [OpsController, HealthController],
+  providers: [ServiceControlService, SuperAdminGuard, DailyBackupService],
 })
 export class OpsModule {}

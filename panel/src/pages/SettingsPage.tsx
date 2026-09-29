@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { messagingApi, plansApi, workspaceApi } from '../api';
 import { TelegramCard } from './TelegramCard';
+import { TwoFactorCard } from './TwoFactorCard';
+import { WebhooksCard } from './WebhooksCard';
 import { useAuth } from '../auth';
 
 const LIMIT_LABELS: Record<string, string> = {
@@ -72,6 +74,8 @@ export function SettingsPage() {
         </dl>
       </section>
 
+      <TwoFactorCard />
+
       <section className="card">
         <h3>سرویس‌های ارسال</h3>
         {messaging.data ? (
@@ -100,6 +104,8 @@ export function SettingsPage() {
       </section>
 
       {workspaceId && <TelegramCard workspaceId={workspaceId} />}
+
+      <WebhooksCard />
 
       <section className="card">
         <h3>امکانات پلن شما</h3>

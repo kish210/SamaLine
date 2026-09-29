@@ -54,8 +54,53 @@ export const authApi = {
     workspaceName: string;
   }) => api.post<AuthPayload>('/auth/register', body).then((r) => r.data),
 
-  login: (body: { email: string; password: string }) =>
-    api.post<AuthPayload>('/auth/login', body).then((r) => r.data),
+  /**
+   * ورود. حساب با ورود دومرحله‌ای بدون `totpCode` پاسخ
+   * `{ twoFactorRequired: true }` می‌گیرد و توکنی صادر نمی‌شود.
+   */
+  login: (body: { email: string; password: string; totpCode?: string }) =>
+    api
+      .post<AuthPayload | { twoFactorRequired: true }>('/auth/login', body)
+      .then((r) => r.data),
+};
+
+export interface Webhook {
+  id: string;
+  event: string;
+  targetUrl: string;
+  secret: string;
+  createdAt: string;
+}
+
+/** وبهوک‌های سازمان؛ با هر پاسخ کامل، بدنه‌ی امضاشده به نشانی مقصد می‌رود. */
+export const webhooksApi = {
+  list: () => api.get<Webhook[]>('/integrations/webhooks').then((r) => r.data),
+  create: (targetUrl: string) =>
+    api
+      .post<Webhook>('/integrations/webhooks', {
+        event: 'response.completed',
+        targetUrl,
+      })
+      .then((r) => r.data),
+  remove: (id: string) =>
+    api.delete(`/integrations/webhooks/${id}`).then((r) => r.data),
+};
+
+export const twoFactorApi = {
+  status: () =>
+    api.get<{ enabled: boolean }>('/auth/2fa').then((r) => r.data),
+  setup: () =>
+    api
+      .post<{ secret: string; otpauthUrl: string }>('/auth/2fa/setup')
+      .then((r) => r.data),
+  enable: (code: string) =>
+    api
+      .post<{ enabled: boolean }>('/auth/2fa/enable', { code })
+      .then((r) => r.data),
+  disable: (code: string) =>
+    api
+      .post<{ enabled: boolean }>('/auth/2fa/disable', { code })
+      .then((r) => r.data),
 };
 
 export const workspaceApi = {
@@ -427,6 +472,33 @@ export const platformApi = {
           organizationName: string;
         }>
       >('/platform/workspaces')
+      .then((r) => r.data),
+};
+
+export type PlanCode = 'free' | 'pro' | 'org' | 'enterprise';
+
+export interface OrganizationOverview {
+  organization: { id: string; name: string; createdAt: string };
+  subscription: {
+    planCode: PlanCode;
+    expiresAt: string | null;
+    isActive: boolean;
+  } | null;
+}
+
+/** مدیریت سازمان‌ها و پلن‌ها؛ فقط سوپرادمین. */
+export const adminApi = {
+  organizations: () =>
+    api
+      .get<OrganizationOverview[]>('/admin/organizations-overview')
+      .then((r) => r.data),
+
+  setPlan: (organizationId: string, planCode: PlanCode, expiresAt?: string) =>
+    api
+      .patch(`/admin/organizations/${organizationId}/plan`, {
+        planCode,
+        expiresAt: expiresAt || undefined,
+      })
       .then((r) => r.data),
 };
 

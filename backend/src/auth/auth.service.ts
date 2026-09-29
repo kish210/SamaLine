@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -16,10 +18,22 @@ import { PlanCode } from '../database/entities/plan-policy.entity';
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { AttemptLimiter } from '../common/attempt-limiter';
 import { LoginDto, RegisterDto } from './dto';
+import { TwoFactorService } from './two-factor.service';
 
 @Injectable()
 export class AuthService {
+  /*
+   * جلوگیری از حدس زدن رمز: ۱۰ رمز اشتباه برای یک حساب در ۱۵ دقیقه،
+   * آن حساب را ۱۵ دقیقه قفل می‌کند. پیش از این ورود هیچ سقفی نداشت.
+   */
+  private readonly loginLimiter = new AttemptLimiter(
+    10,
+    15 * 60_000,
+    15 * 60_000,
+  );
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepo: Repository<UserEntity>,
@@ -32,6 +46,7 @@ export class AuthService {
     @InjectRepository(SubscriptionEntity)
     private readonly subscriptionRepo: Repository<SubscriptionEntity>,
     private readonly jwt: JwtService,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -76,13 +91,36 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.userRepo.findOne({
-      where: { email: dto.email.toLowerCase() },
-    });
-    if (!user) throw new UnauthorizedException('اطلاعات ورود نامعتبر است');
+    const email = dto.email.toLowerCase();
+    if (this.loginLimiter.isLocked(email)) {
+      throw new HttpException(
+        'تلاش ناموفق زیاد بود؛ ۱۵ دقیقه‌ی دیگر دوباره امتحان کنید',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      this.loginLimiter.fail(email);
+      throw new UnauthorizedException('اطلاعات ورود نامعتبر است');
+    }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('اطلاعات ورود نامعتبر است');
+    if (!ok) {
+      this.loginLimiter.fail(email);
+      throw new UnauthorizedException('اطلاعات ورود نامعتبر است');
+    }
+    this.loginLimiter.succeed(email);
+
+    /*
+     * ورود دومرحله‌ای: رمز درست است ولی بدون کد برنامه‌ی احراز هویت توکنی
+     * صادر نمی‌شود. پاسخ بدون کد فقط می‌گوید «کد لازم است» تا پنل فیلد کد
+     * را نشان دهد؛ چیزی درباره‌ی حساب لو نمی‌دهد که رمز درست آن را نداده باشد.
+     */
+    if (user.totpEnabled) {
+      if (!dto.totpCode) return { twoFactorRequired: true as const };
+      await this.twoFactor.verifyLogin(user.id, dto.totpCode);
+    }
 
     const member = await this.orgUserRepo.findOne({
       where: { userId: user.id },

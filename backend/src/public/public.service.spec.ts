@@ -62,6 +62,7 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
   let respondentAuth: RespondentAuthService;
   let publicationToken: string;
   let organizationId: string;
+  let webhookDispatch: jest.Mock;
 
   const structure = {
     pages: [
@@ -154,6 +155,7 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       ds.getRepository(FormEntity),
     );
 
+    webhookDispatch = jest.fn().mockResolvedValue(0);
     const jwt = new JwtService({ secret: 'test-secret' });
     const messaging = {
       send: jest.fn().mockResolvedValue({ status: 'sent' }),
@@ -186,6 +188,7 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         new TelegramApi(),
         { assertWorkspace: async () => undefined } as never,
       ),
+      { dispatch: webhookDispatch } as never,
     );
   });
 
@@ -242,6 +245,29 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       const stored = await ds.getRepository(ResponseEntity).find();
       expect(stored).toHaveLength(1);
       expect(stored[0].status).toBe(ResponseStatus.COMPLETED);
+    });
+
+    it('رویداد وبهوک response.completed را برای سازمان فرم ثبت می‌کند', async () => {
+      await seed();
+      const result = await service.submitByToken(
+        publicationToken,
+        { answers: { q1: 'بله', rate: 4 } },
+        undefined,
+        { ip: '5.6.7.8' },
+      );
+
+      expect(webhookDispatch).toHaveBeenCalledTimes(1);
+      const [org, event, data] = webhookDispatch.mock.calls[0] as [
+        string,
+        string,
+        { response: { id: string; answers: unknown } },
+      ];
+      expect(org).toBe(organizationId);
+      expect(event).toBe('response.completed');
+      expect(data.response.id).toBe(result.id);
+      expect(data.response.answers).toEqual({ q1: 'بله', rate: 4 });
+      // IP داده‌ی شخصی است و به مقصد بیرونی نمی‌رود.
+      expect(JSON.stringify(data)).not.toContain('5.6.7.8');
     });
 
     it('پاسخ سوال پنهان را ذخیره نمی‌کند', async () => {

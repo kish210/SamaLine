@@ -4,6 +4,7 @@ import { describeError, platformApi } from '../api';
 import type { PlatformSettings } from '../api';
 import { TelegramCard } from './TelegramCard';
 import { ServiceMonitorCard } from './ServiceMonitorCard';
+import { OrganizationPlansCard } from './OrganizationPlansCard';
 
 const EMPTY: PlatformSettings = {
   footerEnabled: true,
@@ -140,6 +141,8 @@ export function PlatformSettingsPage() {
       </section>
 
       <ServiceMonitorCard />
+
+      <OrganizationPlansCard />
 
       <PlatformTelegram />
     </div>

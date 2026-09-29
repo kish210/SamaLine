@@ -10,6 +10,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { runMigrations } from './database/migrate-on-boot';
+import { ensureDefaultPlans } from './database/plan-defaults';
 import { DB_DRIVER } from './database/column-types';
 
 const RENDERER_DIR = resolve(process.cwd(), '../form-renderer/dist');
@@ -84,6 +85,12 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   /*
+   * با SIGTERM (systemctl stop/restart) اتصال دیتابیس و صف‌ها مرتب بسته
+   * می‌شوند؛ بدون این، فرایند وسط نوشتن کشته می‌شد.
+   */
+  app.enableShutdownHooks();
+
+  /*
    * پشت پراکسیِ محلی (nginx) هستیم.
    *
    * بدون این، req.ip همیشه 127.0.0.1 می‌شود و IPِ ذخیره‌شده در گزارش بی‌معنی
@@ -99,6 +106,8 @@ async function bootstrap() {
    * به کاربر می‌رسد؛ شکست اینجا صریح‌تر و بی‌ضررتر است.
    */
   await runMigrations(app.get(DataSource));
+  // نصب تازه بدون پلن‌های پیش‌فرض، سقف و امکانات هیچ سازمانی را نمی‌داند.
+  await ensureDefaultPlans(app.get(DataSource), { overwrite: false });
 
   /*
    * فایل‌های آپلودی (لوگوی سازمان‌ها) از همین سرور سرو می‌شوند.

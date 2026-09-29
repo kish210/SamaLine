@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -23,4 +30,17 @@ export class LoginDto {
 
   @IsNotEmpty()
   password: string;
+
+  /** کد شش‌رقمی برنامه‌ی احراز هویت؛ فقط برای حساب با ورود دومرحله‌ای. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  totpCode?: string;
+}
+
+export class TotpCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(12)
+  code: string;
 }

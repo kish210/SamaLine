@@ -51,12 +51,15 @@ describe('BillingService — پرداخت', () => {
     it('مبلغ را از فاکتور می‌گیرد نه از ورودی کلاینت', async () => {
       const invoice = await newInvoice(500000);
 
-      const started = await service.createPayment({
-        invoiceId: invoice.id,
-        gateway: 'هرچه',
-        // کلاینت مبلغ ناچیز می‌فرستد؛ باید نادیده گرفته شود.
-        amount: 1,
-      });
+      const started = await service.createPayment(
+        {
+          invoiceId: invoice.id,
+          gateway: 'هرچه',
+          // کلاینت مبلغ ناچیز می‌فرستد؛ باید نادیده گرفته شود.
+          amount: 1,
+        },
+        organizationId,
+      );
 
       expect(started.amount).toBe(500000);
       expect(started.redirectUrl).toContain('authority=');
@@ -64,11 +67,14 @@ describe('BillingService — پرداخت', () => {
 
     it('شناسه تراکنش درگاه را ذخیره می‌کند', async () => {
       const invoice = await newInvoice();
-      const started = await service.createPayment({
-        invoiceId: invoice.id,
-        gateway: 'x',
-        amount: 0,
-      });
+      const started = await service.createPayment(
+        {
+          invoiceId: invoice.id,
+          gateway: 'x',
+          amount: 0,
+        },
+        organizationId,
+      );
 
       const payment = await ds
         .getRepository(PaymentEntity)
@@ -84,21 +90,27 @@ describe('BillingService — پرداخت', () => {
         .update(invoice.id, { status: InvoiceStatus.PAID });
 
       await expect(
-        service.createPayment({
-          invoiceId: invoice.id,
-          gateway: 'x',
-          amount: 0,
-        }),
+        service.createPayment(
+          {
+            invoiceId: invoice.id,
+            gateway: 'x',
+            amount: 0,
+          },
+          organizationId,
+        ),
       ).rejects.toThrow('این فاکتور قبلا پرداخت شده است');
     });
 
     it('فاکتور ناموجود را رد می‌کند', async () => {
       await expect(
-        service.createPayment({
-          invoiceId: '00000000-0000-0000-0000-000000000000',
-          gateway: 'x',
-          amount: 0,
-        }),
+        service.createPayment(
+          {
+            invoiceId: '00000000-0000-0000-0000-000000000000',
+            gateway: 'x',
+            amount: 0,
+          },
+          organizationId,
+        ),
       ).rejects.toThrow('فاکتور یافت نشد');
     });
   });
@@ -106,14 +118,20 @@ describe('BillingService — پرداخت', () => {
   describe('تایید پرداخت', () => {
     it('وضعیت را از درگاه می‌گیرد نه از کلاینت', async () => {
       const invoice = await newInvoice();
-      const started = await service.createPayment({
-        invoiceId: invoice.id,
-        gateway: 'x',
-        amount: 0,
-      });
+      const started = await service.createPayment(
+        {
+          invoiceId: invoice.id,
+          gateway: 'x',
+          amount: 0,
+        },
+        organizationId,
+      );
 
       // کلاینت ادعای شکست می‌کند، ولی درگاه محلی موفق می‌گوید.
-      const verified = await service.verifyPayment(started.paymentId);
+      const verified = await service.verifyPayment(
+        started.paymentId,
+        organizationId,
+      );
 
       expect(verified.status).toBe(PaymentStatus.SUCCESS);
       expect(verified.referenceCode).toContain('LOCAL-');
@@ -121,13 +139,16 @@ describe('BillingService — پرداخت', () => {
 
     it('فاکتور را پس از پرداخت موفق تسویه می‌کند', async () => {
       const invoice = await newInvoice();
-      const started = await service.createPayment({
-        invoiceId: invoice.id,
-        gateway: 'x',
-        amount: 0,
-      });
+      const started = await service.createPayment(
+        {
+          invoiceId: invoice.id,
+          gateway: 'x',
+          amount: 0,
+        },
+        organizationId,
+      );
 
-      await service.verifyPayment(started.paymentId);
+      await service.verifyPayment(started.paymentId, organizationId);
 
       const stored = await ds
         .getRepository(InvoiceEntity)
@@ -144,28 +165,62 @@ describe('BillingService — پرداخت', () => {
         amount: '1000',
       });
 
-      await expect(service.verifyPayment(payment.id)).rejects.toThrow(
-        'این پرداخت هنوز به درگاه نرفته است',
-      );
+      await expect(
+        service.verifyPayment(payment.id, organizationId),
+      ).rejects.toThrow('این پرداخت هنوز به درگاه نرفته است');
     });
 
     it('پرداخت تاییدشده دوباره تایید نمی‌شود', async () => {
       const invoice = await newInvoice();
-      const started = await service.createPayment({
-        invoiceId: invoice.id,
-        gateway: 'x',
-        amount: 0,
-      });
+      const started = await service.createPayment(
+        {
+          invoiceId: invoice.id,
+          gateway: 'x',
+          amount: 0,
+        },
+        organizationId,
+      );
 
-      const first = await service.verifyPayment(started.paymentId);
-      const second = await service.verifyPayment(started.paymentId);
+      const first = await service.verifyPayment(
+        started.paymentId,
+        organizationId,
+      );
+      const second = await service.verifyPayment(
+        started.paymentId,
+        organizationId,
+      );
 
       expect(second.referenceCode).toBe(first.referenceCode);
     });
 
+    it('فاکتور سازمان دیگر را نمی‌پذیرد', async () => {
+      const invoice = await newInvoice();
+      const other = (
+        await ds.getRepository(OrganizationEntity).save({ name: 'دیگری' })
+      ).id;
+
+      await expect(
+        service.createPayment(
+          { invoiceId: invoice.id, gateway: 'x', amount: 0 },
+          other,
+        ),
+      ).rejects.toThrow('فاکتور یافت نشد');
+
+      const started = await service.createPayment(
+        { invoiceId: invoice.id, gateway: 'x', amount: 0 },
+        organizationId,
+      );
+      await expect(
+        service.verifyPayment(started.paymentId, other),
+      ).rejects.toThrow('پرداخت یافت نشد');
+    });
+
     it('پرداخت ناموجود را رد می‌کند', async () => {
       await expect(
-        service.verifyPayment('00000000-0000-0000-0000-000000000000'),
+        service.verifyPayment(
+          '00000000-0000-0000-0000-000000000000',
+          organizationId,
+        ),
       ).rejects.toThrow('پرداخت یافت نشد');
     });
   });

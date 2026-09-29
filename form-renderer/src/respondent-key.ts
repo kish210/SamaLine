@@ -10,7 +10,7 @@
  */
 const PREFIX = 'samaline:rk:';
 
-function randomKey(): string {
+export function randomKey(): string {
   const cryptoApi = globalThis.crypto;
   if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
 

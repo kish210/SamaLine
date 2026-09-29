@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TenantAccessModule } from '../common/tenant-access.module';
 import { FormEntity } from '../database/entities/form.entity';
 import { PlanPolicyEntity } from '../database/entities/plan-policy.entity';
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
@@ -10,6 +11,7 @@ import { PlanService } from './plan.service';
 
 @Module({
   imports: [
+    TenantAccessModule,
     TypeOrmModule.forFeature([
       PlanPolicyEntity,
       SubscriptionEntity,

@@ -11,6 +11,7 @@ import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { TwoFactorService } from './two-factor.service';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { JwtStrategy } from './jwt.strategy';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, TwoFactorService],
   controllers: [AuthController],
 })
 export class AuthModule {}
