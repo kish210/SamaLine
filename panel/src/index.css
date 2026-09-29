@@ -3028,3 +3028,86 @@ input[type='color'] {
 .preset-card.active:hover:not(:disabled) {
   border-color: #111827;
 }
+
+/* ─── انتخاب قالب: جستجو، دسته‌ها و نوار قالب انتخاب‌شده ────────── */
+.template-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.template-toolbar .field-label {
+  margin: 0;
+}
+
+.template-search {
+  flex: 0 1 320px;
+  min-width: min(220px, 100%);
+  margin: 0;
+}
+
+.template-categories {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+}
+
+.template-categories .chip {
+  flex: none;
+  width: auto;
+  margin: 0;
+  padding: 4px 12px;
+  min-height: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-body);
+  border: 1px solid var(--border);
+}
+
+.template-categories .chip:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--blue-300);
+  color: var(--text-body);
+}
+
+.template-categories .chip.active,
+.template-categories .chip.active:hover:not(:disabled) {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: var(--text-on-brand);
+}
+
+.chip-count {
+  opacity: 0.7;
+  margin-inline-start: 2px;
+}
+
+/* نوار ثابت پایین کارت: قالب انتخاب‌شده و ساخت فوری. */
+.template-selected {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--blue-300);
+  border-radius: 8px;
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 6%);
+}
+
+.template-selected button {
+  width: auto;
+  margin: 0;
+}

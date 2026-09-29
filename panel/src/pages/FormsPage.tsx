@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { describeError, formsApi, reportsApi, workspaceApi } from '../api';
+import type { FormTemplateSummary } from '../api';
 import { TemplatePicker } from './TemplatePicker';
 import type { FormPage } from '../types';
 
@@ -26,7 +27,13 @@ const starterPages = (): FormPage[] => [
 
 export function FormsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
+  /*
+   * آیا عنوان را کاربر خودش نوشته؟ اگر نه، انتخاب قالب عنوان قالب را جای
+   * آن می‌گذارد تا لازم نباشد برای ساخت از قالب اول چیزی تایپ شود.
+   */
+  const [titleEdited, setTitleEdited] = useState(false);
   const [templateKey, setTemplateKey] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,19 +74,34 @@ export function FormsPage() {
         // با قالب، ساختار سمت سرور باز می‌شود؛ بدون قالب، فرم ساده‌ی محلی.
         ...(templateKey ? { templateKey } : { pages: starterPages() }),
       }),
-    onSuccess: async () => {
+    onSuccess: async (created) => {
       setTitle('');
+      setTitleEdited(false);
       setTemplateKey('');
+      setPickerOpen(false);
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['forms', workspaceId] });
+      // فرم تازه مستقیم در فرم‌ساز باز می‌شود؛ قدم بعدی کاربر همیشه ویرایش است.
+      navigate(`/forms/${created.id}`);
     },
     onError: (err) => setError(describeError(err)),
   });
 
+  const create = () => {
+    if (!workspaceId || !title.trim() || createForm.isPending) return;
+    createForm.mutate();
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!workspaceId || !title.trim()) return;
-    createForm.mutate();
+    create();
+  };
+
+  const chooseTemplate = (template: FormTemplateSummary) => {
+    setTemplateKey(template.key);
+    if (!titleEdited) {
+      setTitle(template.key === 'blank' ? '' : template.title);
+    }
   };
 
   return (
@@ -90,7 +112,10 @@ export function FormsPage() {
           <input
             placeholder="عنوان فرم جدید"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setTitleEdited(e.target.value.trim().length > 0);
+            }}
           />
           <button
             type="button"
@@ -107,7 +132,12 @@ export function FormsPage() {
 
       {pickerOpen && (
         <section className="card">
-          <TemplatePicker value={templateKey} onChange={setTemplateKey} />
+          <TemplatePicker
+            value={templateKey}
+            onChange={chooseTemplate}
+            onCreate={title.trim() ? create : undefined}
+            creating={createForm.isPending}
+          />
         </section>
       )}
 

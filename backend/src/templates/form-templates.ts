@@ -1,4 +1,5 @@
 import type { FormPageNode } from '../forms/logic-types';
+import { SECTOR_TEMPLATES, TEMPLATE_CATEGORIES } from './sector-templates';
 
 /** یک قالب آماده‌ی فرم. */
 export interface FormTemplate {
@@ -352,8 +353,8 @@ function hotelGatedTemplate(): FormTemplate {
   };
 }
 
-/** قالب‌های آماده‌ی سامانه. */
-export const FORM_TEMPLATES: FormTemplate[] = [
+/** قالب‌های پایه (هتل، NPS، کارکنان، رویداد، تماس، نمونه‌ی انواع و خالی). */
+const BASE_TEMPLATES: FormTemplate[] = [
   hotelTemplate(),
   hotelGatedTemplate(),
 
@@ -689,6 +690,30 @@ export const FORM_TEMPLATES: FormTemplate[] = [
     },
   },
 ];
+
+/**
+ * همه‌ی قالب‌های آماده‌ی سامانه، به ترتیب دسته.
+ *
+ * مرتب‌سازی پایدار است، پس ترتیب درون هر دسته همان ترتیب تعریف است؛ فقط
+ * «فرم خالی» همیشه اول می‌آید چون رایج‌ترین انتخاب است.
+ */
+export const FORM_TEMPLATES: FormTemplate[] = orderTemplates([
+  ...BASE_TEMPLATES,
+  ...SECTOR_TEMPLATES,
+]);
+
+function orderTemplates(templates: FormTemplate[]): FormTemplate[] {
+  const rank = (category: string) => {
+    const index = (TEMPLATE_CATEGORIES as readonly string[]).indexOf(category);
+    return index === -1 ? TEMPLATE_CATEGORIES.length : index;
+  };
+  const sorted = [...templates].sort(
+    (a, b) => rank(a.category) - rank(b.category),
+  );
+  const blank = sorted.findIndex((template) => template.key === 'blank');
+  if (blank > 0) sorted.unshift(...sorted.splice(blank, 1));
+  return sorted;
+}
 
 /** قالب را با کلیدش پیدا می‌کند. */
 export function findTemplate(key: string): FormTemplate | undefined {
