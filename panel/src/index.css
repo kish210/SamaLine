@@ -3111,3 +3111,19 @@ input[type='color'] {
   width: auto;
   margin: 0;
 }
+
+/* فرم‌های عمودی ساده داخل کارت (تغییر رمز). */
+.stack-form {
+  max-width: 420px;
+}
+
+.stack-form button[type='submit'] {
+  width: auto;
+}
+
+/* پیوند «فراموشی رمز» زیر دکمه‌ی ورود. */
+.auth-switch {
+  display: block;
+  margin: 12px auto 0;
+  font-size: 13px;
+}

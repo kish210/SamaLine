@@ -122,6 +122,16 @@ export class AuthService {
       await this.twoFactor.verifyLogin(user.id, dto.totpCode);
     }
 
+    return this.sessionFor(user);
+  }
+
+  /**
+   * نشست تازه برای کاربر (توکن + اطلاعات حساب).
+   *
+   * پس از تغییر رمز هم صدا زده می‌شود تا همان دستگاهی که رمز را عوض کرده
+   * وارد بماند، در حالی که توکن‌های قبلی همه باطل شده‌اند.
+   */
+  async sessionFor(user: UserEntity) {
     const member = await this.orgUserRepo.findOne({
       where: { userId: user.id },
     });

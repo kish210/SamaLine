@@ -62,6 +62,22 @@ export const authApi = {
     api
       .post<AuthPayload | { twoFactorRequired: true }>('/auth/login', body)
       .then((r) => r.data),
+
+  /** تغییر رمز؛ نشست تازه برمی‌گرداند چون نشست‌های قبلی باطل می‌شوند. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api
+      .post<AuthPayload>('/auth/password', { currentPassword, newPassword })
+      .then((r) => r.data),
+
+  forgotPassword: (email: string) =>
+    api
+      .post<{ message: string }>('/auth/password/forgot', { email })
+      .then((r) => r.data),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api
+      .post<{ ok: boolean }>('/auth/password/reset', { token, newPassword })
+      .then((r) => r.data),
 };
 
 export interface Webhook {

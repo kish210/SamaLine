@@ -8,6 +8,8 @@ import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
 import { PgBaseline1788878200721 } from './migrations/1788878200721-PgBaseline';
 import { AddTotp1790656139923 } from './migrations/1790656139923-AddTotp';
 import { PgAddTotp1790656139924 } from './migrations/1790656139924-PgAddTotp';
+import { AddPasswordReset1791318984285 } from './migrations/1791318984285-AddPasswordReset';
+import { PgAddPasswordReset1791318984286 } from './migrations/1791318984286-PgAddPasswordReset';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -23,10 +25,12 @@ export const SQLITE_MIGRATIONS = [
   Baseline1788846783305,
   AddPortal1788865235241,
   AddTotp1790656139923,
+  AddPasswordReset1791318984285,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
   PgAddTotp1790656139924,
+  PgAddPasswordReset1791318984286,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

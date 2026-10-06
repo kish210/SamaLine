@@ -1,9 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Layout } from './Layout';
 import { useAuth } from './auth';
 import { lazyPage, PageFallback } from './lazy-page';
 import { FormsPage } from './pages/FormsPage';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 /*
  * صفحه‌ی فرم‌ها (صفحه‌ی اول پس از ورود) و ورود فوری بارگذاری می‌شوند؛ بقیه
@@ -43,7 +44,10 @@ const PlatformSettingsPage = lazyPage(() =>
 
 function App() {
   const token = useAuth((s) => s.token);
+  const location = useLocation();
 
+  // لینک بازیابی رمز از ایمیل باز می‌شود، معمولا وقتی کاربر وارد نیست.
+  if (location.pathname === '/reset-password') return <ResetPasswordPage />;
   if (!token) return <LoginPage />;
 
   const page = (element: React.ReactNode) => (

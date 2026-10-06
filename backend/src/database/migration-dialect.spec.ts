@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { POSTGRES_MIGRATIONS, SQLITE_MIGRATIONS } from './data-source';
 
 const DIR = join(__dirname, 'migrations');
 
@@ -58,6 +59,24 @@ describe('گویش مهاجرت‌ها', () => {
     for (const file of files) {
       const match = /export class (\w+)/.exec(source(file));
       expect(match![1]).toMatch(/\d{10,}$/);
+    }
+  });
+
+  it('هر فایل مهاجرت در فهرست گویش خودش ثبت شده است', () => {
+    /*
+     * فایل مهاجرتی که نوشته شود ولی در data-source ثبت نشود، بی‌صدا هرگز
+     * اجرا نمی‌شود؛ روی Postgres که آزمون هم‌خوانی اسکیما ندارد، تنها نشانه‌اش
+     * خطای «ستون وجود ندارد» روی سرور مشتری است.
+     */
+    const registered = (list: Array<{ name: string }>) =>
+      new Set(list.map((migration) => migration.name));
+    const sqlite = registered(SQLITE_MIGRATIONS);
+    const postgres = registered(POSTGRES_MIGRATIONS);
+
+    for (const file of files) {
+      const name = /export class (\w+)/.exec(source(file))![1];
+      const list = file.includes('Pg') ? postgres : sqlite;
+      expect([file, list.has(name)]).toEqual([file, true]);
     }
   });
 });

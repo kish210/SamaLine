@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { authApi, describeError } from '../api';
 import { useAuth } from '../auth';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 export function LoginPage() {
   const signIn = useAuth((s) => s.signIn);
@@ -13,6 +13,7 @@ export function LoginPage() {
   // حساب با ورود دومرحله‌ای: پس از رمز درست، کد برنامه‌ی احراز هویت.
   const [needsCode, setNeedsCode] = useState(false);
   const [totpCode, setTotpCode] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -43,11 +44,24 @@ export function LoginPage() {
     onError: (err) => setError(describeError(err)),
   });
 
+  const forgot = useMutation({
+    mutationFn: () => authApi.forgotPassword(form.email),
+    onSuccess: (data) => setNotice(data.message),
+    onError: (err) => setError(describeError(err)),
+  });
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    setNotice(null);
+    if (mode === 'forgot') {
+      forgot.mutate();
+      return;
+    }
     mutation.mutate();
   };
+
+  const pending = mutation.isPending || forgot.isPending;
 
   return (
     <div className="auth-page">
@@ -63,10 +77,11 @@ export function LoginPage() {
         <div className="tabs">
           <button
             type="button"
-            className={mode === 'login' ? 'active' : ''}
+            className={mode !== 'register' ? 'active' : ''}
             onClick={() => {
               setMode('login');
               setNeedsCode(false);
+              setNotice(null);
             }}
           >
             ورود
@@ -122,16 +137,26 @@ export function LoginPage() {
           />
         </label>
 
-        <label>
-          رمز عبور
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={form.password}
-            onChange={(e) => set('password', e.target.value)}
-          />
-        </label>
+        {mode === 'forgot' ? (
+          <p className="hint">
+            ایمیل حسابتان را بنویسید؛ لینک تعیین رمز تازه برایتان فرستاده
+            می‌شود.
+          </p>
+        ) : (
+          <label>
+            رمز عبور
+            <input
+              type="password"
+              required
+              minLength={mode === 'register' ? 8 : undefined}
+              autoComplete={
+                mode === 'register' ? 'new-password' : 'current-password'
+              }
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+            />
+          </label>
+        )}
 
         {needsCode && mode === 'login' && (
           <label>
@@ -151,14 +176,44 @@ export function LoginPage() {
         )}
 
         {error && <p className="error">{error}</p>}
+        {notice && <p className="hint success">{notice}</p>}
 
-        <button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending
+        <button type="submit" disabled={pending}>
+          {pending
             ? 'در حال ارسال…'
             : mode === 'login'
               ? 'ورود'
-              : 'ساخت حساب'}
+              : mode === 'forgot'
+                ? 'ارسال لینک بازیابی'
+                : 'ساخت حساب'}
         </button>
+
+        {mode === 'login' && (
+          <button
+            type="button"
+            className="link-button auth-switch"
+            onClick={() => {
+              setMode('forgot');
+              setNeedsCode(false);
+              setError(null);
+            }}
+          >
+            رمز را فراموش کرده‌اید؟
+          </button>
+        )}
+        {mode === 'forgot' && (
+          <button
+            type="button"
+            className="link-button auth-switch"
+            onClick={() => {
+              setMode('login');
+              setNotice(null);
+              setError(null);
+            }}
+          >
+            بازگشت به ورود
+          </button>
+        )}
       </form>
     </div>
   );

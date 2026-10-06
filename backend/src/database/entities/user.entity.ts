@@ -46,6 +46,22 @@ export class UserEntity {
   @Column({ type: 'boolean', default: false })
   totpEnabled: boolean;
 
+  /**
+   * زمان آخرین تغییر یا بازیابی رمز.
+   *
+   * توکن‌هایی که پیش از این لحظه صادر شده‌اند پذیرفته نمی‌شوند؛ کسی که رمز
+   * را دزدیده و وارد شده، با عوض شدن رمز بیرون می‌افتد.
+   */
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true })
+  passwordChangedAt: Date | null;
+
+  /** هش SHA-256 توکن بازیابی رمز؛ خود توکن هرگز ذخیره نمی‌شود. */
+  @Column({ type: 'varchar', length: 64, nullable: true, select: false })
+  passwordResetHash: string | null;
+
+  @Column({ type: TIMESTAMP_COLUMN, nullable: true, select: false })
+  passwordResetExpiresAt: Date | null;
+
   /** آخرین بازه‌ی زمانی مصرف‌شده؛ جلوی استفاده‌ی دوباره از یک کد را می‌گیرد. */
   @Column({ type: 'integer', nullable: true, select: false })
   totpLastStep: number | null;

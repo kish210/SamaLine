@@ -2,7 +2,15 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, TotpCodeDto } from './dto';
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+  TotpCodeDto,
+} from './dto';
+import { PasswordService } from './password.service';
 import { TwoFactorService } from './two-factor.service';
 
 @Controller('auth')
@@ -10,7 +18,42 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly twoFactor: TwoFactorService,
+    private readonly passwords: PasswordService,
   ) {}
+
+  /**
+   * تغییر رمز. همه‌ی نشست‌های دیگر باطل می‌شوند و نشست تازه برای همین
+   * دستگاه برمی‌گردد.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('password')
+  async changePassword(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    const updated = await this.passwords.change(
+      user.sub,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return this.authService.sessionFor(updated);
+  }
+
+  /** درخواست لینک بازیابی؛ پاسخ برای هر ایمیلی یکسان است. */
+  @Post('password/forgot')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    /*
+     * نشانی لینک فقط از PUBLIC_URL ساخته می‌شود، نه از سربرگ Host درخواست؛
+     * وگرنه مهاجم می‌توانست لینکی به دامنه‌ی خودش در ایمیل قربانی بگذارد.
+     */
+    const base = process.env.PUBLIC_URL || 'http://localhost:5174';
+    return this.passwords.requestReset(dto.email, base);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.passwords.resetWithToken(dto.token, dto.newPassword);
+  }
 
   @Post('register')
   register(@Body() dto: RegisterDto) {

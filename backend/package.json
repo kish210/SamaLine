@@ -25,6 +25,7 @@
     "smoke": "node scripts/smoke-test.js",
     "superadmin": "node scripts/grant-superadmin.js",
     "reset-2fa": "node scripts/reset-2fa.js",
+    "reset-password": "node scripts/reset-password.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/migration-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/migration-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/migration-source.ts"

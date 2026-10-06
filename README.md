@@ -92,7 +92,8 @@
 **سکو و مدیریت**
 - چند سازمان روی یک نصب، با جداسازی کامل داده
 - پلن‌ها و سقف مصرف؛ مدیریت پلن سازمان‌ها و انقضای خودکار از پنل مدیر کل
-- ورود دومرحله‌ای (Google Authenticator و مانند آن) برای کاربران پنل
+- ورود دومرحله‌ای (Google Authenticator و مانند آن)، تغییر رمز و بازیابی رمز با
+  ایمیل؛ پس از تغییر رمز همه‌ی نشست‌های دیگر باطل می‌شوند
 - پایش و ری‌استارت سرویس‌ها از پنل، پشتیبان روزانه‌ی خودکار، بررسی سلامت
 
 <a id="install"></a>
@@ -144,7 +145,10 @@ PUBLIC_URL=https://survey.example.com bash scripts/deploy.sh
 4. برای پیامک واقعی، در `backend/.env` مقدار `SMS_PROVIDER=kavenegar` و
    `KAVENEGAR_API_KEY` و `KAVENEGAR_SENDER` را بگذارید و
    `systemctl restart samaline` را بزنید.
-5. پوشه‌ی `backend/data/backups/daily` را گه‌گاه به جایی بیرون از سرور کپی کنید.
+5. برای ایمیل واقعی (لازم برای «فراموشی رمز» و دعوت‌نامه‌ها) در همان فایل:
+   `EMAIL_PROVIDER=smtp` و `SMTP_HOST`، `SMTP_PORT`، `SMTP_USER`، `SMTP_PASS`
+   و `SMTP_FROM`. توضیح را در خط جدا بنویسید، نه کنار مقدار.
+6. پوشه‌ی `backend/data/backups/daily` را گه‌گاه به جایی بیرون از سرور کپی کنید.
 
 ### HTTPS
 
@@ -189,6 +193,7 @@ cd /opt/samaline && bash scripts/update.sh
 | سلامت | `curl http://127.0.0.1:8080/api/v1/health` |
 | تعیین یا لغو مدیر کل | `npm run superadmin -- email` / `-- email --revoke` / `-- --list` |
 | خاموش کردن ورود دومرحله‌ای (گوشی گم‌شده) | `npm run reset-2fa -- email` |
+| رمز موقت برای کاربر (وقتی ایمیل تنظیم نشده) | `npm run reset-password -- email` |
 
 دستورهای `npm run` در پوشه‌ی `backend` اجرا می‌شوند. سرویس در پنل مدیر کل هم
 دیده و ری‌استارت می‌شود. لاگ در journald است که خودش چرخش و سقف حجم دارد.
@@ -222,7 +227,7 @@ npm run dev               # بک‌اند، پنل و فرم با هم
 
 ```bash
 cd backend
-npm test            # ۵۷۳ تست واحد و ادغام روی SQLite واقعی در حافظه
+npm test            # ۵۹۳ تست واحد و ادغام روی SQLite واقعی در حافظه
 npm run lint        # اسلینت (بدون خطا)
 npm run typecheck
 npm run smoke       # ۳۲ گام چرخه‌ی کامل روی سرور در حال اجرا (BASE=...)
@@ -248,7 +253,7 @@ npm run smoke       # ۳۲ گام چرخه‌ی کامل روی سرور در ح
 | سرویس | پیش‌فرض | سرویس واقعی |
 |---|---|---|
 | پیامک | `local` — نوشتن در `data/outbox/sms.jsonl` | `kavenegar` یا `webhook` |
-| ایمیل | `local` — نوشتن در `data/outbox/email.jsonl` | `webhook` |
+| ایمیل | `local` — نوشتن در `data/outbox/email.jsonl` | `smtp` (سرور ایمیل سازمان، Gmail، Zoho…) یا `webhook` |
 | هوش مصنوعی | `mock` — بدون کلید و اینترنت | `openai` (هر سرویس سازگار، شامل مدل داخلی) |
 | درگاه پرداخت | `local` — فقط برای آزمایش | `zarinpal` |
 | صف ارسال | صف پایدار روی خود دیتابیس | — (Redis لازم نیست) |

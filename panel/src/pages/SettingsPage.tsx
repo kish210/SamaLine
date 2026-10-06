@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { messagingApi, plansApi, workspaceApi } from '../api';
 import { TelegramCard } from './TelegramCard';
+import { ChangePasswordCard } from './ChangePasswordCard';
 import { TwoFactorCard } from './TwoFactorCard';
 import { WebhooksCard } from './WebhooksCard';
 import { useAuth } from '../auth';
@@ -73,6 +74,8 @@ export function SettingsPage() {
           <dd>{user?.email}</dd>
         </dl>
       </section>
+
+      <ChangePasswordCard />
 
       <TwoFactorCard />
 
