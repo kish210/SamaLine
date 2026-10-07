@@ -1,3 +1,4 @@
+import type { OrganizationRole } from '../database/entities/organization-user.entity';
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 
 /** محتوای توکن JWT — منبع معتبر هویت و مستاجر (tenant). */
@@ -6,6 +7,11 @@ export interface JwtUser {
   email: string;
   organizationId: string;
   workspaceId: string | null;
+  /**
+   * نقش کاربر در همین سازمان — داخل توکن نیست؛ در هر درخواست از دیتابیس
+   * خوانده می‌شود تا تغییر نقش یا حذف از تیم بلافاصله اثر کند.
+   */
+  role?: OrganizationRole;
 }
 
 /** کل payload توکن جاری. */

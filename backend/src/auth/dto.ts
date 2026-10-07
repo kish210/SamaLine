@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsUUID,
   IsString,
   MaxLength,
   MinLength,
@@ -71,4 +72,9 @@ export class TotpCodeDto {
   @IsNotEmpty()
   @MaxLength(12)
   code: string;
+}
+
+export class SwitchOrganizationDto {
+  @IsUUID()
+  organizationId: string;
 }

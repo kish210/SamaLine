@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -36,6 +37,9 @@ export class TenantAccessService {
 
   /** فضای کاری باید متعلق به سازمان کاربر باشد. */
   async assertWorkspace(workspaceId: string, user: JwtUser): Promise<void> {
+    // بدون این، شناسه‌ی جاافتاده به‌جای پیام روشن خطای ۵۰۰ می‌داد.
+    if (!workspaceId)
+      throw new BadRequestException('شناسه‌ی فضای کاری لازم است');
     if (await this.isSuperAdmin(user)) return;
 
     const workspace = await this.workspaceRepo.findOne({
@@ -54,6 +58,7 @@ export class TenantAccessService {
    * تصادفی ارزش امنیتی ندارد، ولی پیام درست عیب‌یابی را ممکن می‌کند.
    */
   async assertForm(formId: string, user: JwtUser): Promise<FormEntity> {
+    if (!formId) throw new BadRequestException('شناسه‌ی فرم لازم است');
     const form = await this.formRepo.findOne({
       where: { id: formId },
       relations: { workspace: true },

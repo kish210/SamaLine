@@ -11,7 +11,10 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { OrganizationId } from '../common/current-user.decorator';
 import { CreateApiKeyDto, CreateIdentityProviderDto } from './dto';
 import { OrganizationService } from './organization.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
+@MinRole(OrganizationRole.ADMIN)
 @Controller('organization')
 @UseGuards(JwtAuthGuard)
 export class OrganizationController {

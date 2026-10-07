@@ -16,12 +16,15 @@ import {
   SetDashboardPublicDto,
   UpdateDashboardDto,
 } from './dto';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 @Controller('dashboards')
 @UseGuards(JwtAuthGuard)
 export class DashboardController {
   constructor(private readonly dashboards: DashboardService) {}
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post()
   create(
     @Body() dto: CreateDashboardDto,
@@ -46,6 +49,7 @@ export class DashboardController {
     return this.dashboards.render(organizationId, id);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -55,6 +59,7 @@ export class DashboardController {
     return this.dashboards.update(organizationId, id, dto);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Patch(':id/public')
   setPublic(
     @Param('id') id: string,
@@ -64,6 +69,7 @@ export class DashboardController {
     return this.dashboards.setPublic(organizationId, id, dto.isPublic);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Delete(':id')
   remove(@Param('id') id: string, @OrganizationId() organizationId: string) {
     return this.dashboards.remove(organizationId, id);

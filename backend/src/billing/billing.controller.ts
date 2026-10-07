@@ -18,7 +18,10 @@ import {
   UpdateSubscriptionDto,
   ValidateLicenseDto,
 } from './dto';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
+@MinRole(OrganizationRole.ADMIN)
 @Controller('billing')
 @UseGuards(JwtAuthGuard)
 export class BillingController {

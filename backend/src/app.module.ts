@@ -22,6 +22,7 @@ import { ContactsModule } from './contacts/contacts.module';
 import { SpecializedModule } from './specialized/specialized.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { OpsModule } from './ops/ops.module';
+import { TeamModule } from './team/team.module';
 import { buildDataSourceOptions } from './database/data-source';
 
 @Module({
@@ -49,6 +50,7 @@ import { buildDataSourceOptions } from './database/data-source';
     SpecializedModule,
     RemindersModule,
     OpsModule,
+    TeamModule,
   ],
 })
 export class AppModule {}

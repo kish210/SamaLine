@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import {
   Evaluate360Dto,
@@ -8,6 +10,7 @@ import {
 } from './dto';
 import { SpecializedService } from './specialized.service';
 
+@MinRole(OrganizationRole.VIEWER)
 @Controller('specialized')
 @UseGuards(JwtAuthGuard)
 export class SpecializedController {

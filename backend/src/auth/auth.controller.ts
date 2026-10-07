@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { AuthService } from './auth.service';
@@ -8,11 +10,13 @@ import {
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
+  SwitchOrganizationDto,
   TotpCodeDto,
 } from './dto';
 import { PasswordService } from './password.service';
 import { TwoFactorService } from './two-factor.service';
 
+@MinRole(OrganizationRole.VIEWER)
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -36,7 +40,7 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
-    return this.authService.sessionFor(updated);
+    return this.authService.sessionFor(updated, user.organizationId);
   }
 
   /** درخواست لینک بازیابی؛ پاسخ برای هر ایمیلی یکسان است. */
@@ -67,6 +71,23 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  /** حساب جاری، نقش در سازمان فعلی و فهرست سازمان‌های کاربر. */
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@CurrentUser() user: JwtUser) {
+    return this.authService.me(user.sub, user.organizationId);
+  }
+
+  /** رفتن به سازمان دیگری که کاربر عضوش است. */
+  @UseGuards(JwtAuthGuard)
+  @Post('switch-organization')
+  switchOrganization(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: SwitchOrganizationDto,
+  ) {
+    return this.authService.switchOrganization(user.sub, dto.organizationId);
   }
 
   @UseGuards(JwtAuthGuard)

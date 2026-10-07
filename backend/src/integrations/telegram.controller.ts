@@ -23,6 +23,8 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TelegramService } from './telegram.service';
 import { TelegramBotService } from './telegram-bot.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 export class TelegramBotDto {
   /** خالی بگذارید تا توکن ذخیره‌شده دست‌نخورده بماند. */
@@ -103,6 +105,7 @@ export class TelegramRecipientPatchDto {
   isActive?: boolean;
 }
 
+@MinRole(OrganizationRole.ADMIN)
 @Controller('integrations/telegram')
 @UseGuards(JwtAuthGuard)
 export class TelegramController {

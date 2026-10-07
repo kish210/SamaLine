@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -87,7 +88,12 @@ export class AuthService {
       }),
     );
 
-    return this.issueToken(user, organization.id, workspace.id);
+    return this.issueToken(
+      user,
+      organization.id,
+      workspace.id,
+      OrganizationRole.OWNER,
+    );
   }
 
   async login(dto: LoginDto) {
@@ -129,25 +135,73 @@ export class AuthService {
    * نشست تازه برای کاربر (توکن + اطلاعات حساب).
    *
    * پس از تغییر رمز هم صدا زده می‌شود تا همان دستگاهی که رمز را عوض کرده
-   * وارد بماند، در حالی که توکن‌های قبلی همه باطل شده‌اند.
+   * وارد بماند، در حالی که توکن‌های قبلی همه باطل شده‌اند. کاربری که عضو
+   * چند سازمان است، بی‌آنکه سازمانی خواسته شود، وارد قدیمی‌ترین عضویتش
+   * (معمولا سازمانی که خودش ساخته) می‌شود.
    */
-  async sessionFor(user: UserEntity) {
+  async sessionFor(user: UserEntity, organizationId?: string) {
     const member = await this.orgUserRepo.findOne({
-      where: { userId: user.id },
+      where: organizationId
+        ? { userId: user.id, organizationId }
+        : { userId: user.id },
+      order: { createdAt: 'ASC' },
     });
+    if (organizationId && !member) {
+      throw new ForbiddenException('عضو این سازمان نیستید');
+    }
     const workspace = member
       ? await this.workspaceRepo.findOne({
           where: { organizationId: member.organizationId },
+          order: { createdAt: 'ASC' },
         })
       : null;
 
-    return this.issueToken(user, member?.organizationId, workspace?.id);
+    return this.issueToken(
+      user,
+      member?.organizationId,
+      workspace?.id,
+      member?.role,
+    );
+  }
+
+  /** حساب جاری: نقش در سازمان فعلی و فهرست همه‌ی سازمان‌های کاربر. */
+  async me(userId: string, organizationId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('حساب کاربری یافت نشد');
+    const memberships = await this.orgUserRepo.find({
+      where: { userId },
+      relations: { organization: true },
+      order: { createdAt: 'ASC' },
+    });
+    const current = memberships.find(
+      (member) => member.organizationId === organizationId,
+    );
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      organizationId,
+      role: current?.role ?? null,
+      organizations: memberships.map((member) => ({
+        id: member.organizationId,
+        name: member.organization?.name ?? '',
+        role: member.role,
+      })),
+    };
+  }
+
+  /** رفتن به سازمان دیگری که کاربر عضوش است؛ توکن تازه برای آن سازمان. */
+  async switchOrganization(userId: string, organizationId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('حساب کاربری یافت نشد');
+    return this.sessionFor(user, organizationId);
   }
 
   private issueToken(
     user: UserEntity,
     organizationId?: string,
     workspaceId?: string,
+    role?: OrganizationRole,
   ) {
     const accessToken = this.jwt.sign({
       sub: user.id,
@@ -163,6 +217,7 @@ export class AuthService {
         email: user.email,
         organizationId,
         workspaceId,
+        role: role ?? null,
       },
     };
   }

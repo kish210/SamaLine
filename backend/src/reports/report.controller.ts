@@ -19,6 +19,8 @@ import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
 import { AnalyticsService } from './analytics.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 /**
  * گزارش‌ها روی داده‌ی خام پاسخ‌دهنده‌ها کار می‌کنند، پس هر مسیر پیش از هر
@@ -87,6 +89,7 @@ export class ReportController {
   }
 
   /** خروجی اکسل پاسخ‌ها؛ advanced=true متادیتا را هم می‌آورد. */
+  @MinRole(OrganizationRole.ANALYST)
   @Get('forms/:formId/export.xlsx')
   async exportExcel(
     @Param('formId') formId: string,
@@ -110,6 +113,7 @@ export class ReportController {
     res.send(buffer);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Get('forms/:formId/export.csv')
   async exportCsv(
     @Param('formId') formId: string,
@@ -127,6 +131,7 @@ export class ReportController {
     res.send(csv);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post('filters')
   async saveFilter(@Body() dto: SaveFilterDto, @CurrentUser() user: JwtUser) {
     await this.tenant.assertWorkspace(dto.workspaceId, user);
@@ -142,6 +147,7 @@ export class ReportController {
     return this.reportService.listFilters(workspaceId);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Delete('filters/:id')
   async deleteFilter(@Param('id') id: string, @CurrentUser() user: JwtUser) {
     // مالکیت از روی فضای کاریِ خودِ فیلتر بررسی می‌شود، نه از درخواست.

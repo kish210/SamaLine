@@ -1,4 +1,6 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { IsArray, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { AiService } from './ai.service';
@@ -60,16 +62,19 @@ export class AiController {
     return this.aiService.reviewSurvey(dto.structure);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post('analyze-open-text')
   analyze(@Body() dto: AiAnalyzeDto) {
     return this.aiService.analyzeAnswers(dto.answers);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post('chat-with-data')
   chat(@Body() dto: AiChatDto) {
     return this.aiService.chatWithData(dto.question, dto.context);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post('summarize-metrics')
   summarizeMetrics(@Body() dto: AiMetricsDto) {
     return this.aiService.summarizeMetrics(dto.metrics);

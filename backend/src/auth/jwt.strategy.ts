@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import type { JwtUser } from '../common/current-user.decorator';
+import { OrganizationUserEntity } from '../database/entities/organization-user.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { issuedAfterPasswordChange } from './session-validity';
 
@@ -14,6 +15,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     config: ConfigService,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
+    @InjectRepository(OrganizationUserEntity)
+    private readonly members: Repository<OrganizationUserEntity>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -39,6 +42,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         'رمز عبور این حساب عوض شده است؛ دوباره وارد شوید',
       );
     }
-    return payload;
+
+    /*
+     * عضویت در همین سازمان، هر بار از دیتابیس.
+     *
+     * کسی که از تیم حذف شده توکنش هنوز امضای درست دارد؛ بدون این بررسی تا
+     * انقضای توکن به داده‌ی سازمان دسترسی می‌داشت.
+     */
+    const member = payload.organizationId
+      ? await this.members.findOne({
+          where: {
+            userId: payload.sub,
+            organizationId: payload.organizationId,
+          },
+          select: { id: true, role: true },
+        })
+      : null;
+    if (!member) {
+      throw new UnauthorizedException(
+        'دسترسی شما به این سازمان برداشته شده است؛ دوباره وارد شوید',
+      );
+    }
+    return { ...payload, role: member.role };
   }
 }

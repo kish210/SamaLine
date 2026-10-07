@@ -38,5 +38,7 @@ import { TwoFactorService } from './two-factor.service';
   ],
   providers: [AuthService, JwtStrategy, TwoFactorService, PasswordService],
   controllers: [AuthController],
+  // تیم برای پذیرش دعوت همان نشست و ورود دومرحله‌ای را لازم دارد.
+  exports: [AuthService, TwoFactorService],
 })
 export class AuthModule {}

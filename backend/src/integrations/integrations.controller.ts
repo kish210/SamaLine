@@ -11,7 +11,10 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { OrganizationId } from '../common/current-user.decorator';
 import { CreateWebhookDto } from './dto';
 import { IntegrationsService } from './integrations.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
+@MinRole(OrganizationRole.ADMIN)
 @Controller('integrations')
 @UseGuards(JwtAuthGuard)
 export class IntegrationsController {
