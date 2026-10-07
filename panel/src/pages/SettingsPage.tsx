@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { messagingApi, plansApi, workspaceApi } from '../api';
+import { TeamCard } from './TeamCard';
 import { TelegramCard } from './TelegramCard';
 import { ChangePasswordCard } from './ChangePasswordCard';
 import { TwoFactorCard } from './TwoFactorCard';
 import { WebhooksCard } from './WebhooksCard';
 import { useAuth } from '../auth';
+import { ROLE_LABELS, hasRole } from '../types';
 
 const LIMIT_LABELS: Record<string, string> = {
   activeForms: 'تعداد فرم فعال',
@@ -41,6 +43,8 @@ function renderLimit(value: unknown): string {
 export function SettingsPage() {
   const user = useAuth((s) => s.user);
   const organizationId = user?.organizationId ?? '';
+  // کارت‌های مدیریتی برای ویرایشگر و پایین‌تر پنهان می‌شوند؛ سرور هم ردشان می‌کند.
+  const isAdmin = hasRole(user?.role, 'admin');
 
   const policy = useQuery({
     queryKey: ['policy', organizationId],
@@ -72,6 +76,12 @@ export function SettingsPage() {
           <dd>{user?.fullName}</dd>
           <dt>ایمیل</dt>
           <dd>{user?.email}</dd>
+          {user?.role && (
+            <>
+              <dt>نقش در سازمان</dt>
+              <dd>{ROLE_LABELS[user.role]}</dd>
+            </>
+          )}
         </dl>
       </section>
 
@@ -106,9 +116,11 @@ export function SettingsPage() {
         )}
       </section>
 
-      {workspaceId && <TelegramCard workspaceId={workspaceId} />}
+      {isAdmin && <TeamCard />}
 
-      <WebhooksCard />
+      {isAdmin && workspaceId && <TelegramCard workspaceId={workspaceId} />}
+
+      {isAdmin && <WebhooksCard />}
 
       <section className="card">
         <h3>امکانات پلن شما</h3>

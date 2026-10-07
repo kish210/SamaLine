@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {
+  AccountInfo,
   AuthPayload,
   ContactList,
   FlowGraph,
@@ -7,9 +8,13 @@ import type {
   FormDetail,
   FormPage,
   FormSummary,
+  InvitationPreview,
+  OrganizationRole,
   Portal,
   Publication,
   ResponseRow,
+  TeamInvitation,
+  TeamMember,
   Workspace,
 } from './types';
 
@@ -77,6 +82,66 @@ export const authApi = {
   resetPassword: (token: string, newPassword: string) =>
     api
       .post<{ ok: boolean }>('/auth/password/reset', { token, newPassword })
+      .then((r) => r.data),
+
+  /** حساب جاری: نقش در سازمان فعلی و فهرست سازمان‌های کاربر. */
+  me: () => api.get<AccountInfo>('/auth/me').then((r) => r.data),
+
+  switchOrganization: (organizationId: string) =>
+    api
+      .post<AuthPayload>('/auth/switch-organization', { organizationId })
+      .then((r) => r.data),
+};
+
+export const teamApi = {
+  members: () => api.get<TeamMember[]>('/team/members').then((r) => r.data),
+
+  changeRole: (memberId: string, role: OrganizationRole) =>
+    api
+      .patch<{ id: string; role: OrganizationRole }>(
+        `/team/members/${memberId}`,
+        { role },
+      )
+      .then((r) => r.data),
+
+  removeMember: (memberId: string) =>
+    api.delete(`/team/members/${memberId}`).then((r) => r.data),
+
+  invitations: () =>
+    api.get<TeamInvitation[]>('/team/invitations').then((r) => r.data),
+
+  /** لینک دعوت فقط همین یک بار برمی‌گردد؛ در سرور فقط هشش می‌ماند. */
+  invite: (email: string, role: OrganizationRole) =>
+    api
+      .post<{
+        id: string;
+        email: string;
+        role: OrganizationRole;
+        expiresAt: string;
+        link: string;
+        emailStatus: string;
+      }>('/team/invitations', { email, role })
+      .then((r) => r.data),
+
+  revokeInvitation: (invitationId: string) =>
+    api.delete(`/team/invitations/${invitationId}`).then((r) => r.data),
+
+  previewInvitation: (token: string) =>
+    api
+      .get<InvitationPreview>(`/public/invitations/${token}`)
+      .then((r) => r.data),
+
+  acceptInvitation: (body: {
+    token: string;
+    password: string;
+    fullName?: string;
+    totpCode?: string;
+  }) =>
+    api
+      .post<AuthPayload | { twoFactorRequired: true }>(
+        '/public/invitations/accept',
+        body,
+      )
       .then((r) => r.data),
 };
 

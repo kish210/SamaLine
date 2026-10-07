@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { platformApi } from './api';
+import { authApi, platformApi } from './api';
 import { NavIcon } from './NavIcon';
 import { useAuth } from './auth';
+import { ROLE_LABELS } from './types';
 import { useNarrowScreen } from './useNarrowScreen';
 
 /** انتخاب کاربر برای جمع بودن سایدبار، بین نشست‌ها می‌ماند. */
@@ -39,7 +40,34 @@ function initial(name?: string): string {
 }
 
 export function Layout() {
-  const { user, signOut } = useAuth();
+  const { user, signIn, signOut, updateUser } = useAuth();
+  const queryClient = useQueryClient();
+
+  /*
+   * نقش و فهرست سازمان‌ها هر بار از سرور می‌آیند؛ نشست ذخیره‌شده‌ی قدیمی نقش
+   * ندارد و نقش می‌تواند بیرون از این مرورگر عوض شده باشد.
+   */
+  const account = useQuery({
+    queryKey: ['account'],
+    queryFn: authApi.me,
+    retry: false,
+  });
+  const role = account.data?.role ?? user?.role ?? null;
+  useEffect(() => {
+    if (account.data && account.data.role !== user?.role) {
+      updateUser({ role: account.data.role });
+    }
+  }, [account.data, updateUser, user?.role]);
+
+  /** رفتن به سازمان دیگر: توکن تازه و پاک کردن داده‌ی سازمان قبلی. */
+  const switchOrganization = useMutation({
+    mutationFn: authApi.switchOrganization,
+    onSuccess: async (payload) => {
+      signIn(payload);
+      await queryClient.resetQueries();
+    },
+  });
+  const organizations = account.data?.organizations ?? [];
 
   /*
    * فقط برای نمایش یا پنهان کردن منوی «تنظیمات سامانه».
@@ -129,6 +157,22 @@ export function Layout() {
 
         <div className="topbar-spacer" />
 
+        {organizations.length > 1 && (
+          <select
+            className="org-switcher"
+            aria-label="سازمان"
+            value={user?.organizationId ?? ''}
+            disabled={switchOrganization.isPending}
+            onChange={(e) => switchOrganization.mutate(e.target.value)}
+          >
+            {organizations.map((organization) => (
+              <option key={organization.id} value={organization.id}>
+                {organization.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <div className="topbar-user">
           <span className="topbar-avatar" aria-hidden="true">
             {initial(user?.fullName)}
@@ -186,6 +230,7 @@ export function Layout() {
           متصل
         </span>
         <span>{user?.email}</span>
+        {role && <span className="statusbar-extra">{ROLE_LABELS[role]}</span>}
         {isSuperAdmin && <span className="statusbar-extra">مدیر کل سامانه</span>}
         <span className="spacer" />
         <span className="statusbar-extra">شرکت سماع رایانه کیش</span>

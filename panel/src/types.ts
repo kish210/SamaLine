@@ -123,12 +123,87 @@ export interface FormDetail extends FormSummary {
   publication?: Publication | null;
 }
 
+/** نقش‌های سازمانی، به ترتیب اختیار. */
+export type OrganizationRole =
+  | 'owner'
+  | 'admin'
+  | 'editor'
+  | 'analyst'
+  | 'viewer';
+
+export const ROLE_LABELS: Record<OrganizationRole, string> = {
+  owner: 'مالک',
+  admin: 'مدیر',
+  editor: 'ویرایشگر',
+  analyst: 'تحلیلگر',
+  viewer: 'بیننده',
+};
+
+const ROLE_RANK: Record<OrganizationRole, number> = {
+  viewer: 1,
+  analyst: 2,
+  editor: 3,
+  admin: 4,
+  owner: 5,
+};
+
+/**
+ * آیا نقش کاربر دست‌کم به اندازه‌ی نقش لازم است؟
+ *
+ * فقط برای پنهان کردن دکمه‌هایی که سرور هم رد می‌کند؛ تصمیم واقعی دسترسی
+ * سمت سرور گرفته می‌شود.
+ */
+export function hasRole(
+  actual: OrganizationRole | null | undefined,
+  required: OrganizationRole,
+): boolean {
+  return actual ? ROLE_RANK[actual] >= ROLE_RANK[required] : false;
+}
+
 export interface AuthUser {
   id: string;
   fullName: string;
   email: string;
   organizationId?: string;
   workspaceId?: string;
+  role?: OrganizationRole | null;
+}
+
+export interface TeamMember {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  role: OrganizationRole;
+  totpEnabled: boolean;
+  joinedAt: string;
+}
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: OrganizationRole;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface AccountInfo {
+  id: string;
+  fullName: string;
+  email: string;
+  organizationId: string;
+  role: OrganizationRole | null;
+  organizations: { id: string; name: string; role: OrganizationRole }[];
+}
+
+export interface InvitationPreview {
+  organizationName: string;
+  email: string;
+  role: OrganizationRole;
+  roleLabel: string;
+  expiresAt: string;
+  accountExists: boolean;
+  twoFactorRequired: boolean;
 }
 
 export interface AuthPayload {

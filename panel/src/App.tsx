@@ -4,6 +4,7 @@ import { useAuth } from './auth';
 import { lazyPage, PageFallback } from './lazy-page';
 import { FormsPage } from './pages/FormsPage';
 import { LoginPage } from './pages/LoginPage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 /*
@@ -46,8 +47,9 @@ function App() {
   const token = useAuth((s) => s.token);
   const location = useLocation();
 
-  // لینک بازیابی رمز از ایمیل باز می‌شود، معمولا وقتی کاربر وارد نیست.
+  // لینک‌های ایمیلی، معمولا وقتی کاربر وارد نیست.
   if (location.pathname === '/reset-password') return <ResetPasswordPage />;
+  if (location.pathname === '/accept-invite') return <AcceptInvitePage />;
   if (!token) return <LoginPage />;
 
   const page = (element: React.ReactNode) => (
