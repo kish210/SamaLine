@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
@@ -9,6 +9,37 @@ import {
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
 import { UsageCounterEntity } from '../database/entities/usage-counter.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+
+/**
+ * نام فارسی امکانات پلن، برای پیام خطا.
+ *
+ * بدون نام درست، کاربر پیام «feature X نیست» می‌گرفت و نمی‌دانست باید چه
+ * چیزی را ارتقا دهد.
+ */
+export const FEATURE_LABELS: Record<string, string> = {
+  logicDisplay: 'منطق شرطی نمایش',
+  logicSkip: 'منطق پرش و فلوچارت',
+  indices: 'شاخص و وزن‌دهی',
+  multiLanguage: 'فرم چندزبانه',
+  smsPanel: 'پنل پیامکی',
+  emailPanel: 'پنل ایمیلی',
+  embed: 'جاسازی در سایت (Embed و Pop-up)',
+  kiosk: 'کیوسک',
+  interviewer: 'پرسشگر میدانی',
+  portal: 'پرتال',
+  webhooks: 'وبهوک',
+  dashboards: 'داشبوردساز',
+  api: 'API برنامه‌نویسان',
+  advancedExcel: 'خروجی اکسل پیشرفته',
+  powerpointExport: 'خروجی PowerPoint',
+  customDomain: 'دامنه‌ی اختصاصی',
+  aiCreate: 'ساخت پرسشنامه با هوش مصنوعی',
+  aiReview: 'بازنگری با هوش مصنوعی',
+  aiAnalyze: 'تحلیل پاسخ‌ها با هوش مصنوعی',
+  workspaceUsers: 'کاربر سازمان',
+};
+
+const featureName = (key: string) => FEATURE_LABELS[key] ?? key;
 
 @Injectable()
 export class PlanService {
@@ -35,6 +66,55 @@ export class PlanService {
       return PlanCode.FREE;
     }
     return subscription?.planCode ?? PlanCode.FREE;
+  }
+
+  /**
+   * امکان بولی پلن (مثل `embed` یا `logicSkip`).
+   *
+   * تا پیش از این جدول پلن فقط نمایشی بود: همه‌ی این امکانات در پلن رایگان
+   * هم کار می‌کردند.
+   */
+  async assertFeature(organizationId: string, key: string): Promise<void> {
+    const limits = await this.getPolicyByOrganization(organizationId);
+    if (limits[key] !== true) {
+      throw new ForbiddenException(
+        `«${featureName(key)}» در پلن فعلی سازمان شما نیست؛ برای استفاده پلن را ارتقا دهید`,
+      );
+    }
+  }
+
+  /**
+   * سقف شمارشی پلن (مثل تعداد کیوسک یا داشبورد).
+   *
+   * `used` تعداد فعلی است؛ ۱- یعنی نامحدود و ۰ یعنی این امکان در پلن نیست.
+   */
+  async assertQuota(
+    organizationId: string,
+    key: string,
+    used: number,
+  ): Promise<void> {
+    const limits = await this.getPolicyByOrganization(organizationId);
+    const limit = Number(limits[key] ?? 0);
+    if (limit === -1) return;
+    if (limit === 0) {
+      throw new ForbiddenException(
+        `«${featureName(key)}» در پلن فعلی سازمان شما نیست؛ برای استفاده پلن را ارتقا دهید`,
+      );
+    }
+    if (used >= limit) {
+      throw new ForbiddenException(
+        `سقف «${featureName(key)}» در پلن شما ${limit.toLocaleString('fa-IR')} است و پر شده`,
+      );
+    }
+  }
+
+  /** سازمانِ یک فضای کاری؛ برای بررسی سقف از روی فرم و فضای کاری. */
+  async organizationOfWorkspace(workspaceId: string): Promise<string | null> {
+    const workspace = await this.workspaceRepo.findOne({
+      where: { id: workspaceId },
+      select: { id: true, organizationId: true },
+    });
+    return workspace?.organizationId ?? null;
   }
 
   async getPolicyByOrganization(organizationId: string) {

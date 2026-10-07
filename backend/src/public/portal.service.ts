@@ -12,6 +12,7 @@ import {
   PublicationType,
 } from '../database/entities/publication.entity';
 import { TenantAccessService } from '../common/tenant-access.service';
+import { PlanService } from '../plans/plan.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { validateSlug } from '../forms/slug';
 
@@ -42,6 +43,7 @@ export class PortalService {
     private readonly publicationRepo: Repository<PublicationEntity>,
     private readonly platformSettings: PlatformSettingsService,
     private readonly tenant: TenantAccessService,
+    private readonly plans: PlanService,
   ) {}
 
   /** بررسی مالکیت فضای کاری؛ پیاده‌سازی مشترک در TenantAccessService است. */
@@ -64,6 +66,16 @@ export class PortalService {
       ? await this.portalRepo.findOne({ where: { id, workspaceId } })
       : null;
     if (id && !existing) throw new NotFoundException('پرتال یافت نشد');
+
+    // سقف فقط سر ساخت پرتال تازه؛ ویرایش پرتال موجود همیشه باز است.
+    if (!existing) {
+      const organizationId =
+        await this.plans.organizationOfWorkspace(workspaceId);
+      if (organizationId) {
+        const used = await this.portalRepo.count({ where: { workspaceId } });
+        await this.plans.assertQuota(organizationId, 'portal', used);
+      }
+    }
 
     // همان اعتبارسنجی لینک اختصاصی فرم‌ها؛ دو قاعده‌ی موازی با هم واگرا می‌شوند.
     const check = validateSlug(input.slug ?? existing?.slug ?? '');

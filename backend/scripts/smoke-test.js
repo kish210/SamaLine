@@ -4,8 +4,23 @@
  */
 const BASE = process.env.BASE ?? 'http://localhost:3000/api/v1';
 
+/*
+ * پلن سازمان تازه «رایگان» است و منطق شرطی، شاخص، داشبورد و کمپین را ندارد.
+ * برای آزمودن چرخه‌ی کامل، حساب مدیر کل لازم است تا سازمانِ تست ارتقا یابد:
+ *
+ *   npm run superadmin -- admin@example.com
+ *   SMOKE_ADMIN_EMAIL=admin@example.com SMOKE_ADMIN_PASSWORD=... npm run smoke
+ *
+ * بدون آن، همان گام‌ها به‌جای امکانات، اعمالِ سقف پلن را می‌سنجند؛ پس دود
+ * تست روی هر نصبی اجرا می‌شود.
+ */
+const ADMIN_EMAIL = process.env.SMOKE_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? '';
+
 const results = [];
 let token = '';
+/** آیا سازمان تست به پلن کامل ارتقا یافت؟ */
+let fullPlan = false;
 
 async function call(method, path, body, headers = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -49,10 +64,29 @@ async function main() {
   const workspaceId = ws.data?.[0]?.id;
   check('فضای کاری', Boolean(workspaceId));
 
-  const form = await call('POST', '/forms', {
-    workspaceId,
-    title: 'نظرسنجی دود',
-    slug: `smoke-${Date.now()}`,
+  const organizationId = reg.data?.user?.organizationId;
+  if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+    const ownerSession = token;
+    const admin = await call('POST', '/auth/login', {
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+    });
+    token = admin.data?.accessToken ?? '';
+    const upgrade = await call(
+      'PATCH',
+      `/admin/organizations/${organizationId}/plan`,
+      { planCode: 'enterprise' },
+    );
+    fullPlan = upgrade.status === 200;
+    check('ارتقای سازمان تست به پلن کامل (مدیر کل)', fullPlan, String(upgrade.status));
+    token = ownerSession;
+  } else {
+    console.log(
+      'ℹ بدون SMOKE_ADMIN_EMAIL: سازمان روی پلن رایگان می‌ماند و گام‌های امکانات پولی، اعمالِ سقف پلن را می‌سنجند.',
+    );
+  }
+
+  const structure = {
     scoreConfig: { indices: [{ id: 'i1', key: 'sat', method: 'avg' }] },
     logic: {
       display: [
@@ -65,23 +99,52 @@ async function main() {
         },
       ],
     },
-    pages: [
-      {
-        id: 'p1',
-        title: 'صفحه ۱',
-        questions: [
-          { id: 'rate', type: 'rating', title: 'امتیاز؟', scoring: { indexId: 'i1' } },
-        ],
-      },
-      {
-        id: 'p2',
-        title: 'صفحه ۲',
-        questions: [{ id: 'why', type: 'long_text', title: 'چرا {{rate}}؟' }],
-      },
-    ],
+  };
+  const pages = [
+    {
+      id: 'p1',
+      title: 'صفحه ۱',
+      questions: [
+        {
+          id: 'rate',
+          type: 'rating',
+          title: 'امتیاز؟',
+          scoring: { indexId: 'i1' },
+        },
+      ],
+    },
+    {
+      id: 'p2',
+      title: 'صفحه ۲',
+      questions: [{ id: 'why', type: 'long_text', title: 'چرا {{rate}}؟' }],
+    },
+  ];
+
+  if (!fullPlan) {
+    // روی پلن رایگان همین ساختار باید رد شود؛ این خودش یک گام است.
+    const blocked = await call('POST', '/forms', {
+      workspaceId,
+      title: 'نظرسنجی دود',
+      slug: `smoke-blocked-${Date.now()}`,
+      ...structure,
+      pages,
+    });
+    check(
+      'منطق و شاخص در پلن رایگان رد می‌شود',
+      blocked.status === 403,
+      blocked.data?.message ?? '',
+    );
+  }
+
+  const form = await call('POST', '/forms', {
+    workspaceId,
+    title: 'نظرسنجی دود',
+    slug: `smoke-${Date.now()}`,
+    ...(fullPlan ? structure : {}),
+    pages,
   });
   const formId = form.data?.id;
-  check('ساخت فرم با منطق و شاخص', Boolean(formId), form.data?.message ?? '');
+  check('ساخت فرم', Boolean(formId), form.data?.message ?? '');
 
   const pub = await call('POST', `/forms/${formId}/publish-link`);
   const formToken = pub.data?.token;
@@ -103,22 +166,26 @@ async function main() {
     answers: { rate: 2 },
   });
   const piped = step2.data?.page?.questions?.[0]?.title;
-  check('منطق نمایش و Piping', piped === 'چرا 2؟', piped ?? '');
+  check('Piping (درج پاسخ قبلی در متن سوال)', piped === 'چرا 2؟', piped ?? '');
 
-  const hidden = await call('POST', `/public/forms/${formToken}/next`, {
-    currentPageId: 'p1',
-    answers: { rate: 9 },
-  });
-  check(
-    'پنهان شدن سوال شرطی',
-    (hidden.data?.page?.questions?.length ?? -1) === 0,
-  );
+  if (fullPlan) {
+    const hidden = await call('POST', `/public/forms/${formToken}/next`, {
+      currentPageId: 'p1',
+      answers: { rate: 9 },
+    });
+    check(
+      'پنهان شدن سوال شرطی',
+      (hidden.data?.page?.questions?.length ?? -1) === 0,
+    );
+  }
 
   const submit = await call('POST', `/public/forms/${formToken}/submit`, {
     answers: { rate: 9, why: 'نباید ذخیره شود' },
   });
   check('ثبت پاسخ', submit.data?.status === 'completed');
-  check('حذف پاسخ سوال پنهان', submit.data?.scores?.sat === 9);
+  if (fullPlan) {
+    check('حذف پاسخ سوال پنهان', submit.data?.scores?.sat === 9);
+  }
 
   const summary = await call('GET', `/reports/forms/${formId}/summary`);
   check('گزارش', summary.data?.completed === 1);
@@ -151,7 +218,11 @@ async function main() {
     template: 'سلام {{name}}: {{link}}',
     recipients: recipients.data,
   });
-  check('ارسال کمپین', campaign.data?.sent === 2);
+  check(
+    fullPlan ? 'ارسال کمپین' : 'پنل پیامکی در پلن رایگان رد می‌شود',
+    fullPlan ? campaign.data?.sent === 2 : campaign.status === 403,
+    campaign.data?.message ?? '',
+  );
 
   const ssrf = await call('POST', '/contacts/sources/preview', {
     listId,
@@ -183,31 +254,37 @@ async function main() {
   // ── داشبوردساز ──
   const dashboard = await call('POST', '/dashboards', { name: 'دود' });
   const dashboardId = dashboard.data?.id;
-  check('ساخت داشبورد', Boolean(dashboardId));
-
-  await call('PATCH', `/dashboards/${dashboardId}`, {
-    widgets: [
-      {
-        id: 'w1',
-        type: 'stat',
-        title: 'تکمیل‌شده',
-        formId,
-        metric: 'completed',
-        layout: { x: 0, y: 0, w: 3, h: 2 },
-      },
-    ],
-  });
-  const rendered = await call('GET', `/dashboards/${dashboardId}/data`);
-  check('محاسبه‌ی ویجت', rendered.data?.widgets?.[0]?.value === 1);
-
-  const shared = await call('PATCH', `/dashboards/${dashboardId}/public`, {
-    isPublic: true,
-  });
-  const publicView = await call(
-    'GET',
-    `/public/dashboards/${shared.data.publicToken}`,
+  check(
+    fullPlan ? 'ساخت داشبورد' : 'داشبوردساز در پلن رایگان رد می‌شود',
+    fullPlan ? Boolean(dashboardId) : dashboard.status === 403,
+    dashboard.data?.message ?? '',
   );
-  check('اشتراک عمومی داشبورد', publicView.status === 200);
+
+  if (fullPlan) {
+    await call('PATCH', `/dashboards/${dashboardId}`, {
+      widgets: [
+        {
+          id: 'w1',
+          type: 'stat',
+          title: 'تکمیل‌شده',
+          formId,
+          metric: 'completed',
+          layout: { x: 0, y: 0, w: 3, h: 2 },
+        },
+      ],
+    });
+    const rendered = await call('GET', `/dashboards/${dashboardId}/data`);
+    check('محاسبه‌ی ویجت', rendered.data?.widgets?.[0]?.value === 1);
+
+    const shared = await call('PATCH', `/dashboards/${dashboardId}/public`, {
+      isPublic: true,
+    });
+    const publicView = await call(
+      'GET',
+      `/public/dashboards/${shared.data.publicToken}`,
+    );
+    check('اشتراک عمومی داشبورد', publicView.status === 200);
+  }
 
   // ── پرداخت ──
   const invoice = await call('POST', '/billing/invoices', { amount: 250000 });

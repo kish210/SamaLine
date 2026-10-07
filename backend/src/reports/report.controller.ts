@@ -15,6 +15,7 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TenantAccessService } from '../common/tenant-access.service';
+import { PlanService } from '../plans/plan.service';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
@@ -35,7 +36,17 @@ export class ReportController {
     private readonly exportService: ExportService,
     private readonly analyticsService: AnalyticsService,
     private readonly tenant: TenantAccessService,
+    private readonly plans: PlanService,
   ) {}
+
+  /**
+   * خروجی «پیشرفته» (متادیتای پاسخ‌دهنده، زمان‌ها و شناسه‌ها) امکان پلن است؛
+   * خروجی ساده برای همه باز می‌ماند تا کسی داده‌ی خودش را گروگان نبیند.
+   */
+  private assertAdvancedExport(advanced: boolean, user: JwtUser) {
+    if (!advanced) return;
+    return this.plans.assertFeature(user.organizationId, 'advancedExcel');
+  }
 
   @Get('forms/:formId/summary')
   async summary(@Param('formId') formId: string, @CurrentUser() user: JwtUser) {
@@ -98,6 +109,7 @@ export class ReportController {
     @Query('advanced') advanced?: string,
   ) {
     await this.tenant.assertForm(formId, user);
+    await this.assertAdvancedExport(advanced === 'true', user);
     const buffer = await this.exportService.toExcel(
       formId,
       advanced === 'true',
@@ -122,6 +134,7 @@ export class ReportController {
     @Query('advanced') advanced?: string,
   ) {
     await this.tenant.assertForm(formId, user);
+    await this.assertAdvancedExport(advanced === 'true', user);
     const csv = await this.exportService.toCsv(formId, advanced === 'true');
     res.setHeader('content-type', 'text/csv; charset=utf-8');
     res.setHeader(

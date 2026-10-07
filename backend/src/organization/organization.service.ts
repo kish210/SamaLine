@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { ApiKeyEntity } from '../database/entities/api-key.entity';
 import { IdentityProviderEntity } from '../database/entities/identity-provider.entity';
+import { PlanService } from '../plans/plan.service';
 import { CreateApiKeyDto, CreateIdentityProviderDto } from './dto';
 
 @Injectable()
@@ -13,9 +14,14 @@ export class OrganizationService {
     private readonly apiKeyRepo: Repository<ApiKeyEntity>,
     @InjectRepository(IdentityProviderEntity)
     private readonly identityRepo: Repository<IdentityProviderEntity>,
+    private readonly plans: PlanService,
   ) {}
 
   async createApiKey(dto: CreateApiKeyDto) {
+    // کلید ساختن یعنی استفاده از API؛ امکان پلن است.
+    if (dto.organizationId) {
+      await this.plans.assertFeature(dto.organizationId, 'api');
+    }
     const plain = `sl_${randomBytes(18).toString('hex')}`;
     const keyPrefix = plain.slice(0, 16);
     const keyHash = createHash('sha256').update(plain).digest('hex');

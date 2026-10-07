@@ -268,7 +268,7 @@ describe('TeamService — دعوت، پذیرش و مدیریت اعضا', () =>
       token,
       password: 'NewPass123',
       fullName: 'نیما',
-    })) as { orgId: string; userId: string };
+    })) as unknown as { orgId: string; userId: string };
     expect(session.orgId).toBe(organizationId);
 
     const member = await members().findOneByOrFail({ userId: session.userId });

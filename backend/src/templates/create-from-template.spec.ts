@@ -28,11 +28,12 @@ import { createTestDataSource } from '../testing/test-database';
 import { FORM_TEMPLATES } from './form-templates';
 
 /**
- * ساخت واقعی فرم از روی هر قالب، روی سازمانی با پلن رایگان.
+ * ساخت واقعی فرم از روی هر قالب.
  *
  * از همان مسیر پنل می‌گذرد (FormService.create با templateKey) تا
  * اعتبارسنجی نوع سوال، سقف انواع پلن و منطق فرم دقیقا مثل استفاده‌ی
- * واقعی اجرا شود.
+ * واقعی اجرا شود. پلن سازمانی است تا شاخص‌ها و منطق قالب دست‌نخورده
+ * بمانند؛ رفتار پلن رایگان جداگانه در پایین آزموده می‌شود.
  */
 describe('ساخت فرم از قالب', () => {
   let ds: DataSource;
@@ -45,14 +46,13 @@ describe('ساخت فرم از قالب', () => {
       .getRepository(OrganizationEntity)
       .save({ name: 'سازمان' });
     await ds.getRepository(PlanPolicyEntity).save({
-      planCode: PlanCode.FREE,
-      // سقف انواع سوال همان مقدار واقعی پلن رایگان است؛ فقط سقف تعداد فرم
-      // برداشته شده تا همه‌ی قالب‌ها در یک سازمان ساخته شوند.
-      limits: { ...DEFAULT_PLAN_LIMITS[PlanCode.FREE], activeForms: -1 },
+      planCode: PlanCode.ENTERPRISE,
+      // فقط سقف تعداد فرم برداشته شده تا همه‌ی قالب‌ها در یک سازمان ساخته شوند.
+      limits: { ...DEFAULT_PLAN_LIMITS[PlanCode.ENTERPRISE], activeForms: -1 },
     });
     await ds.getRepository(SubscriptionEntity).save({
       organizationId: org.id,
-      planCode: PlanCode.FREE,
+      planCode: PlanCode.ENTERPRISE,
       isActive: true,
     });
     workspaceId = (
@@ -120,4 +120,108 @@ describe('ساخت فرم از قالب', () => {
       }
     },
   );
+});
+
+/**
+ * پلن رایگان منطق شرطی و شاخص ندارد.
+ *
+ * اگر ساخت قالب به‌خاطر این رد می‌شد، کتابخانه‌ی ۴۶ قالبی در پلن رایگان
+ * بی‌استفاده می‌ماند؛ پس سوال‌ها می‌مانند و فقط چیزی که پلن ندارد کنار
+ * گذاشته می‌شود — ولی همان چیز اگر مستقیم در درخواست بیاید رد می‌شود.
+ */
+describe('قالب روی پلن رایگان', () => {
+  let ds: DataSource;
+  let service: FormService;
+  let workspaceId: string;
+
+  beforeAll(async () => {
+    ds = await createTestDataSource();
+    const org = await ds
+      .getRepository(OrganizationEntity)
+      .save({ name: 'سازمان رایگان' });
+    await ds.getRepository(PlanPolicyEntity).save({
+      planCode: PlanCode.FREE,
+      limits: { ...DEFAULT_PLAN_LIMITS[PlanCode.FREE], activeForms: -1 },
+    });
+    await ds.getRepository(SubscriptionEntity).save({
+      organizationId: org.id,
+      planCode: PlanCode.FREE,
+      isActive: true,
+    });
+    workspaceId = (
+      await ds
+        .getRepository(WorkspaceEntity)
+        .save({ organizationId: org.id, name: 'فضا' })
+    ).id;
+    service = new FormService(
+      ds.getRepository(FormEntity),
+      ds.getRepository(FormVersionEntity),
+      ds.getRepository(PublicationEntity),
+      ds.getRepository(ResponseEntity),
+      new PlanService(
+        ds.getRepository(PlanPolicyEntity),
+        ds.getRepository(SubscriptionEntity),
+        ds.getRepository(UsageCounterEntity),
+        ds.getRepository(WorkspaceEntity),
+        ds.getRepository(FormEntity),
+      ),
+      new LogicEngineService(),
+    );
+  });
+
+  afterAll(async () => {
+    await ds.destroy();
+  });
+
+  /** قالبی که هم منطق شرطی دارد و هم شاخص؛ نبودش یعنی خود قالب‌ها ایراد دارند. */
+  const withLogicAndIndex = FORM_TEMPLATES.find(
+    (t) =>
+      (t.structure.logic?.display as unknown[] | undefined)?.length &&
+      t.structure.scoreIndexes?.length,
+  );
+  if (!withLogicAndIndex) {
+    throw new Error('قالبی با منطق شرطی و شاخص پیدا نشد');
+  }
+
+  it('همه‌ی سوال‌ها می‌مانند، منطق و شاخص کنار گذاشته و گزارش می‌شوند', async () => {
+    const form = (await service.create({
+      workspaceId,
+      title: withLogicAndIndex.title,
+      slug: 'free-template',
+      templateKey: withLogicAndIndex.key,
+    })) as unknown as {
+      latestVersion?: { structure: FormStructure };
+      planSkipped?: string[];
+    };
+
+    const structure = form.latestVersion?.structure as FormStructure;
+    const questionCount = (structure.pages ?? []).reduce(
+      (sum, page) => sum + (page.questions?.length ?? 0),
+      0,
+    );
+    expect(questionCount).toBe(
+      withLogicAndIndex.structure.pages.reduce(
+        (sum, page) => sum + (page.questions?.length ?? 0),
+        0,
+      ),
+    );
+    expect(structure.logic?.display ?? []).toHaveLength(0);
+    expect(structure.scoreIndexes ?? []).toHaveLength(0);
+    expect(form.planSkipped).toEqual(
+      expect.arrayContaining(['منطق شرطی نمایش', 'شاخص و وزن‌دهی']),
+    );
+  });
+
+  it('همان منطق اگر مستقیم در درخواست بیاید رد می‌شود', async () => {
+    const pages = withLogicAndIndex.structure.pages as never;
+    await expect(
+      service.create({
+        workspaceId,
+        title: 'دستی',
+        slug: 'free-manual',
+        pages,
+        logic: withLogicAndIndex.structure.logic,
+      }),
+    ).rejects.toThrow('منطق شرطی نمایش');
+  });
 });

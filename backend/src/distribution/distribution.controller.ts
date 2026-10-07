@@ -52,7 +52,11 @@ export class DistributionController {
     @CurrentUser() user: JwtUser,
   ) {
     await this.tenant.assertForm(formId, user);
-    return this.distributionService.createChannelPublication(formId, type);
+    return this.distributionService.createChannelPublication(
+      formId,
+      type,
+      user.organizationId,
+    );
   }
 
   @Get('publications/:publicationId/assets')

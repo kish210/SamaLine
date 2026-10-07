@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { OrganizationId } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { PlanService } from '../plans/plan.service';
 import { DashboardService } from './dashboard.service';
 import {
   CreateDashboardDto,
@@ -22,14 +23,19 @@ import { OrganizationRole } from '../database/entities/organization-user.entity'
 @Controller('dashboards')
 @UseGuards(JwtAuthGuard)
 export class DashboardController {
-  constructor(private readonly dashboards: DashboardService) {}
+  constructor(
+    private readonly dashboards: DashboardService,
+    private readonly plans: PlanService,
+  ) {}
 
   @MinRole(OrganizationRole.ANALYST)
   @Post()
-  create(
+  async create(
     @Body() dto: CreateDashboardDto,
     @OrganizationId() organizationId: string,
   ) {
+    const used = (await this.dashboards.list(organizationId)).length;
+    await this.plans.assertQuota(organizationId, 'dashboards', used);
     return this.dashboards.create(organizationId, dto.name);
   }
 

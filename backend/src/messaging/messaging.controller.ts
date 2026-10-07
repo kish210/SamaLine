@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { TenantAccessService } from '../common/tenant-access.service';
+import { PlanService } from '../plans/plan.service';
 import { CampaignService } from './campaign.service';
 import { SendCampaignDto, SendSingleMessageDto } from './dto';
 import { MessagingService } from './messaging.service';
@@ -13,6 +14,7 @@ export class MessagingController {
     private readonly messaging: MessagingService,
     private readonly campaigns: CampaignService,
     private readonly tenant: TenantAccessService,
+    private readonly plans: PlanService,
   ) {}
 
   /** وضعیت سرویس‌دهنده‌های فعال و صف ارسال. */
@@ -30,6 +32,7 @@ export class MessagingController {
     if (dto.publicationId) {
       await this.tenant.assertPublication(dto.publicationId, user);
     }
+    await this.assertChannelInPlan(dto.channel, user);
     return this.messaging.send(
       {
         channel: dto.channel,
@@ -49,7 +52,19 @@ export class MessagingController {
   ) {
     // بدون این، هر کاربری می‌توانست به نام فرم سازمان دیگری پیام بفرستد.
     await this.tenant.assertPublication(dto.publicationId, user);
+    await this.assertChannelInPlan(dto.channel, user);
     return this.campaigns.sendCampaign(dto);
+  }
+
+  /**
+   * پنل پیامکی و پنل ایمیلی امکانات پلن‌اند.
+   *
+   * ایمیل بازیابی رمز و دعوت تیم از این مسیر نمی‌روند، پس پلن رایگان همچنان
+   * آن‌ها را می‌گیرد؛ اینجا فقط ارسال دستی و کمپین کاربر است.
+   */
+  private assertChannelInPlan(channel: string, user: JwtUser) {
+    const feature = channel === 'sms' ? 'smsPanel' : 'emailPanel';
+    return this.plans.assertFeature(user.organizationId, feature);
   }
 
   /** گیرندگانی که هنوز پاسخ نداده‌اند — برای ارسال مجدد. */
