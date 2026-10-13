@@ -11,7 +11,9 @@ import { PgAddTotp1790656139924 } from './migrations/1790656139924-PgAddTotp';
 import { AddPasswordReset1791318984285 } from './migrations/1791318984285-AddPasswordReset';
 import { PgAddPasswordReset1791318984286 } from './migrations/1791318984286-PgAddPasswordReset';
 import { AddInvitations1791319534731 } from './migrations/1791319534731-AddInvitations';
+import { AddApiKeyRole1791319534733 } from './migrations/1791319534733-AddApiKeyRole';
 import { PgAddInvitations1791319534732 } from './migrations/1791319534732-PgAddInvitations';
+import { PgAddApiKeyRole1791319534734 } from './migrations/1791319534734-PgAddApiKeyRole';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -29,12 +31,14 @@ export const SQLITE_MIGRATIONS = [
   AddTotp1790656139923,
   AddPasswordReset1791318984285,
   AddInvitations1791319534731,
+  AddApiKeyRole1791319534733,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
   PgAddTotp1790656139924,
   PgAddPasswordReset1791318984286,
   PgAddInvitations1791319534732,
+  PgAddApiKeyRole1791319534734,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

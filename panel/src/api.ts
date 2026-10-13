@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   AccountInfo,
+  ApiKey,
   AuthPayload,
   ContactList,
   FlowGraph,
@@ -91,6 +92,23 @@ export const authApi = {
     api
       .post<AuthPayload>("/auth/switch-organization", { organizationId })
       .then((r) => r.data),
+};
+
+export const apiKeysApi = {
+  list: () => api.get<ApiKey[]>("/organization/api-keys").then((r) => r.data),
+
+  /** کلید کامل فقط در همین پاسخ می‌آید و دیگر قابل بازیابی نیست. */
+  create: (body: {
+    name: string;
+    role: OrganizationRole;
+    expiresAt?: string;
+  }) =>
+    api
+      .post<ApiKey & { apiKey: string }>("/organization/api-keys", body)
+      .then((r) => r.data),
+
+  revoke: (id: string) =>
+    api.delete(`/organization/api-keys/${id}`).then((r) => r.data),
 };
 
 export const teamApi = {
@@ -729,7 +747,9 @@ export const telegramApi = {
     api
       .post<{
         ok: boolean;
-      }>(`/integrations/telegram/recipients/${id}/test`, null, { params: { workspaceId } })
+      }>(`/integrations/telegram/recipients/${id}/test`, null, {
+        params: { workspaceId },
+      })
       .then((r) => r.data),
 };
 

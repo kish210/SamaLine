@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { ApiKeyEntity } from '../database/entities/api-key.entity';
 import { IdentityProviderEntity } from '../database/entities/identity-provider.entity';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { PlanService } from '../plans/plan.service';
 import { CreateApiKeyDto, CreateIdentityProviderDto } from './dto';
 
@@ -32,7 +33,9 @@ export class OrganizationService {
         name: dto.name,
         keyPrefix,
         keyHash,
-        scopes: { items: dto.scopes ?? ['forms:read', 'responses:write'] },
+        role: dto.role ?? OrganizationRole.VIEWER,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        scopes: { items: dto.scopes ?? [] },
         isActive: true,
       }),
     );
@@ -41,8 +44,10 @@ export class OrganizationService {
       id: saved.id,
       name: saved.name,
       keyPrefix: saved.keyPrefix,
+      role: saved.role,
+      expiresAt: saved.expiresAt,
+      // کلید کامل فقط همین یک بار برمی‌گردد؛ در دیتابیس فقط هشش می‌ماند.
       apiKey: plain,
-      scopes: saved.scopes,
     };
   }
 
@@ -50,6 +55,17 @@ export class OrganizationService {
     return this.apiKeyRepo.find({
       where: { organizationId },
       order: { createdAt: 'DESC' },
+      // هش کلید هرگز از API بیرون نمی‌رود.
+      select: {
+        id: true,
+        name: true,
+        keyPrefix: true,
+        role: true,
+        isActive: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        createdAt: true,
+      },
     });
   }
 

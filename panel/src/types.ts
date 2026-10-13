@@ -4,67 +4,67 @@ export interface ScoreIndex {
   /** نامی که در گزارش و پایان فرم دیده می‌شود و کلید خروجی امتیاز است. */
   key: string;
   title?: string;
-  method: 'sum' | 'avg' | 'weighted' | 'percent';
+  method: "sum" | "avg" | "weighted" | "percent";
   maxScore?: number;
   /** سوال‌های عضو؛ عضویت از سمت شاخص اعلام می‌شود. */
   questionIds?: string[];
 }
 
 export const QUESTION_TYPES = [
-  'short_text',
-  'long_text',
-  'email',
-  'url',
-  'phone',
-  'mobile',
-  'number',
-  'boolean',
-  'multiple_choice',
-  'dropdown',
-  'date',
-  'static_text',
-  'rating',
-  'slider',
-  'image_choice',
-  'emoji',
-  'nps',
-  'ranking',
-  'matrix',
-  'file_upload',
-  'camera',
-  'audio_record',
-  'signature',
-  'location',
+  "short_text",
+  "long_text",
+  "email",
+  "url",
+  "phone",
+  "mobile",
+  "number",
+  "boolean",
+  "multiple_choice",
+  "dropdown",
+  "date",
+  "static_text",
+  "rating",
+  "slider",
+  "image_choice",
+  "emoji",
+  "nps",
+  "ranking",
+  "matrix",
+  "file_upload",
+  "camera",
+  "audio_record",
+  "signature",
+  "location",
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 /** برچسب فارسی هر نوع سوال برای نمایش در فرم‌ساز. */
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-  short_text: 'متن کوتاه',
-  long_text: 'متن بلند',
-  email: 'ایمیل',
-  url: 'وب‌سایت',
-  phone: 'تلفن ثابت',
-  mobile: 'موبایل',
-  number: 'عدد',
-  boolean: 'دو گزینه‌ای',
-  multiple_choice: 'چندگزینه‌ای',
-  dropdown: 'لیست بازشو',
-  date: 'تاریخ',
-  static_text: 'متن ثابت',
-  rating: 'امتیازی',
-  slider: 'نوار شناور',
-  image_choice: 'انتخابی عکس‌دار',
-  emoji: 'ایموجی',
-  nps: 'NPS',
-  ranking: 'اولویت‌بندی',
-  matrix: 'ماتریس',
-  file_upload: 'آپلود فایل',
-  camera: 'دوربین',
-  audio_record: 'ضبط صوتی',
-  signature: 'امضا',
-  location: 'موقعیت مکانی',
+  short_text: "متن کوتاه",
+  long_text: "متن بلند",
+  email: "ایمیل",
+  url: "وب‌سایت",
+  phone: "تلفن ثابت",
+  mobile: "موبایل",
+  number: "عدد",
+  boolean: "دو گزینه‌ای",
+  multiple_choice: "چندگزینه‌ای",
+  dropdown: "لیست بازشو",
+  date: "تاریخ",
+  static_text: "متن ثابت",
+  rating: "امتیازی",
+  slider: "نوار شناور",
+  image_choice: "انتخابی عکس‌دار",
+  emoji: "ایموجی",
+  nps: "NPS",
+  ranking: "اولویت‌بندی",
+  matrix: "ماتریس",
+  file_upload: "آپلود فایل",
+  camera: "دوربین",
+  audio_record: "ضبط صوتی",
+  signature: "امضا",
+  location: "موقعیت مکانی",
 };
 
 export interface Question {
@@ -90,7 +90,7 @@ export interface FormSummary {
   workspaceId: string;
   title: string;
   slug: string;
-  status: 'draft' | 'active' | 'closed' | 'archived';
+  status: "draft" | "active" | "closed" | "archived";
   createdAt: string;
   /** تعداد پاسخ‌های کامل (فقط در فهرست فرم‌ها). */
   responseCount?: number;
@@ -125,18 +125,18 @@ export interface FormDetail extends FormSummary {
 
 /** نقش‌های سازمانی، به ترتیب اختیار. */
 export type OrganizationRole =
-  | 'owner'
-  | 'admin'
-  | 'editor'
-  | 'analyst'
-  | 'viewer';
+  | "owner"
+  | "admin"
+  | "editor"
+  | "analyst"
+  | "viewer";
 
 export const ROLE_LABELS: Record<OrganizationRole, string> = {
-  owner: 'مالک',
-  admin: 'مدیر',
-  editor: 'ویرایشگر',
-  analyst: 'تحلیلگر',
-  viewer: 'بیننده',
+  owner: "مالک",
+  admin: "مدیر",
+  editor: "ویرایشگر",
+  analyst: "تحلیلگر",
+  viewer: "بیننده",
 };
 
 const ROLE_RANK: Record<OrganizationRole, number> = {
@@ -196,6 +196,17 @@ export interface AccountInfo {
   organizations: { id: string; name: string; role: OrganizationRole }[];
 }
 
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  role: OrganizationRole;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface InvitationPreview {
   organizationName: string;
   email: string;
@@ -234,7 +245,7 @@ export interface FlowEdge {
   from: string;
   to: string | null;
   /** «otherwise» شاخه‌ی پیش‌فرضِ صفحه‌ای است که پرش شرطی دارد. */
-  kind: 'sequential' | 'skip' | 'otherwise';
+  kind: "sequential" | "skip" | "otherwise";
   conditional: boolean;
   /** جای قانون در logic.skip؛ برای ویرایش و حذف از بوم. */
   ruleIndex?: number;
@@ -256,7 +267,7 @@ export interface SkipRule {
   toQuestionId?: string;
   toEnd?: boolean;
   when?: {
-    combinator: 'and' | 'or';
+    combinator: "and" | "or";
     conditions: Array<{
       source: string;
       operator: string;
@@ -277,7 +288,7 @@ export interface SkipRule {
 export interface DisplayRule {
   targetQuestionId?: string;
   targetPageId?: string;
-  action?: 'show' | 'hide';
+  action?: "show" | "hide";
   /*
    * شکل ساده‌ی قدیمی، که قالب‌های آماده (مثل سوال‌های دروازه‌ای هتل) با آن
    * نوشته شده‌اند. بک‌اند هر دو شکل را می‌فهمد و `when` را مقدم می‌داند، پس
@@ -289,7 +300,7 @@ export interface DisplayRule {
   value?: unknown;
   valueTo?: unknown;
   when?: {
-    combinator: 'and' | 'or';
+    combinator: "and" | "or";
     conditions: Array<{
       source: string;
       operator: string;
@@ -320,7 +331,7 @@ export interface AnalyticsQuestion {
   answered: number;
   skipped: number;
   /** نحوه‌ی نمایش پیشنهادی سرور برای این سوال. */
-  chart: 'bar' | 'scale' | 'nps' | 'text';
+  chart: "bar" | "scale" | "nps" | "text";
   bars: AnalyticsBar[];
   average: number | null;
   scale: { min: number; max: number } | null;

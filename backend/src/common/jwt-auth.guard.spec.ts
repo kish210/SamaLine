@@ -1,3 +1,6 @@
+jest.mock('@nestjs/typeorm', () => ({
+  InjectRepository: () => () => undefined,
+}));
 // خود passport جایگزین می‌شود تا فقط تصمیم نقش آزموده شود.
 jest.mock('@nestjs/passport', () => ({
   AuthGuard: () =>
@@ -36,6 +39,40 @@ describe('JwtAuthGuard — حداقل نقش', () => {
       switchToHttp: () => ({ getRequest: () => ({ method, user: { role } }) }),
       getHandler: () => handler,
       getClass: () => cls,
+    }) as never;
+
+  /** درخواستی که با کلید API می‌آید؛ هویتش را گارد خودش می‌نشاند. */
+  const apiKeyContext = (
+    method: string,
+    path: string,
+    role: OrganizationRole,
+    handler: () => void = write,
+  ) => {
+    const request: Record<string, unknown> = {
+      method,
+      path,
+      headers: { 'x-api-key': 'sl_test' },
+    };
+    return {
+      request,
+      context: {
+        switchToHttp: () => ({ getRequest: () => request }),
+        getHandler: () => handler,
+        getClass: () => Routes,
+      } as never,
+    };
+  };
+
+  const apiKeys = (role: OrganizationRole) =>
+    ({
+      authenticate: () =>
+        Promise.resolve({
+          sub: 'apikey:1',
+          email: 'k',
+          organizationId: 'org',
+          workspaceId: null,
+          role,
+        }),
     }) as never;
 
   const guard = new JwtAuthGuard(new Reflector());
@@ -77,5 +114,55 @@ describe('JwtAuthGuard — حداقل نقش', () => {
     await expect(run('GET', undefined, read)).rejects.toThrow(
       ForbiddenException,
     );
+  });
+
+  describe('کلید API', () => {
+    it('هویت از کلید می‌آید و نقش کلید اعمال می‌شود', async () => {
+      const guard = new JwtAuthGuard(
+        new Reflector(),
+        apiKeys(OrganizationRole.EDITOR),
+      );
+      const { context, request } = apiKeyContext(
+        'POST',
+        '/api/v1/forms',
+        OrganizationRole.EDITOR,
+      );
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect((request.user as { sub: string }).sub).toBe('apikey:1');
+    });
+
+    it('کلید کم‌اختیار همان محدودیت عضو تیم را دارد', async () => {
+      const guard = new JwtAuthGuard(
+        new Reflector(),
+        apiKeys(OrganizationRole.VIEWER),
+      );
+      const { context } = apiKeyContext(
+        'POST',
+        '/api/v1/forms',
+        OrganizationRole.VIEWER,
+      );
+      await expect(guard.canActivate(context)).rejects.toThrow('ویرایشگر');
+    });
+
+    /*
+     * مهم‌ترین مرز: کلیدی با نقش «مدیر» هم نباید به ساخت کلید تازه، دعوت
+     * هم‌تیمی یا تغییر رمز برسد؛ وگرنه یک کلید لو رفته کل سازمان را می‌گرفت.
+     */
+    it('مسیرهای حساب و مالکیت سازمان حتی برای کلید مدیر بسته‌اند', async () => {
+      const guard = new JwtAuthGuard(
+        new Reflector(),
+        apiKeys(OrganizationRole.ADMIN),
+      );
+      for (const path of [
+        '/api/v1/organization/api-keys',
+        '/api/v1/team/invitations',
+        '/api/v1/auth/password',
+      ]) {
+        const { context } = apiKeyContext('POST', path, OrganizationRole.ADMIN);
+        await expect(guard.canActivate(context)).rejects.toThrow(
+          'با کلید API در دسترس نیست',
+        );
+      }
+    });
   });
 });
