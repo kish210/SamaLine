@@ -5,19 +5,26 @@
 # همه‌چیز خوداتکاست: نه داکر، نه nginx، نه پایگاه‌داده‌ی جداگانه. یک پروسه‌ی
 # Node روی یک پورت، هم API را می‌دهد هم پنل و هم فرم را.
 #
-#   bash scripts/deploy.sh              اجرا روی پورت پیش‌فرض ۸۰۸۰
-#   PORT=9000 bash scripts/deploy.sh    پورت دلخواه
+#   bash scripts/deploy.sh              HTTP روی ۸۰ و HTTPS روی ۴۴۳
+#   PORT=9000 bash scripts/deploy.sh    پورت HTTP دلخواه
+#   TLS=0 bash scripts/deploy.sh        فقط HTTP (بدون ۴۴۳)
+#   TLS_CERT=... TLS_KEY=... bash scripts/deploy.sh   گواهی واقعی خودتان
 #
 set -euo pipefail
 
 # اگر کاربر پورت داده باشد، همان استفاده می‌شود و جست‌وجوی خودکار انجام نمی‌شود.
 if [ -n "${PORT:-}" ]; then PORT_EXPLICIT=1; fi
-PORT="${PORT:-8080}"
+# پیش‌فرضِ انتشار: HTTP روی ۸۰ و HTTPS روی ۴۴۳.
+PORT="${PORT:-80}"
+HTTPS_PORT="${HTTPS_PORT:-443}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="${SERVICE_NAME:-samaline}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
 # حداقل نسخه‌ای که vite و nest می‌پذیرند.
 NODE_MIN="${NODE_MIN:-20}"
+# TLS پیش‌فرض روشن است؛ با TLS=0 خاموش می‌شود.
+TLS="${TLS:-1}"
+CERT_DIR="$APP_DIR/backend/certs"
 
 log() { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31mخطا: %s\033[0m\n' "$1" >&2; exit 1; }
@@ -107,8 +114,53 @@ log "پاک‌سازی وابستگی‌های توسعه"
 npm --prefix backend prune --omit=dev >/dev/null 2>&1 || true
 rm -rf "$APP_DIR/form-renderer/node_modules" "$APP_DIR/panel/node_modules"
 
+# نشانیِ سرور برای SAN گواهی و پیام پایانی: IPِ محلیِ خودِ سرور، نه IP عمومیِ
+# خروجی اینترنت. روی سرور on-prem پشت NAT، نشانیِ درست همین است.
+SERVER_ADDR="${SERVER_ADDR:-$(hostname -I | awk '{print $1}')}"
+[ -n "$SERVER_ADDR" ] || SERVER_ADDR="127.0.0.1"
+
+log "گواهی TLS"
+if [ "$TLS" = "1" ]; then
+  # اگر کاربر گواهیِ خودش را نداده، یک گواهیِ self-signed می‌سازیم. سرور IP
+  # محلی دارد و دامنه‌ی عمومی ندارد، پس Let's Encrypt ممکن نیست؛ برای گواهیِ
+  # معتبر، TLS_CERT/TLS_KEY را خودتان بدهید.
+  if [ -z "${TLS_CERT:-}" ] || [ -z "${TLS_KEY:-}" ]; then
+    TLS_CERT="$CERT_DIR/server.crt"
+    TLS_KEY="$CERT_DIR/server.key"
+    if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then
+      mkdir -p "$CERT_DIR"
+      openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+        -keyout "$TLS_KEY" -out "$TLS_CERT" \
+        -subj "/CN=$SERVER_ADDR" \
+        -addext "subjectAltName=IP:$SERVER_ADDR" >/dev/null 2>&1
+      chmod 600 "$TLS_KEY"
+      echo "گواهیِ self-signed ساخته شد (SAN=IP:$SERVER_ADDR)."
+    else
+      echo "گواهیِ موجود استفاده می‌شود."
+    fi
+  else
+    echo "گواهیِ دستی: $TLS_CERT"
+  fi
+else
+  echo "TLS خاموش است؛ فقط HTTP."
+  TLS_CERT=""
+  TLS_KEY=""
+fi
+
 log "ساخت فایل تنظیمات"
 ENV_FILE="$APP_DIR/backend/.env"
+
+# یک کلید را در .env درج یا به‌روز می‌کند بدون دست‌زدن به بقیه.
+set_env() {
+  local key="$1" value="$2"
+  if grep -q "^$key=" "$ENV_FILE" 2>/dev/null; then
+    # مقدار ممکن است / داشته باشد (مسیر گواهی)، پس جداکننده‌ی sed را | می‌گذاریم.
+    sed -i "s|^$key=.*|$key=$value|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
 if [ ! -f "$ENV_FILE" ]; then
   # کلیدها یک بار ساخته می‌شوند و بعد دست‌نخورده می‌مانند؛ عوض شدنشان یعنی
   # همه‌ی توکن‌های صادرشده و داده‌ی رمزشده از کار می‌افتد.
@@ -125,10 +177,14 @@ EOF
   chmod 600 "$ENV_FILE"
   echo "backend/.env ساخته شد."
 else
-  # پورت را به‌روز می‌کنیم ولی کلیدها را دست نمی‌زنیم.
-  sed -i "s/^PORT=.*/PORT=$PORT/" "$ENV_FILE"
-  echo "backend/.env از قبل وجود داشت؛ فقط PORT به‌روز شد."
+  echo "backend/.env از قبل وجود داشت؛ کلیدهای رمز دست‌نخورده می‌مانند."
 fi
+
+# پورت‌ها و گواهی را روی .env (چه نو چه قدیمی) هم‌تراز می‌کنیم.
+set_env PORT "$PORT"
+set_env HTTPS_PORT "$HTTPS_PORT"
+set_env TLS_CERT "$TLS_CERT"
+set_env TLS_KEY "$TLS_KEY"
 
 log "ساخت سرویس systemd"
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
@@ -157,16 +213,37 @@ systemctl restart "$SERVICE_NAME"
 log "باز کردن پورت در فایروال"
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   ufw allow "$PORT/tcp" >/dev/null
+  [ -n "$TLS_CERT" ] && ufw allow "$HTTPS_PORT/tcp" >/dev/null
+fi
+
+# نشانیِ نمایشی: اگر TLS هست https/۴۴۳، وگرنه http/پورت.
+if [ -n "$TLS_CERT" ]; then
+  SCHEME="https"; PUB_PORT="$HTTPS_PORT"
+else
+  SCHEME="http"; PUB_PORT="$PORT"
+fi
+# پورت استاندارد (۸۰/۴۴۳) در نشانی نوشته نمی‌شود.
+if { [ "$SCHEME" = "http" ] && [ "$PUB_PORT" = "80" ]; } ||
+   { [ "$SCHEME" = "https" ] && [ "$PUB_PORT" = "443" ]; }; then
+  BASE="$SCHEME://$SERVER_ADDR"
+else
+  BASE="$SCHEME://$SERVER_ADDR:$PUB_PORT"
 fi
 
 log "بررسی سلامت"
+# تلاش‌ها بی‌صدا تا سرویس بالا بیاید؛ -k چون گواهی self-signed است. خطا را
+# فقط در شکستِ نهایی نشان می‌دهیم تا خروجی گمراه‌کننده نباشد.
 for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/docs"; then
-    IP="$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
+  if curl -fsk -o /dev/null "$BASE/api/docs"; then
     printf '\n\033[32mبالا آمد.\033[0m\n'
-    echo "  فرم‌ها:   http://$IP:$PORT/"
-    echo "  پنل:      http://$IP:$PORT/panel"
-    echo "  مستندات:  http://$IP:$PORT/api/docs"
+    echo "  فرم‌ها:   $BASE/"
+    echo "  پنل:      $BASE/panel"
+    echo "  مستندات:  $BASE/api/docs"
+    if [ -n "$TLS_CERT" ]; then
+      echo
+      echo "توجه: گواهی self-signed است؛ مرورگر هشدار می‌دهد. برای گواهیِ"
+      echo "      معتبر، TLS_CERT و TLS_KEY را بدهید و دوباره اجرا کنید."
+    fi
     echo
     echo "لاگ:      journalctl -u $SERVICE_NAME -f"
     echo "توقف:     systemctl stop $SERVICE_NAME"

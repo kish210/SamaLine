@@ -1,6 +1,9 @@
 // باید پیش از هر import دیگری اجرا شود تا DB_DRIVER هنگام ساخت موجودیت‌ها موجود باشد.
 import 'dotenv/config';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
+import type { RequestListener } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { join, resolve } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -134,10 +137,41 @@ async function bootstrap() {
     SwaggerModule.createDocument(app, swaggerConfig),
   );
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`SamaLine backend روی پورت ${port} (دیتابیس: ${DB_DRIVER})`);
-  console.log(`مستندات: http://localhost:${port}/api/docs`);
+  const port = Number(process.env.PORT ?? 3000);
+
+  /*
+   * اگر گواهی TLS تنظیم شده باشد، همان نمونه‌ی express هم‌زمان روی HTTP و HTTPS
+   * سرو می‌شود: یک پروسه، دو پورت (۸۰ و ۴۴۳ در استقرار). بدون گواهی، رفتار
+   * قدیمیِ تک‌پورتی دست‌نخورده می‌ماند تا توسعه و نصب‌های قبلی نشکنند.
+   */
+  const certPath = process.env.TLS_CERT;
+  const keyPath = process.env.TLS_KEY;
+  const tlsReady =
+    !!certPath && !!keyPath && existsSync(certPath) && existsSync(keyPath);
+
+  if (tlsReady) {
+    const httpsPort = Number(process.env.HTTPS_PORT ?? 443);
+    // routeها و میان‌افزارها باید پیش از ساختن سرورها سوار شوند؛ listen را
+    // خودمان می‌زنیم نه app.listen، تا یک express روی دو پورت بنشیند.
+    await app.init();
+    const instance = app
+      .getHttpAdapter()
+      .getInstance() as unknown as RequestListener;
+    const credentials = {
+      cert: readFileSync(certPath as string),
+      key: readFileSync(keyPath as string),
+    };
+    createHttpServer(instance).listen(port);
+    createHttpsServer(credentials, instance).listen(httpsPort);
+    console.log(
+      `SamaLine backend روی HTTP ${port} و HTTPS ${httpsPort} (دیتابیس: ${DB_DRIVER})`,
+    );
+    console.log(`مستندات: https://localhost:${httpsPort}/api/docs`);
+  } else {
+    await app.listen(port);
+    console.log(`SamaLine backend روی پورت ${port} (دیتابیس: ${DB_DRIVER})`);
+    console.log(`مستندات: http://localhost:${port}/api/docs`);
+  }
 }
 
 void bootstrap();
