@@ -648,10 +648,12 @@ export function absoluteUploadUrl(url: string): string {
   return `${base}${url}`;
 }
 
-/** وضعیت ربات تلگرام؛ توکن هرگز از سرور برنمی‌گردد. */
+/** وضعیت ربات تلگرام/بله؛ توکن هرگز از سرور برنمی‌گردد. */
 export interface TelegramBotStatus {
   configured: boolean;
   isActive: boolean;
+  /** پیام‌رسان مقصد: تلگرام یا بله. */
+  platform: 'telegram' | 'bale';
   botUsername: string | null;
   lastError: string | null;
   lastSentAt: string | null;
@@ -679,7 +681,10 @@ export const telegramApi = {
       })
       .then((r) => r.data),
 
-  saveBot: (workspaceId: string, body: { botToken?: string }) =>
+  saveBot: (
+    workspaceId: string,
+    body: { botToken?: string; platform?: 'telegram' | 'bale'; isActive?: boolean },
+  ) =>
     api
       .post<TelegramBotStatus>("/integrations/telegram", body, {
         params: { workspaceId },
@@ -769,6 +774,67 @@ export const telegramApi = {
       }>(`/integrations/telegram/recipients/${id}/test`, null, {
         params: { workspaceId },
       })
+      .then((r) => r.data),
+};
+
+/** گیرنده‌ی گزارش دوره‌ای ایمیلی. */
+export interface EmailReportRecipient {
+  id: string;
+  formId: string | null;
+  email: string;
+  label: string;
+  digest: 'weekly' | 'monthly';
+  isActive: boolean;
+  lastError: string | null;
+  lastSentAt: string | null;
+}
+
+export const emailReportApi = {
+  list: (workspaceId: string) =>
+    api
+      .get<EmailReportRecipient[]>('/integrations/email-reports', {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  add: (
+    workspaceId: string,
+    body: {
+      formId: string | null;
+      email: string;
+      label?: string;
+      digest?: 'weekly' | 'monthly';
+    },
+  ) =>
+    api
+      .post<EmailReportRecipient>('/integrations/email-reports', body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  update: (
+    workspaceId: string,
+    id: string,
+    body: { label?: string; digest?: 'weekly' | 'monthly'; isActive?: boolean },
+  ) =>
+    api
+      .patch<EmailReportRecipient>(`/integrations/email-reports/${id}`, body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  remove: (workspaceId: string, id: string) =>
+    api
+      .delete(`/integrations/email-reports/${id}`, { params: { workspaceId } })
+      .then((r) => r.data),
+
+  test: (workspaceId: string, id: string) =>
+    api
+      .post<{ ok: boolean }>(
+        `/integrations/email-reports/${id}/test`,
+        null,
+        { params: { workspaceId } },
+      )
       .then((r) => r.data),
 };
 

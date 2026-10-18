@@ -6,11 +6,13 @@ import { TelegramRecipientEntity } from '../database/entities/telegram-recipient
 import { TenantAccessService } from '../common/tenant-access.service';
 import type { FormQuestionNode, FormStructure } from '../forms/logic-types';
 import { randomBytes } from 'crypto';
-import { MAX_MESSAGE, TelegramApi } from './telegram-api';
+import { MAX_MESSAGE, TelegramApi, platformApiBase } from './telegram-api';
+import type { ChatPlatform } from './telegram-api';
 
 export interface TelegramBotInput {
   botToken?: string;
   isActive?: boolean;
+  platform?: ChatPlatform;
 }
 
 export interface TelegramRecipientInput {
@@ -60,6 +62,7 @@ export class TelegramService {
     return {
       configured: Boolean(row?.botToken),
       isActive: row?.isActive ?? false,
+      platform: row?.platform ?? 'telegram',
       botUsername: row?.botUsername ?? null,
       lastError: row?.lastError ?? null,
       lastSentAt: row?.lastSentAt ?? null,
@@ -77,9 +80,14 @@ export class TelegramService {
     const token = input.botToken?.trim() || existing?.botToken;
     if (!token) throw new BadRequestException('توکن ربات لازم است');
 
+    const platform: ChatPlatform =
+      input.platform ?? existing?.platform ?? 'telegram';
+    const base = platformApiBase(platform);
+
     let botUsername = existing?.botUsername ?? null;
-    if (input.botToken?.trim()) {
-      const me = await this.api.getMe(token);
+    // توکن با getMe آزموده می‌شود وقتی توکن تازه است یا پیام‌رسان عوض شده.
+    if (input.botToken?.trim() || platform !== existing?.platform) {
+      const me = await this.api.getMe(token, base);
       if (!me.ok) {
         throw new BadRequestException(`توکن ربات معتبر نیست: ${me.error}`);
       }
@@ -88,7 +96,7 @@ export class TelegramService {
 
     /*
      * توکن وبهوک یک بار ساخته می‌شود و بعد ثابت می‌ماند؛ عوض شدنش یعنی
-     * نشانی ثبت‌شده در تلگرام دیگر کار نمی‌کند.
+     * نشانی ثبت‌شده در پیام‌رسان دیگر کار نمی‌کند.
      */
     const webhookToken =
       existing?.webhookToken ?? randomBytes(24).toString('hex');
@@ -98,13 +106,14 @@ export class TelegramService {
         ...existing,
         workspaceId,
         botToken: token,
+        platform,
         botUsername,
         webhookToken,
         isActive: input.isActive ?? existing?.isActive ?? true,
       }),
     );
 
-    await this.registerWebhook(token, webhookToken);
+    await this.registerWebhook(token, webhookToken, base);
     return this.getBot(workspaceId);
   }
 
@@ -115,7 +124,11 @@ export class TelegramService {
    * پاسخ‌ها و گزارش دوره‌ای بدون وبهوک هم کار می‌کند؛ چیزی که کار نمی‌کند
    * فرمان‌های خودِ ربات است. شکستن کل ذخیره‌ی توکن به‌خاطر آن، بی‌دلیل است.
    */
-  private async registerWebhook(botToken: string, webhookToken: string) {
+  private async registerWebhook(
+    botToken: string,
+    webhookToken: string,
+    apiBase: string,
+  ) {
     const base = process.env.PUBLIC_URL?.replace(/\/+$/, '');
     if (!base) {
       this.logger.warn(
@@ -125,17 +138,21 @@ export class TelegramService {
     }
 
     const url = `${base}/api/v1/public/telegram/webhook/${webhookToken}`;
-    const result = await this.api.setWebhook(botToken, url);
+    const result = await this.api.setWebhook(botToken, url, apiBase);
     if (!result.ok) {
-      this.logger.warn(`ثبت وبهوک تلگرام ناموفق بود: ${result.error}`);
+      this.logger.warn(`ثبت وبهوک ناموفق بود: ${result.error}`);
     }
   }
 
   async removeBot(workspaceId: string) {
     const existing = await this.repo.findOne({ where: { workspaceId } });
-    // وبهوک پیش از حذف ردیف برداشته می‌شود، وگرنه تلگرام تا ابد به نشانی
+    // وبهوک پیش از حذف ردیف برداشته می‌شود، وگرنه پیام‌رسان تا ابد به نشانی
     // مرده پیام می‌فرستد.
-    if (existing?.botToken) await this.api.deleteWebhook(existing.botToken);
+    if (existing?.botToken)
+      await this.api.deleteWebhook(
+        existing.botToken,
+        platformApiBase(existing.platform),
+      );
 
     await this.recipientRepo.delete({ workspaceId });
     await this.repo.delete({ workspaceId });
@@ -223,6 +240,7 @@ export class TelegramService {
       bot.botToken,
       recipient.chatId,
       '✅ اتصال SamaLine به این گفتگو برقرار است.',
+      platformApiBase(bot.platform),
     );
     if (!result.ok) {
       await this.recipientRepo.update(
@@ -248,10 +266,13 @@ export class TelegramService {
     const bot = await this.repo.findOne({ where: { workspaceId } });
     if (!bot) throw new BadRequestException('ابتدا ربات را تنظیم کنید');
 
-    const result = await this.api.getUpdates(bot.botToken);
+    const result = await this.api.getUpdates(
+      bot.botToken,
+      platformApiBase(bot.platform),
+    );
     if (!result.ok) {
       throw new BadRequestException(
-        `ارتباط با تلگرام برقرار نشد: ${result.error}`,
+        `ارتباط با پیام‌رسان برقرار نشد: ${result.error}`,
       );
     }
 
@@ -307,12 +328,14 @@ export class TelegramService {
       const message = this.buildMessage(input);
 
       // ارسال‌ها موازی‌اند: یک گفتگوی کند نباید بقیه را عقب بیندازد.
+      const apiBase = platformApiBase(bot.platform);
       await Promise.all(
         targets.map(async (recipient) => {
           const result = await this.api.send(
             bot.botToken,
             recipient.chatId,
             message,
+            apiBase,
           );
           await this.recipientRepo.update(
             { id: recipient.id },

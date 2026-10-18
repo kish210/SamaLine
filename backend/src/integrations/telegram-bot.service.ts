@@ -6,7 +6,7 @@ import { FormEntity } from '../database/entities/form.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
-import { TelegramApi } from './telegram-api';
+import { TelegramApi, platformApiBase } from './telegram-api';
 import { TelegramDigestService } from './telegram-digest.service';
 
 /**
@@ -138,7 +138,13 @@ export class TelegramBotService {
 
       const chatId = String(chat.id);
       const reply = await this.respond(bot, chatId, text, chat);
-      if (reply) await this.api.send(bot.botToken, chatId, reply);
+      if (reply)
+        await this.api.send(
+          bot.botToken,
+          chatId,
+          reply,
+          platformApiBase(bot.platform),
+        );
     } catch (error) {
       this.logger.warn(
         `پردازش پیام تلگرام ناموفق بود: ${(error as Error).message}`,

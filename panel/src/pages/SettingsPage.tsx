@@ -3,6 +3,7 @@ import { messagingApi, plansApi, workspaceApi } from "../api";
 import { ApiKeysCard } from "./ApiKeysCard";
 import { TeamCard } from "./TeamCard";
 import { TelegramCard } from "./TelegramCard";
+import { EmailReportCard } from "./EmailReportCard";
 import { ChangePasswordCard } from "./ChangePasswordCard";
 import { TwoFactorCard } from "./TwoFactorCard";
 import { WebhooksCard } from "./WebhooksCard";
@@ -120,6 +121,7 @@ export function SettingsPage() {
       {isAdmin && <TeamCard />}
 
       {isAdmin && workspaceId && <TelegramCard workspaceId={workspaceId} />}
+      {isAdmin && workspaceId && <EmailReportCard workspaceId={workspaceId} />}
 
       {isAdmin && <WebhooksCard />}
 

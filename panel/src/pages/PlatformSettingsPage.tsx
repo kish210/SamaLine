@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { describeError, platformApi } from '../api';
 import type { PlatformSettings } from '../api';
 import { TelegramCard } from './TelegramCard';
+import { EmailReportCard } from './EmailReportCard';
 import { ServiceMonitorCard } from './ServiceMonitorCard';
 import { OrganizationPlansCard } from './OrganizationPlansCard';
 
@@ -321,7 +322,10 @@ function PlatformTelegram() {
       )}
 
       {workspaceId && (
-        <TelegramCard key={workspaceId} workspaceId={workspaceId} />
+        <>
+          <TelegramCard key={workspaceId} workspaceId={workspaceId} />
+          <EmailReportCard key={`email-${workspaceId}`} workspaceId={workspaceId} />
+        </>
       )}
     </section>
   );

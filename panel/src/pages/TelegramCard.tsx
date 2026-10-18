@@ -14,6 +14,8 @@ export function TelegramCard({ workspaceId }: { workspaceId: string }) {
   const queryClient = useQueryClient();
   const [botToken, setBotToken] = useState('');
   const [message, setMessage] = useState('');
+  // خالی یعنی «از وضعیت سرور پیروی کن»؛ تا کاربر دست نزده، پیام‌رسانِ ذخیره‌شده.
+  const [platform, setPlatform] = useState<'telegram' | 'bale' | ''>('');
 
   const bot = useQuery({
     queryKey: ['telegram-bot', workspaceId],
@@ -38,8 +40,14 @@ export function TelegramCard({ workspaceId }: { workspaceId: string }) {
     void queryClient.invalidateQueries({ queryKey: ['telegram-recipients'] });
   };
 
+  const effectivePlatform = platform || bot.data?.platform || 'telegram';
+
   const saveBot = useMutation({
-    mutationFn: () => telegramApi.saveBot(workspaceId, { botToken: botToken.trim() }),
+    mutationFn: () =>
+      telegramApi.saveBot(workspaceId, {
+        botToken: botToken.trim(),
+        platform: effectivePlatform,
+      }),
     onSuccess: (data) => {
       setBotToken('');
       setMessage(
@@ -62,14 +70,25 @@ export function TelegramCard({ workspaceId }: { workspaceId: string }) {
 
   return (
     <section className="card">
-      <h3>ربات تلگرام</h3>
+      <h3>ربات تلگرام / بله</h3>
       <p className="hint">
         با هر پاسخ کامل، خلاصه‌ی پاسخ به مدیرانی که برای آن فرم تعریف کرده‌اید
-        فرستاده می‌شود. ابتدا از <b>@BotFather</b> یک ربات بسازید و توکنش را
-        اینجا بگذارید.
+        فرستاده می‌شود. پیام‌رسان را انتخاب کنید، سپس از ربات‌سازِ آن
+        (<b>@BotFather</b> در تلگرام یا <b>@botfather</b> در بله) یک ربات بسازید
+        و توکنش را اینجا بگذارید. بله (bale.ai) پیام‌رسان ایرانی و در دسترس است.
       </p>
 
       <div className="inline-form">
+        <label className="inline-select">
+          <span>پیام‌رسان</span>
+          <select
+            value={effectivePlatform}
+            onChange={(e) => setPlatform(e.target.value as 'telegram' | 'bale')}
+          >
+            <option value="telegram">تلگرام</option>
+            <option value="bale">بله (bale.ai)</option>
+          </select>
+        </label>
         <input
           type="password"
           dir="ltr"

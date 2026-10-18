@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   IsBoolean,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -36,6 +37,11 @@ export class TelegramBotDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** پیام‌رسان مقصد: تلگرام یا بله. */
+  @IsOptional()
+  @IsIn(['telegram', 'bale'])
+  platform?: 'telegram' | 'bale';
 }
 
 export class TelegramRecipientDto {

@@ -6,6 +6,7 @@ import { FormEntity } from '../database/entities/form.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
+import { EmailReportRecipientEntity } from '../database/entities/email-report-recipient.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PlanModule } from '../plans/plan.module';
@@ -20,6 +21,8 @@ import { TelegramBotService } from './telegram-bot.service';
 import { TelegramDigestService } from './telegram-digest.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
+import { EmailReportController } from './email-report.controller';
+import { EmailReportService } from './email-report.service';
 
 @Module({
   imports: [
@@ -35,6 +38,7 @@ import { WebhookDeliveryService } from './webhook-delivery.service';
       TelegramIntegrationEntity,
       TelegramRecipientEntity,
       TelegramLinkCodeEntity,
+      EmailReportRecipientEntity,
       WorkspaceEntity,
       FormEntity,
     ]),
@@ -43,6 +47,7 @@ import { WebhookDeliveryService } from './webhook-delivery.service';
     IntegrationsController,
     TelegramController,
     TelegramWebhookController,
+    EmailReportController,
   ],
   providers: [
     IntegrationsService,
@@ -50,6 +55,7 @@ import { WebhookDeliveryService } from './webhook-delivery.service';
     TelegramService,
     TelegramBotService,
     TelegramDigestService,
+    EmailReportService,
     WebhookDeliveryService,
   ],
   // مسیر ثبت پاسخ عمومی هم به این سرویس نیاز دارد.
