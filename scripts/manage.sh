@@ -203,6 +203,44 @@ do_user() {
   esac
 }
 
+do_ai() {
+  head "هوش مصنوعی"
+  npm --prefix "$APP_DIR/backend" run --silent set-ai -- --show 2>/dev/null || true
+  echo
+  echo "۱) مدل محلی Ollama (پیشنهاد: qwen2.5:1.5b)"
+  echo "۲) API آنلاین سازگار با OpenAI (با کلید)"
+  echo "۳) خاموش‌کردن هوش مصنوعی (حالت نمونه)"
+  echo "۰) بازگشت"
+  read -rp "انتخاب: " x
+  case "$x" in
+    1)
+      local base model
+      read -rp "نشانی Ollama [http://127.0.0.1:11434/v1]: " base
+      base="${base:-http://127.0.0.1:11434/v1}"
+      read -rp "نام مدل [qwen2.5:1.5b]: " model
+      model="${model:-qwen2.5:1.5b}"
+      npm --prefix "$APP_DIR/backend" run --silent set-ai -- \
+        --provider openai --base-url "$base" --model "$model" --key - || true
+      ok "مدل محلی تنظیم شد. (تغییر بدون ری‌استارت اثر می‌کند)"
+      ;;
+    2)
+      local base model key
+      read -rp "نشانی پایه [https://api.openai.com/v1]: " base
+      base="${base:-https://api.openai.com/v1}"
+      read -rp "نام مدل [gpt-4o-mini]: " model
+      model="${model:-gpt-4o-mini}"
+      read -rp "کلید API: " key
+      npm --prefix "$APP_DIR/backend" run --silent set-ai -- \
+        --provider openai --base-url "$base" --model "$model" ${key:+--key "$key"} || true
+      ok "سرویس آنلاین تنظیم شد."
+      ;;
+    3)
+      npm --prefix "$APP_DIR/backend" run --silent set-ai -- --off || true
+      ;;
+    *) ;;
+  esac
+}
+
 menu() {
   cat <<'MENU'
 

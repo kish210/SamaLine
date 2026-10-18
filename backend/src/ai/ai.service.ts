@@ -86,11 +86,12 @@ export class AiService {
     const provider = (config.provider || 'mock').toLowerCase();
     const envChoice = (process.env.AI_PROVIDER ?? 'mock').toLowerCase();
 
-    // تنظیمات پنل بر محیط اولویت دارد.
-    if (provider === 'openai' && config.apiKey) {
+    // تنظیمات پنل بر محیط اولویت دارد. برای سرویس آنلاین کلید لازم است، ولی
+    // مدل محلی (مثل Ollama) کلید نمی‌خواهد؛ در آن حالت نشانی پایه کافی است.
+    if (provider === 'openai' && (config.apiKey || config.baseUrl)) {
       return {
         provider: new OpenAiCompatibleProvider(
-          config.apiKey,
+          config.apiKey || 'local',
           config.baseUrl || undefined,
           config.model || undefined,
         ),
@@ -98,9 +99,15 @@ export class AiService {
       };
     }
 
-    if (provider === 'mock' && envChoice === 'openai' && process.env.AI_API_KEY) {
+    if (
+      provider === 'mock' &&
+      envChoice === 'openai' &&
+      (process.env.AI_API_KEY || process.env.AI_BASE_URL)
+    ) {
       return {
-        provider: new OpenAiCompatibleProvider(process.env.AI_API_KEY),
+        provider: new OpenAiCompatibleProvider(
+          process.env.AI_API_KEY || 'local',
+        ),
         name: 'openai',
       };
     }

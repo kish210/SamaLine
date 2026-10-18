@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین",
   "author": "",
   "private": true,
@@ -24,6 +24,7 @@
     "release": "npm run build && npm run db:seed:prod && npm run start:prod",
     "smoke": "node scripts/smoke-test.js",
     "superadmin": "node scripts/grant-superadmin.js",
+    "set-ai": "node scripts/set-ai.js",
     "reset-2fa": "node scripts/reset-2fa.js",
     "reset-password": "node scripts/reset-password.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/migration-source.ts",
