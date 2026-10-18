@@ -318,6 +318,7 @@ for _ in $(seq 1 30); do
     echo "توقف:        systemctl stop $SERVICE_NAME"
     echo "پشتیبان:     $APP_DIR/backend/data/backups/daily (روزانه، خودکار)"
     echo "مدیر کل:     cd $APP_DIR/backend && npm run superadmin -- you@example.com"
+    echo "منوی مدیریت: sudo bash $APP_DIR/scripts/manage.sh"
     exit 0
   fi
   sleep 2
