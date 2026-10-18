@@ -90,6 +90,62 @@ describe('تنظیمات سکو و سوپرادمین', () => {
     });
   });
 
+  describe('سوئیچ ثبت‌نام', () => {
+    it('روی نصب تازه ثبت‌نام باز است', async () => {
+      expect(await service.isRegistrationOpen()).toBe(true);
+    });
+
+    it('با خاموش‌کردن، ولی تا وقتی کاربری نیست، bootstrap باز می‌ماند', async () => {
+      await service.update({ registrationEnabled: false });
+      // هیچ کاربری ساخته نشده؛ نصب تازه نباید قفل شود.
+      expect(await service.isRegistrationOpen()).toBe(true);
+    });
+
+    it('با خاموش‌کردن و وجود کاربر، ثبت‌نام بسته می‌شود', async () => {
+      await makeUser(false);
+      await service.update({ registrationEnabled: false });
+      expect(await service.isRegistrationOpen()).toBe(false);
+      expect((await service.publicConfig()).registrationEnabled).toBe(false);
+    });
+  });
+
+  describe('تنظیمات هوش مصنوعی', () => {
+    it('پیش‌فرض ماک است و کلیدی ندارد', async () => {
+      const config = await service.getAiConfig();
+      expect(config.provider).toBe('mock');
+      expect(config.apiKey).toBe('');
+    });
+
+    it('کلید API رمزشده ذخیره و رمزگشایی‌شده خوانده می‌شود', async () => {
+      await service.update({
+        aiProvider: 'openai',
+        aiBaseUrl: 'https://api.openai.com/v1',
+        aiModel: 'gpt-4o-mini',
+        aiApiKey: 'sk-secret-123',
+      });
+      // در دیتابیس باید رمزشده بنشیند، نه خام.
+      const stored = await service.get();
+      expect(stored.aiApiKey.startsWith('enc:v1:')).toBe(true);
+      expect(stored.aiApiKey).not.toContain('sk-secret-123');
+      // ولی خواندن داخلی مقدار واقعی را می‌دهد.
+      const config = await service.getAiConfig();
+      expect(config.provider).toBe('openai');
+      expect(config.apiKey).toBe('sk-secret-123');
+    });
+
+    it('کلید خالی، کلید قبلی را پاک نمی‌کند', async () => {
+      await service.update({ aiProvider: 'openai', aiApiKey: 'sk-keep' });
+      await service.update({ aiModel: 'other' });
+      expect((await service.getAiConfig()).apiKey).toBe('sk-keep');
+    });
+
+    it('با «-» کلید عمدا پاک می‌شود', async () => {
+      await service.update({ aiApiKey: 'sk-del' });
+      await service.update({ aiApiKey: '-' });
+      expect((await service.getAiConfig()).apiKey).toBe('');
+    });
+  });
+
   describe('گارد سوپرادمین', () => {
     let guard: SuperAdminGuard;
 

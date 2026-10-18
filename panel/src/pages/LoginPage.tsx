@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { authApi, describeError } from '../api';
+import { authApi, describeError, platformApi } from '../api';
 import { useAuth } from '../auth';
 
 type Mode = 'login' | 'register';
@@ -10,6 +10,19 @@ export function LoginPage() {
   const signIn = useAuth((s) => s.signIn);
   const [mode, setMode] = useState<Mode>('login');
   const [error, setError] = useState<string | null>(null);
+
+  // اگر سوپرادمین ثبت‌نام را بسته باشد، زبانه‌ی ثبت‌نام نمایش داده نمی‌شود.
+  const publicConfig = useQuery({
+    queryKey: ['public-config'],
+    queryFn: platformApi.publicConfig,
+    retry: false,
+  });
+  const registrationEnabled = publicConfig.data?.registrationEnabled ?? true;
+
+  // اگر ثبت‌نام بسته شد در حالی که روی زبانه‌ی ثبت‌نام بودیم، به ورود برگرد.
+  useEffect(() => {
+    if (!registrationEnabled && mode === 'register') setMode('login');
+  }, [registrationEnabled, mode]);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -49,13 +62,15 @@ export function LoginPage() {
           >
             ورود
           </button>
-          <button
-            type="button"
-            className={mode === 'register' ? 'active' : ''}
-            onClick={() => setMode('register')}
-          >
-            ثبت‌نام
-          </button>
+          {registrationEnabled && (
+            <button
+              type="button"
+              className={mode === 'register' ? 'active' : ''}
+              onClick={() => setMode('register')}
+            >
+              ثبت‌نام
+            </button>
+          )}
         </div>
 
         {mode === 'register' && (

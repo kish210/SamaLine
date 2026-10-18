@@ -517,6 +517,535 @@ export const FORM_TEMPLATES: FormTemplate[] = [
   },
 
   {
+    key: 'job-application',
+    title: 'فرم استخدام و درخواست همکاری',
+    summary:
+      'جمع‌آوری اطلاعات داوطلب استخدام: مشخصات، سابقه، تحصیلات، مهارت، حقوق درخواستی و رزومه.',
+    category: 'منابع انسانی',
+    icon: '💼',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'مشخصات فردی',
+          questions: [
+            {
+              id: 'j_name',
+              type: 'short_text',
+              title: 'نام و نام خانوادگی',
+              required: true,
+            },
+            { id: 'j_mobile', type: 'mobile', title: 'شماره موبایل', required: true },
+            { id: 'j_email', type: 'email', title: 'ایمیل', required: false },
+            { id: 'j_birth', type: 'date', title: 'تاریخ تولد', required: false },
+            {
+              id: 'j_gender',
+              type: 'multiple_choice',
+              title: 'جنسیت',
+              options: ['مرد', 'زن'],
+              required: false,
+            },
+            {
+              id: 'j_military',
+              type: 'dropdown',
+              title: 'وضعیت نظام وظیفه',
+              options: ['معاف', 'پایان خدمت', 'مشمول', 'در حال خدمت', 'مشمول نیست'],
+              required: false,
+            },
+            {
+              id: 'j_city',
+              type: 'short_text',
+              title: 'شهر محل سکونت',
+              required: false,
+            },
+          ],
+        },
+        {
+          id: 'p2',
+          title: 'سابقه و تحصیلات',
+          questions: [
+            {
+              id: 'j_position',
+              type: 'short_text',
+              title: 'عنوان شغلی موردنظر',
+              required: true,
+            },
+            {
+              id: 'j_education',
+              type: 'dropdown',
+              title: 'بالاترین مدرک تحصیلی',
+              options: [
+                'زیر دیپلم',
+                'دیپلم',
+                'کاردانی',
+                'کارشناسی',
+                'کارشناسی ارشد',
+                'دکتری',
+              ],
+              required: true,
+            },
+            {
+              id: 'j_field',
+              type: 'short_text',
+              title: 'رشته تحصیلی',
+              required: false,
+            },
+            {
+              id: 'j_experience',
+              type: 'number',
+              title: 'سابقه کار مرتبط (سال)',
+              meta: { min: 0, max: 60 },
+              required: false,
+            },
+            {
+              id: 'j_skills',
+              type: 'long_text',
+              title: 'مهارت‌ها و توانمندی‌های اصلی',
+              required: false,
+            },
+            {
+              id: 'j_lastjob',
+              type: 'short_text',
+              title: 'آخرین محل کار و سمت',
+              required: false,
+            },
+          ],
+        },
+        {
+          id: 'p3',
+          title: 'شرایط همکاری',
+          questions: [
+            {
+              id: 'j_salary',
+              type: 'number',
+              title: 'حقوق درخواستی (تومان)',
+              meta: { min: 0 },
+              required: false,
+            },
+            {
+              id: 'j_cooperation',
+              type: 'multiple_choice',
+              title: 'نوع همکاری موردنظر',
+              options: ['تمام‌وقت', 'پاره‌وقت', 'دورکاری', 'پروژه‌ای'],
+              required: false,
+            },
+            {
+              id: 'j_start',
+              type: 'dropdown',
+              title: 'زمان آمادگی برای شروع کار',
+              options: ['فوری', 'تا یک هفته', 'تا یک ماه', 'بیش از یک ماه'],
+              required: false,
+            },
+            {
+              id: 'j_resume',
+              type: 'file_upload',
+              title: 'بارگذاری رزومه',
+              required: false,
+            },
+            {
+              id: 'j_about',
+              type: 'long_text',
+              title: 'چرا مایل به همکاری با ما هستید؟',
+              required: false,
+            },
+          ],
+        },
+      ],
+    },
+    settings: {
+      startPageText:
+        'از علاقه‌ی شما به همکاری سپاسگزاریم. لطفاً اطلاعات زیر را تکمیل کنید.',
+      endPageText: 'درخواست شما ثبت شد. در صورت تطابق با نیاز ما تماس می‌گیریم.',
+      theme: { preset: 'jangal' },
+    },
+  },
+
+  {
+    key: 'restaurant-satisfaction',
+    title: 'نظرسنجی رضایت مشتری رستوران',
+    summary:
+      'کیفیت غذا، سرعت سرویس، برخورد کارکنان، نظافت و قیمت؛ با پرسش علت نارضایتی.',
+    category: 'اصناف',
+    icon: '🍽',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'نظر شما درباره‌ی رستوران',
+          questions: [
+            rating('r_food', 'کیفیت و طعم غذا'),
+            reason('r_food_why', 'علت نارضایتی از کیفیت غذا'),
+            rating('r_speed', 'سرعت آماده‌سازی و سرویس'),
+            rating('r_staff', 'برخورد و پذیرایی کارکنان'),
+            rating('r_clean', 'نظافت محیط و میزها'),
+            rating('r_price', 'تناسب قیمت با کیفیت'),
+            {
+              id: 'r_order',
+              type: 'multiple_choice',
+              title: 'نوع سفارش شما',
+              options: ['حضوری', 'بیرون‌بر', 'آنلاین / پیک'],
+              required: false,
+            },
+            {
+              id: 'r_again',
+              type: 'boolean',
+              title: 'آیا دوباره به ما سر می‌زنید؟',
+            },
+            reason('r_note', 'پیشنهاد یا انتقاد شما'),
+          ],
+        },
+      ],
+      logic: { display: [reasonRule('r_food', 'r_food_why')] },
+      scoreIndexes: [
+        {
+          id: 'rsat',
+          key: 'رضایت کلی',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['r_food', 'r_speed', 'r_staff', 'r_clean', 'r_price'],
+        },
+      ],
+    },
+    settings: {
+      startPageText: 'نظر شما به ما کمک می‌کند طعم و خدماتمان را بهتر کنیم.',
+      endPageText: 'نوش جان! از همراهی شما سپاسگزاریم.',
+      theme: { preset: 'holu', oneQuestionPerStep: true },
+    },
+  },
+
+  {
+    key: 'retail-shop',
+    title: 'نظرسنجی فروشگاه و خرده‌فروشی',
+    summary:
+      'تجربه‌ی خرید در فروشگاه: تنوع کالا، قیمت، راهنمایی فروشنده، نظافت و صف صندوق.',
+    category: 'اصناف',
+    icon: '🛍',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'تجربه‌ی خرید شما',
+          questions: [
+            rating('s_variety', 'تنوع و موجودی کالا'),
+            rating('s_price', 'مناسب بودن قیمت‌ها'),
+            rating('s_staff', 'راهنمایی و برخورد فروشندگان'),
+            rating('s_clean', 'نظم و نظافت فروشگاه'),
+            rating('s_checkout', 'سرعت صندوق و تسویه‌حساب'),
+            {
+              id: 's_found',
+              type: 'boolean',
+              title: 'آیا آنچه می‌خواستید را پیدا کردید؟',
+            },
+            reason('s_missing', 'چه کالایی را نیافتید یا کم بود؟'),
+            reason('s_note', 'پیشنهاد شما برای بهتر شدن'),
+          ],
+        },
+      ],
+      logic: {
+        display: [
+          {
+            targetQuestionId: 's_missing',
+            when: {
+              combinator: 'and',
+              conditions: [{ source: 's_found', operator: 'equals', value: false }],
+            },
+          },
+        ],
+      },
+      scoreIndexes: [
+        {
+          id: 'ssat',
+          key: 'رضایت کلی',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['s_variety', 's_price', 's_staff', 's_clean', 's_checkout'],
+        },
+      ],
+    },
+    settings: { theme: { preset: 'oghyanus', oneQuestionPerStep: true } },
+  },
+
+  {
+    key: 'clinic-patient',
+    title: 'نظرسنجی رضایت بیمار (مطب و کلینیک)',
+    summary:
+      'رضایت از نوبت‌دهی، برخورد پرسنل، توضیح پزشک، نظافت و زمان انتظار.',
+    category: 'درمانی',
+    icon: '🩺',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'رضایت از خدمات درمانی',
+          questions: [
+            rating('m_booking', 'سهولت نوبت‌دهی و پذیرش'),
+            rating('m_wait', 'زمان انتظار تا ویزیت'),
+            rating('m_staff', 'برخورد پرسنل و منشی'),
+            rating('m_doctor', 'توضیح و دقت پزشک'),
+            rating('m_clean', 'نظافت و بهداشت محیط'),
+            {
+              id: 'm_recommend',
+              type: 'boolean',
+              title: 'آیا ما را به دیگران توصیه می‌کنید؟',
+            },
+            reason('m_note', 'نظر یا پیشنهاد شما'),
+          ],
+        },
+      ],
+      scoreIndexes: [
+        {
+          id: 'msat',
+          key: 'رضایت بیمار',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['m_booking', 'm_wait', 'm_staff', 'm_doctor', 'm_clean'],
+        },
+      ],
+    },
+    settings: {
+      startPageText: 'سلامت و رضایت شما برای ما مهم است.',
+      theme: { preset: 'barf', oneQuestionPerStep: true },
+    },
+  },
+
+  {
+    key: 'beauty-salon',
+    title: 'نظرسنجی سالن زیبایی و آرایشگاه',
+    summary:
+      'رضایت از کیفیت خدمات، مهارت پرسنل، بهداشت، قیمت و رزرو نوبت.',
+    category: 'اصناف',
+    icon: '💇',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'نظر شما درباره‌ی خدمات',
+          questions: [
+            {
+              id: 'b_service',
+              type: 'dropdown',
+              title: 'از کدام خدمت استفاده کردید؟',
+              options: ['کوتاهی مو', 'رنگ و مش', 'میکاپ', 'ناخن', 'پوست', 'سایر'],
+              required: false,
+            },
+            rating('b_quality', 'کیفیت خدمت دریافتی'),
+            rating('b_skill', 'مهارت و دقت پرسنل'),
+            rating('b_hygiene', 'رعایت بهداشت و ضدعفونی'),
+            rating('b_booking', 'سهولت رزرو نوبت'),
+            rating('b_price', 'تناسب قیمت با کیفیت'),
+            {
+              id: 'b_again',
+              type: 'boolean',
+              title: 'آیا دوباره مراجعه می‌کنید؟',
+            },
+            reason('b_note', 'پیشنهاد شما'),
+          ],
+        },
+      ],
+      scoreIndexes: [
+        {
+          id: 'bsat',
+          key: 'رضایت کلی',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['b_quality', 'b_skill', 'b_hygiene', 'b_booking', 'b_price'],
+        },
+      ],
+    },
+    settings: { theme: { preset: 'bahar', oneQuestionPerStep: true } },
+  },
+
+  {
+    key: 'gym-fitness',
+    title: 'نظرسنجی باشگاه ورزشی',
+    summary:
+      'رضایت از تجهیزات، مربیان، نظافت رختکن، ساعات کاری و شلوغی سالن.',
+    category: 'اصناف',
+    icon: '🏋',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'نظر شما درباره‌ی باشگاه',
+          questions: [
+            rating('g_equipment', 'کیفیت و کفایت تجهیزات'),
+            rating('g_coach', 'دانش و برخورد مربیان'),
+            rating('g_clean', 'نظافت سالن و رختکن'),
+            rating('g_hours', 'مناسب بودن ساعات کاری'),
+            rating('g_crowd', 'وضعیت شلوغی و نوبت دستگاه‌ها'),
+            {
+              id: 'g_renew',
+              type: 'boolean',
+              title: 'آیا عضویت خود را تمدید می‌کنید؟',
+            },
+            reason('g_note', 'پیشنهاد شما برای بهبود'),
+          ],
+        },
+      ],
+      scoreIndexes: [
+        {
+          id: 'gsat',
+          key: 'رضایت اعضا',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['g_equipment', 'g_coach', 'g_clean', 'g_hours', 'g_crowd'],
+        },
+      ],
+    },
+    settings: { theme: { preset: 'jangal', oneQuestionPerStep: true } },
+  },
+
+  {
+    key: 'cafe-feedback',
+    title: 'نظرسنجی کافه و قهوه‌خانه',
+    summary:
+      'کیفیت نوشیدنی، سرعت سرویس، فضا و موسیقی، قیمت و اینترنت.',
+    category: 'اصناف',
+    icon: '☕',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'تجربه‌ی شما در کافه',
+          questions: [
+            rating('c_drink', 'کیفیت و طعم نوشیدنی'),
+            rating('c_speed', 'سرعت سرویس'),
+            rating('c_space', 'فضا، دکوراسیون و موسیقی'),
+            rating('c_staff', 'برخورد کارکنان'),
+            rating('c_price', 'تناسب قیمت با کیفیت'),
+            {
+              id: 'c_wifi',
+              type: 'boolean',
+              title: 'آیا از اینترنت کافه استفاده کردید؟',
+            },
+            reason('c_note', 'پیشنهاد یا نظر شما'),
+          ],
+        },
+      ],
+      scoreIndexes: [
+        {
+          id: 'csat',
+          key: 'رضایت کلی',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['c_drink', 'c_speed', 'c_space', 'c_staff', 'c_price'],
+        },
+      ],
+    },
+    settings: { theme: { preset: 'ghorub', oneQuestionPerStep: true } },
+  },
+
+  {
+    key: 'course-evaluation',
+    title: 'ارزیابی دوره‌ی آموزشی',
+    summary:
+      'نظرسنجی پایان دوره: کیفیت محتوا، تسلط مدرس، امکانات و تحقق اهداف.',
+    category: 'آموزش',
+    icon: '🎓',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'ارزیابی دوره',
+          questions: [
+            {
+              id: 'd_course',
+              type: 'short_text',
+              title: 'نام دوره',
+              required: false,
+            },
+            rating('d_content', 'کیفیت و کاربردی بودن محتوا'),
+            rating('d_teacher', 'تسلط و روش تدریس مدرس'),
+            rating('d_facility', 'امکانات آموزشی و کلاس'),
+            rating('d_goal', 'میزان تحقق اهداف دوره'),
+            {
+              id: 'd_recommend',
+              type: 'boolean',
+              title: 'آیا این دوره را به دیگران پیشنهاد می‌کنید؟',
+            },
+            reason('d_improve', 'چه چیزی باید بهتر شود؟'),
+          ],
+        },
+      ],
+      scoreIndexes: [
+        {
+          id: 'dsat',
+          key: 'کیفیت دوره',
+          method: 'avg',
+          maxScore: 10,
+          questionIds: ['d_content', 'd_teacher', 'd_facility', 'd_goal'],
+        },
+      ],
+    },
+    settings: { theme: { preset: 'madrese', oneQuestionPerStep: true } },
+  },
+
+  {
+    key: 'realestate-inquiry',
+    title: 'فرم درخواست املاک',
+    summary:
+      'ثبت درخواست خرید، فروش یا اجاره‌ی ملک با نوع، منطقه، بودجه و اطلاعات تماس.',
+    category: 'اصناف',
+    icon: '🏠',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'درخواست شما',
+          questions: [
+            {
+              id: 're_name',
+              type: 'short_text',
+              title: 'نام و نام خانوادگی',
+              required: true,
+            },
+            { id: 're_mobile', type: 'mobile', title: 'شماره تماس', required: true },
+            {
+              id: 're_deal',
+              type: 'multiple_choice',
+              title: 'نوع درخواست',
+              options: ['خرید', 'فروش', 'رهن و اجاره', 'اجاره'],
+              required: true,
+            },
+            {
+              id: 're_type',
+              type: 'dropdown',
+              title: 'نوع ملک',
+              options: ['آپارتمان', 'ویلایی', 'زمین', 'مغازه / تجاری', 'اداری', 'سایر'],
+              required: true,
+            },
+            {
+              id: 're_area',
+              type: 'short_text',
+              title: 'منطقه / محله‌ی موردنظر',
+              required: false,
+            },
+            {
+              id: 're_size',
+              type: 'number',
+              title: 'متراژ تقریبی (متر مربع)',
+              meta: { min: 0 },
+              required: false,
+            },
+            {
+              id: 're_budget',
+              type: 'short_text',
+              title: 'بودجه‌ی تقریبی',
+              required: false,
+            },
+            reason('re_note', 'توضیحات بیشتر'),
+          ],
+        },
+      ],
+    },
+    settings: {
+      startPageText: 'درخواست خود را ثبت کنید تا کارشناسان ما با شما تماس بگیرند.',
+      endPageText: 'درخواست شما ثبت شد. به‌زودی با شما تماس می‌گیریم.',
+      theme: { preset: 'sakhteman' },
+    },
+  },
+
+  {
     key: 'all-types',
     title: 'نمونه‌ی همه‌ی انواع سوال',
     summary:

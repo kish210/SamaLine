@@ -404,16 +404,35 @@ export interface PlatformSettings {
   footerEnabled: boolean;
   footerText: string;
   footerUrl: string;
+  registrationEnabled: boolean;
+  aiProvider: 'mock' | 'openai';
+  aiBaseUrl: string;
+  aiModel: string;
+  /** کلید هرگز برنمی‌گردد؛ فقط می‌دانیم تنظیم شده یا نه. */
+  aiApiKeySet?: boolean;
+}
+
+/** تکه‌ای از تنظیمات که سوپرادمین می‌فرستد؛ aiApiKey فقط هنگام تغییر. */
+export type PlatformSettingsPatch = Partial<
+  Omit<PlatformSettings, 'aiApiKeySet'>
+> & { aiApiKey?: string };
+
+/** تنظیمات عمومی که پیش از ورود خوانده می‌شوند. */
+export interface PublicConfig {
+  registrationEnabled: boolean;
 }
 
 export const platformApi = {
   me: () =>
     api.get<{ isSuperAdmin: boolean }>('/platform/me').then((r) => r.data),
 
+  publicConfig: () =>
+    api.get<PublicConfig>('/platform/public-config').then((r) => r.data),
+
   getSettings: () =>
     api.get<PlatformSettings>('/platform/settings').then((r) => r.data),
 
-  updateSettings: (body: Partial<PlatformSettings>) =>
+  updateSettings: (body: PlatformSettingsPatch) =>
     api.patch<PlatformSettings>('/platform/settings', body).then((r) => r.data),
 
   /** همه‌ی فضاهای کاری سکو؛ فقط برای سوپرادمین. */
