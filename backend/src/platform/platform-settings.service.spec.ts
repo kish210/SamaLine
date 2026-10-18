@@ -32,10 +32,10 @@ describe('تنظیمات سکو و سوپرادمین', () => {
   beforeEach(async () => {
     ds = await createTestDataSource();
     service = new PlatformSettingsService(
-        ds.getRepository(PlatformSettingsEntity),
-        ds.getRepository(UserEntity),
-        ds.getRepository(WorkspaceEntity),
-      );
+      ds.getRepository(PlatformSettingsEntity),
+      ds.getRepository(UserEntity),
+      ds.getRepository(WorkspaceEntity),
+    );
   });
 
   afterEach(async () => {

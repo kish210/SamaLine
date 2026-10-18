@@ -7,7 +7,7 @@ interface Props {
   title: string;
 }
 
-type Tab = 'link' | 'qr' | 'embed';
+type Tab = 'link' | 'qr' | 'embed' | 'kiosk';
 
 /** کپی در کلیپ‌بورد با بازخورد کوتاه. */
 function useCopy() {
@@ -45,9 +45,26 @@ export function PublishCard({ url, title }: Props) {
 
   const embedCode = useMemo(
     () =>
-      `<iframe src="${url}" title="${title}" width="100%" height="700" style="border:0;max-width:760px" loading="lazy"></iframe>`,
+      `<iframe src="${url}" title="${title.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`)}" width="100%" height="700" style="border:0;max-width:760px" loading="lazy"></iframe>`,
     [url, title],
   );
+
+  /*
+   * پاپ‌آپ: یک دکمه‌ی شناور گوشه‌ی سایت مشتری که فرم را در یک لایه باز
+   * می‌کند. خودبسنده است (بدون کتابخانه و بدون فایل بیرونی) تا روی هر سایتی
+   * با چسباندن همین چند خط کار کند.
+   */
+  const popupCode = useMemo(() => {
+    // `<` گریز داده می‌شود تا عنوانی مثل «</script>» اسکریپت را نشکند.
+    const js = (value: string) =>
+      JSON.stringify(value).replace(/</g, '\\u003c');
+    const safeUrl = js(url);
+    const label = js(title ? `نظرسنجی: ${title}` : 'نظرسنجی');
+    return `<script>(function(){var u=${safeUrl},l=${label};var b=document.createElement('button');b.textContent=l;b.style.cssText='position:fixed;bottom:20px;left:20px;z-index:99999;padding:12px 18px;border:0;border-radius:24px;background:#324A7A;color:#fff;font:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)';b.onclick=function(){var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center';var f=document.createElement('iframe');f.src=u;f.title=l;f.style.cssText='width:min(760px,95vw);height:min(720px,90vh);border:0;border-radius:12px;background:#fff';var c=document.createElement('button');c.textContent='×';c.setAttribute('aria-label','بستن');c.style.cssText='position:absolute;top:12px;right:16px;font-size:28px;background:none;border:0;color:#fff;cursor:pointer';c.onclick=function(){o.remove()};o.onclick=function(e){if(e.target===o)o.remove()};o.appendChild(f);o.appendChild(c);document.body.appendChild(o)};document.body.appendChild(b)})();</script>`;
+  }, [url, title]);
+
+  // کیوسک همان فرم است با پیشوند /k به‌جای /f.
+  const kioskUrl = useMemo(() => url.replace(/\/f\/([^/]+)$/, '/k/$1'), [url]);
 
   /** دانلود QR به‌صورت SVG؛ بدون افت کیفیت در چاپ. */
   const downloadQr = () => {
@@ -70,6 +87,7 @@ export function PublishCard({ url, title }: Props) {
               ['link', 'لینک'],
               ['qr', 'کد QR'],
               ['embed', 'جاسازی در سایت'],
+              ['kiosk', 'کیوسک'],
             ] as Array<[Tab, string]>
           ).map(([key, label]) => (
             <button
@@ -132,6 +150,46 @@ export function PublishCard({ url, title }: Props) {
           <button type="button" onClick={() => void copy(embedCode, 'embed')}>
             {copied === 'embed' ? 'کپی شد' : 'کپی کد'}
           </button>
+
+          <p className="hint">
+            پاپ‌آپ: یک دکمه‌ی شناور گوشه‌ی سایت که فرم را روی همان صفحه باز
+            می‌کند. این کد را پیش از بسته شدن تگ body بگذارید.
+          </p>
+          <textarea readOnly dir="ltr" rows={3} value={popupCode} />
+          <button type="button" onClick={() => void copy(popupCode, 'popup')}>
+            {copied === 'popup' ? 'کپی شد' : 'کپی کد پاپ‌آپ'}
+          </button>
+        </div>
+      )}
+
+      {tab === 'kiosk' && (
+        <div className="publish-body">
+          <p className="hint">
+            برای تبلت یا نمایشگر ثابت در لابی و پذیرش. هر نفر فرم خالی می‌بیند،
+            پس از ثبت فرم خودکار برای نفر بعد آماده می‌شود و فرم نیمه‌کاره پس
+            از دو دقیقه بی‌کاری پاک می‌شود. اگر هنگام ثبت اینترنت قطع باشد، پاسخ
+            روی دستگاه می‌ماند و بعدا ارسال می‌شود.
+          </p>
+          <div className="inline-form">
+            <input readOnly dir="ltr" value={kioskUrl} />
+            <button type="button" onClick={() => void copy(kioskUrl, 'kiosk')}>
+              {copied === 'kiosk' ? 'کپی شد' : 'کپی'}
+            </button>
+            <a
+              className="button-like"
+              href={kioskUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              باز کردن
+            </a>
+          </div>
+          <p className="hint">
+            تنظیم اختیاری در نشانی: <code dir="ltr">?reset=10</code> ثانیه‌های
+            صفحه‌ی تشکر، <code dir="ltr">?idle=180</code> ثانیه‌های بی‌کاری.
+            پارامترهای دیگر (مثل <code dir="ltr">?branch=tehran</code>) مثل
+            همیشه پارامتر مخفی فرم‌اند.
+          </p>
         </div>
       )}
     </section>

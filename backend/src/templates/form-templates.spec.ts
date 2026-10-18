@@ -1,4 +1,14 @@
-import { FORM_TEMPLATES, findTemplate } from './form-templates';
+import { PlanCode } from '../database/entities/plan-policy.entity';
+import { DEFAULT_PLAN_LIMITS } from '../database/plan-defaults';
+import { LogicRuntimeService } from '../forms/logic-runtime.service';
+import type { FormStructure } from '../forms/logic-types';
+import { THEME_PRESETS } from '../forms/theme';
+import {
+  FORM_TEMPLATES,
+  findTemplate,
+  type FormTemplate,
+} from './form-templates';
+import { TEMPLATE_CATEGORIES } from './sector-templates';
 
 describe('قالب‌های آماده‌ی فرم', () => {
   it('کلید هر قالب یکتاست', () => {
@@ -151,9 +161,7 @@ describe('قالب هتل دروازه‌دار', () => {
       const gate = questions.findIndex(
         (q) => q.id === rule.when.conditions[0].source,
       );
-      const target = questions.findIndex(
-        (q) => q.id === rule.targetQuestionId,
-      );
+      const target = questions.findIndex((q) => q.id === rule.targetQuestionId);
       expect(gate).toBeGreaterThanOrEqual(0);
       expect(gate).toBeLessThan(target);
     }
@@ -200,3 +208,197 @@ describe('شاخص قالب‌ها', () => {
     }
   });
 });
+
+describe('کتابخانه‌ی قالب‌های صنفی', () => {
+  const runtime = new LogicRuntimeService();
+  const questionsOf = (template: FormTemplate) =>
+    template.structure.pages.flatMap((page) => page.questions ?? []);
+
+  it('هر دسته دست‌کم یک قالب دارد و هر قالب دسته‌ی شناخته‌شده دارد', () => {
+    const used = new Set(FORM_TEMPLATES.map((t) => t.category));
+    for (const category of TEMPLATE_CATEGORIES) {
+      expect(used.has(category)).toBe(true);
+    }
+    for (const template of FORM_TEMPLATES) {
+      expect(TEMPLATE_CATEGORIES as readonly string[]).toContain(
+        template.category,
+      );
+    }
+  });
+
+  it('فرم خالی اول فهرست است و دسته‌ها به ترتیب تعریف می‌آیند', () => {
+    expect(FORM_TEMPLATES[0].key).toBe('blank');
+    const ranks = FORM_TEMPLATES.map((t) =>
+      (TEMPLATE_CATEGORIES as readonly string[]).indexOf(t.category),
+    );
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+  });
+
+  it('کلید قالب لاتین کوچک با خط تیره است', () => {
+    // کلید در درخواست API می‌آید؛ فاصله یا حرف فارسی مشکل‌ساز است.
+    for (const template of FORM_TEMPLATES) {
+      expect(template.key).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+    }
+  });
+
+  it('هر قالب (جز نمونه‌ی همه‌ی انواع) روی پلن رایگان ساخته می‌شود', () => {
+    const limit = Number(DEFAULT_PLAN_LIMITS[PlanCode.FREE].maxQuestionTypes);
+    for (const template of FORM_TEMPLATES) {
+      if (template.key === 'all-types') continue;
+      const types = new Set(questionsOf(template).map((q) => q.type));
+      // کلید قالب در پیام شکست دیده شود، نه فقط دو عدد.
+      expect([template.key, types.size <= limit]).toEqual([template.key, true]);
+    }
+  });
+
+  it('تم هر قالب واقعا وجود دارد', () => {
+    for (const template of FORM_TEMPLATES) {
+      const theme = (template.settings?.theme ?? {}) as { preset?: string };
+      if (!theme.preset) continue;
+      expect(Object.keys(THEME_PRESETS)).toContain(theme.preset);
+    }
+  });
+
+  it('سوال‌های گزینه‌ای دست‌کم دو گزینه‌ی یکتا دارند', () => {
+    for (const template of FORM_TEMPLATES) {
+      for (const question of questionsOf(template)) {
+        if (
+          !['multiple_choice', 'dropdown', 'ranking'].includes(
+            question.type ?? '',
+          )
+        ) {
+          continue;
+        }
+        const options = (question.options ?? []) as string[];
+        expect(options.length).toBeGreaterThanOrEqual(2);
+        expect(new Set(options).size).toBe(options.length);
+      }
+    }
+  });
+
+  it('عنوان هر سوال پر است', () => {
+    for (const template of FORM_TEMPLATES) {
+      for (const question of questionsOf(template)) {
+        expect((question.title ?? '').trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('سقف هر شاخص با مقیاس سوال‌هایش یکی است', () => {
+    /*
+     * اگر سقف شاخص با مقیاس سوال نخواند (مثلا سقف ۱۰ روی ستاره‌ی ۱ تا ۵)،
+     * «نرخ رضایت» گزارش نصف مقدار واقعی نشان داده می‌شود و کسی هم متوجه
+     * نمی‌شود چرا.
+     */
+    for (const template of FORM_TEMPLATES) {
+      const byId = new Map(questionsOf(template).map((q) => [q.id, q]));
+      for (const index of template.structure.scoreIndexes ?? []) {
+        for (const questionId of index.questionIds as string[]) {
+          const question = byId.get(questionId)!;
+          const max =
+            question.type === 'nps'
+              ? 10
+              : Number((question.meta as { max?: number } | undefined)?.max);
+          expect({ template: template.key, questionId, max }).toEqual({
+            template: template.key,
+            questionId,
+            max: index.maxScore,
+          });
+        }
+      }
+    }
+  });
+
+  it('سوال پیگیری بعد از سوال شرطش می‌آید', () => {
+    for (const template of FORM_TEMPLATES) {
+      const order = questionsOf(template).map((q) => q.id);
+      for (const rule of displayRules(template)) {
+        for (const condition of rule.when.conditions) {
+          expect(order.indexOf(condition.source)).toBeLessThan(
+            order.indexOf(rule.targetQuestionId),
+          );
+        }
+      }
+    }
+  });
+
+  it('هر سوال پیگیری با پاسخ درست ظاهر و با پاسخ دیگر پنهان می‌شود', () => {
+    /*
+     * این آزمون با موتور منطق واقعی سامانه اجرا می‌شود، نه با بررسی شکل
+     * قانون؛ یعنی اگر مثلا مقدار شرط «خیر» باشد ولی گزینه «نه» نوشته شده
+     * باشد، همین‌جا شکست می‌خورد.
+     */
+    let checked = 0;
+    for (const template of FORM_TEMPLATES) {
+      const structure = template.structure as unknown as FormStructure;
+      for (const rule of displayRules(template)) {
+        const [condition] = rule.when.conditions;
+        const visibleWith = (value: unknown) =>
+          runtime
+            .visibleQuestionIds(structure, {
+              answers: { [condition.source]: value },
+              params: {},
+              scores: {},
+            })
+            .has(rule.targetQuestionId);
+
+        expect({
+          template: template.key,
+          target: rule.targetQuestionId,
+          shown: visibleWith(triggering(condition)),
+          hidden: !visibleWith(nonTriggering(condition)),
+        }).toEqual({
+          template: template.key,
+          target: rule.targetQuestionId,
+          shown: true,
+          hidden: true,
+        });
+        checked += 1;
+      }
+    }
+    expect(checked).toBeGreaterThan(30);
+  });
+
+  it('مقدار شرط‌های «برابر» واقعا یکی از گزینه‌های سوال است', () => {
+    for (const template of FORM_TEMPLATES) {
+      const byId = new Map(questionsOf(template).map((q) => [q.id, q]));
+      for (const rule of displayRules(template)) {
+        for (const condition of rule.when.conditions) {
+          if (condition.operator !== 'equals') continue;
+          const source = byId.get(condition.source)!;
+          if (source.type === 'boolean') {
+            expect(typeof condition.value).toBe('boolean');
+          } else {
+            expect(source.options as string[]).toContain(condition.value);
+          }
+        }
+      }
+    }
+  });
+});
+
+interface SimpleRule {
+  targetQuestionId: string;
+  when: {
+    conditions: Array<{ source: string; operator: string; value: unknown }>;
+  };
+}
+
+function displayRules(template: FormTemplate): SimpleRule[] {
+  return (template.structure.logic?.display ?? []) as unknown as SimpleRule[];
+}
+
+/** پاسخی که شرط را برقرار می‌کند. */
+function triggering(condition: { operator: string; value: unknown }) {
+  if (condition.operator === 'lt') return Number(condition.value) - 1;
+  if (condition.operator === 'gt') return Number(condition.value) + 1;
+  return condition.value;
+}
+
+/** پاسخی که شرط را برقرار نمی‌کند. */
+function nonTriggering(condition: { operator: string; value: unknown }) {
+  if (condition.operator === 'lt') return Number(condition.value);
+  if (condition.operator === 'gt') return Number(condition.value);
+  if (typeof condition.value === 'boolean') return !condition.value;
+  return '__پاسخ_دیگر__';
+}

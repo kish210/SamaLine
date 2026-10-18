@@ -1,54 +1,62 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { describeError, formsApi, reportsApi, workspaceApi } from '../api';
-import { TemplatePicker } from './TemplatePicker';
-import type { FormPage } from '../types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { describeError, formsApi, reportsApi, workspaceApi } from "../api";
+import type { FormTemplateSummary } from "../api";
+import { TemplatePicker } from "./TemplatePicker";
+import type { FormPage } from "../types";
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: 'پیش‌نویس',
-  active: 'فعال',
-  closed: 'بسته',
-  archived: 'بایگانی',
+  draft: "پیش‌نویس",
+  active: "فعال",
+  closed: "بسته",
+  archived: "بایگانی",
 };
 
 /** یک صفحه‌ی خالی با یک سوال، تا فرم تازه بلافاصله قابل ویرایش باشد. */
 const starterPages = (): FormPage[] => [
   {
-    id: 'p1',
-    title: 'صفحه ۱',
+    id: "p1",
+    title: "صفحه ۱",
     questions: [
-      { id: 'q1', type: 'short_text', title: 'سوال اول شما', required: false },
+      { id: "q1", type: "short_text", title: "سوال اول شما", required: false },
     ],
   },
 ];
 
 export function FormsPage() {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [templateKey, setTemplateKey] = useState('');
+  const navigate = useNavigate();
+  const [title, setTitle] = useState("");
+  /*
+   * آیا عنوان را کاربر خودش نوشته؟ اگر نه، انتخاب قالب عنوان قالب را جای
+   * آن می‌گذارد تا لازم نباشد برای ساخت از قالب اول چیزی تایپ شود.
+   */
+  const [titleEdited, setTitleEdited] = useState(false);
+  const [templateKey, setTemplateKey] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(
-    null,
-  );
+  const [deleting, setDeleting] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const workspaces = useQuery({
-    queryKey: ['workspaces'],
+    queryKey: ["workspaces"],
     queryFn: workspaceApi.list,
   });
-  const workspaceId = workspaces.data?.[0]?.id ?? '';
+  const workspaceId = workspaces.data?.[0]?.id ?? "";
 
   const forms = useQuery({
-    queryKey: ['forms', workspaceId, showArchived],
+    queryKey: ["forms", workspaceId, showArchived],
     queryFn: () => formsApi.list(workspaceId, showArchived),
     enabled: Boolean(workspaceId),
   });
 
   const refreshForms = () =>
-    void queryClient.invalidateQueries({ queryKey: ['forms'] });
+    void queryClient.invalidateQueries({ queryKey: ["forms"] });
 
   const setArchived = useMutation({
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
@@ -67,19 +75,44 @@ export function FormsPage() {
         // با قالب، ساختار سمت سرور باز می‌شود؛ بدون قالب، فرم ساده‌ی محلی.
         ...(templateKey ? { templateKey } : { pages: starterPages() }),
       }),
-    onSuccess: async () => {
-      setTitle('');
-      setTemplateKey('');
+    onSuccess: async (created) => {
+      /*
+       * اگر پلن سازمان بخشی از قالب را نداشته باشد (منطق شرطی، شاخص،
+       * چندزبانه)، فرم ساخته می‌شود ولی بدون آن بخش؛ کاربر باید بداند چه
+       * چیزی کم است، نه اینکه بعدا تعجب کند.
+       */
+      if (created.planSkipped?.length) {
+        window.alert(
+          `فرم ساخته شد، ولی این بخش‌های قالب در پلن فعلی شما نیست و اعمال نشد:\n${created.planSkipped.join("، ")}`,
+        );
+      }
+      setTitle("");
+      setTitleEdited(false);
+      setTemplateKey("");
+      setPickerOpen(false);
       setError(null);
-      await queryClient.invalidateQueries({ queryKey: ['forms', workspaceId] });
+      await queryClient.invalidateQueries({ queryKey: ["forms", workspaceId] });
+      // فرم تازه مستقیم در فرم‌ساز باز می‌شود؛ قدم بعدی کاربر همیشه ویرایش است.
+      navigate(`/forms/${created.id}`);
     },
     onError: (err) => setError(describeError(err)),
   });
 
+  const create = () => {
+    if (!workspaceId || !title.trim() || createForm.isPending) return;
+    createForm.mutate();
+  };
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!workspaceId || !title.trim()) return;
-    createForm.mutate();
+    create();
+  };
+
+  const chooseTemplate = (template: FormTemplateSummary) => {
+    setTemplateKey(template.key);
+    if (!titleEdited) {
+      setTitle(template.key === "blank" ? "" : template.title);
+    }
   };
 
   return (
@@ -90,14 +123,17 @@ export function FormsPage() {
           <input
             placeholder="عنوان فرم جدید"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setTitleEdited(e.target.value.trim().length > 0);
+            }}
           />
           <button
             type="button"
             className="secondary"
             onClick={() => setPickerOpen((open) => !open)}
           >
-            {pickerOpen ? 'بستن قالب‌ها' : 'انتخاب از قالب'}
+            {pickerOpen ? "بستن قالب‌ها" : "انتخاب از قالب"}
           </button>
           <button type="submit" disabled={createForm.isPending || !workspaceId}>
             ساخت فرم
@@ -107,7 +143,12 @@ export function FormsPage() {
 
       {pickerOpen && (
         <section className="card">
-          <TemplatePicker value={templateKey} onChange={setTemplateKey} />
+          <TemplatePicker
+            value={templateKey}
+            onChange={chooseTemplate}
+            onCreate={title.trim() ? create : undefined}
+            creating={createForm.isPending}
+          />
         </section>
       )}
 
@@ -137,7 +178,9 @@ export function FormsPage() {
                 <span className={`badge badge-${form.status}`}>
                   {STATUS_LABELS[form.status] ?? form.status}
                 </span>
-                <span className="slug">{form.slug}</span>
+                <span className="form-card-stats">
+                  {describeResponses(form.responseCount, form.lastResponseAt)}
+                </span>
               </div>
             </Link>
 
@@ -148,13 +191,13 @@ export function FormsPage() {
                 onClick={() =>
                   setArchived.mutate({
                     id: form.id,
-                    archived: form.status !== 'archived',
+                    archived: form.status !== "archived",
                   })
                 }
               >
-                {form.status === 'archived' ? 'بازگرداندن' : 'بایگانی'}
+                {form.status === "archived" ? "بازگرداندن" : "بایگانی"}
               </button>
-              {form.status === 'archived' && (
+              {form.status === "archived" && (
                 <button
                   type="button"
                   className="danger"
@@ -197,11 +240,11 @@ interface DeleteDialogProps {
  * می‌کند — پس هیچ‌وقت داده‌ای که کاربر از وجودش خبر نداشته نابود نمی‌شود.
  */
 function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
-  const [confirmText, setConfirmText] = useState('');
-  const [error, setError] = useState('');
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState("");
 
   const summary = useQuery({
-    queryKey: ['summary', form.id],
+    queryKey: ["summary", form.id],
     queryFn: () => reportsApi.summary(form.id),
   });
 
@@ -226,7 +269,7 @@ function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
         <p>در حال خواندن تعداد پاسخ‌ها…</p>
       ) : (
         <p className="error">
-          این کار برگشت‌ناپذیر است. فرم، ساختار، لینک‌ها و{' '}
+          این کار برگشت‌ناپذیر است. فرم، ساختار، لینک‌ها و{" "}
           <b>{responses ?? 0} پاسخ ثبت‌شده</b> برای همیشه پاک می‌شوند.
         </p>
       )}
@@ -255,7 +298,7 @@ function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
           }
           onClick={() => remove.mutate()}
         >
-          {remove.isPending ? 'در حال حذف…' : 'حذف همیشگی'}
+          {remove.isPending ? "در حال حذف…" : "حذف همیشگی"}
         </button>
         <button type="button" className="secondary" onClick={onClose}>
           انصراف
@@ -263,4 +306,21 @@ function DeleteFormDialog({ form, onClose, onDeleted }: DeleteDialogProps) {
       </div>
     </section>
   );
+}
+
+/**
+ * خلاصه‌ی پاسخ‌های کارت فرم: «۱۲ پاسخ، آخرین: ۱۴۰۵/۷/۷».
+ *
+ * پیش از این نشانک داخلی فرم (مثل `hotel-1790657206382`) نمایش داده می‌شد
+ * که برای کاربر معنایی نداشت.
+ */
+function describeResponses(
+  count: number | undefined,
+  lastAt: string | null | undefined,
+): string {
+  if (!count) return "هنوز پاسخی نیامده";
+  const total = `${count.toLocaleString("fa-IR")} پاسخ`;
+  if (!lastAt) return total;
+  const date = new Date(lastAt).toLocaleDateString("fa-IR");
+  return `${total}، آخرین: ${date}`;
 }

@@ -67,9 +67,9 @@ export class BillingService {
    * شروع پرداخت: رکورد ساخته می‌شود و کاربر به درگاه فرستاده می‌شود.
    * مبلغ از فاکتور خوانده می‌شود نه از ورودی کلاینت.
    */
-  async createPayment(dto: CreatePaymentDto) {
+  async createPayment(dto: CreatePaymentDto, organizationId: string) {
     const invoice = await this.invoiceRepo.findOne({
-      where: { id: dto.invoiceId },
+      where: { id: dto.invoiceId, organizationId },
     });
     if (!invoice) throw new NotFoundException('فاکتور یافت نشد');
 
@@ -115,9 +115,14 @@ export class BillingService {
    * پیش از این، کلاینت وضعیت موفق/ناموفق را می‌فرستاد؛ یعنی هر کسی
    * می‌توانست فاکتور را تسویه‌شده اعلام کند.
    */
-  async verifyPayment(id: string) {
+  async verifyPayment(id: string, organizationId: string) {
     const payment = await this.paymentRepo.findOne({ where: { id } });
     if (!payment) throw new NotFoundException('پرداخت یافت نشد');
+    // پرداختِ فاکتور سازمان دیگر برای این کاربر «یافت نشد» است.
+    const owner = await this.invoiceRepo.findOne({
+      where: { id: payment.invoiceId, organizationId },
+    });
+    if (!owner) throw new NotFoundException('پرداخت یافت نشد');
 
     // پرداخت تاییدشده دوباره تایید نمی‌شود تا فاکتور دوبار تسویه نشود.
     if (payment.status === PaymentStatus.SUCCESS) {

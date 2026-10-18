@@ -243,9 +243,7 @@ export class LogicEngineService {
         kind: 'skip',
         conditional: Boolean(rule.when),
         ruleIndex,
-        label: rule.when
-          ? describeGroup(rule.when, questionTitles)
-          : 'همیشه',
+        label: rule.when ? describeGroup(rule.when, questionTitles) : 'همیشه',
       });
     });
 
@@ -333,7 +331,10 @@ function describeCondition(
   const subject = describeSource(condition.source, titles);
   const operator = OPERATOR_TEXT[condition.operator] ?? condition.operator;
 
-  if (condition.operator === 'is_empty' || condition.operator === 'is_not_empty') {
+  if (
+    condition.operator === 'is_empty' ||
+    condition.operator === 'is_not_empty'
+  ) {
     return `${subject} ${operator}`;
   }
   if (condition.operator === 'between') {

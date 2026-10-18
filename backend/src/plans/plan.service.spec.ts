@@ -95,6 +95,30 @@ describe('PlanService — سقف پلن و شمارش مصرف', () => {
         PlanCode.FREE,
       );
     });
+
+    it('اشتراک منقضی‌شده به پلن رایگان برمی‌گردد', async () => {
+      await ds.getRepository(SubscriptionEntity).save({
+        organizationId,
+        planCode: PlanCode.ENTERPRISE,
+        isActive: true,
+        expiresAt: new Date(Date.now() - 60_000),
+      });
+      await expect(service.resolvePlan(organizationId)).resolves.toBe(
+        PlanCode.FREE,
+      );
+    });
+
+    it('اشتراک با انقضای آینده معتبر است', async () => {
+      await ds.getRepository(SubscriptionEntity).save({
+        organizationId,
+        planCode: PlanCode.PRO,
+        isActive: true,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      });
+      await expect(service.resolvePlan(organizationId)).resolves.toBe(
+        PlanCode.PRO,
+      );
+    });
   });
 
   describe('canCreateForm', () => {

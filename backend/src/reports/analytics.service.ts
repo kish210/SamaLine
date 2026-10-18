@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ResponseEntity } from '../database/entities/response.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
 import type {
   FormQuestionNode,
@@ -163,7 +166,9 @@ export class AnalyticsService {
       .orderBy('response.createdAt', 'ASC')
       .getMany();
 
-    const completed = responses.filter((r) => r.status === 'completed');
+    const completed = responses.filter(
+      (r) => r.status === ResponseStatus.COMPLETED,
+    );
 
     return {
       range: {
@@ -256,7 +261,10 @@ export class AnalyticsService {
     }
 
     base.chart = 'text';
-    base.samples = values.slice(-20).map((v) => String(v)).reverse();
+    base.samples = values
+      .slice(-20)
+      .map((v) => String(v))
+      .reverse();
     /*
      * کلیدواژه فقط از متن آزاد گرفته می‌شود.
      *
@@ -318,8 +326,12 @@ export class AnalyticsService {
     if (numbers.length === 0) return { ...base, chart: 'scale' };
 
     const meta = (question.meta ?? {}) as { min?: number; max?: number };
-    const min = Number.isFinite(meta.min) ? Number(meta.min) : Math.min(...numbers);
-    const max = Number.isFinite(meta.max) ? Number(meta.max) : Math.max(...numbers);
+    const min = Number.isFinite(meta.min)
+      ? Number(meta.min)
+      : Math.min(...numbers);
+    const max = Number.isFinite(meta.max)
+      ? Number(meta.max)
+      : Math.max(...numbers);
 
     return {
       ...base,
@@ -348,7 +360,13 @@ export class AnalyticsService {
           value as Record<string, unknown>,
         )) {
           if (col === undefined || col === null || col === '') continue;
-          labels.push(`${row}: ${String(col)}`);
+          const text =
+            typeof col === 'string' ||
+            typeof col === 'number' ||
+            typeof col === 'boolean'
+              ? String(col)
+              : JSON.stringify(col);
+          labels.push(`${row}: ${text}`);
         }
       }
     }
@@ -383,7 +401,7 @@ export class AnalyticsService {
       const date = toIsoDay(response.createdAt);
       const bucket = days.get(date) ?? { started: 0, completed: 0 };
       bucket.started += 1;
-      if (response.status === 'completed') bucket.completed += 1;
+      if (response.status === ResponseStatus.COMPLETED) bucket.completed += 1;
       days.set(date, bucket);
     }
 

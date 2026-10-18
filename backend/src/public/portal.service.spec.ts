@@ -28,8 +28,12 @@ function repo(rows: Row[]) {
     find: async (options?: { where?: Row }) =>
       options?.where ? rows.filter((r) => matches(r, options.where!)) : rows,
     findOne: async (options?: { where?: Row }) =>
-      (options?.where ? rows.filter((r) => matches(r, options.where!)) : rows)[0] ??
-      null,
+      (options?.where
+        ? rows.filter((r) => matches(r, options.where!))
+        : rows)[0] ?? null,
+    count: async (options?: { where?: Row }) =>
+      (options?.where ? rows.filter((r) => matches(r, options.where!)) : rows)
+        .length,
     create: (v: Row) => v,
     save: async (v: Row) => v,
     delete: async () => undefined,
@@ -54,6 +58,12 @@ const platform = {
   publicFooter: async () => ({ enabled: false, text: '', url: null }),
 } as never;
 
+/** پلن نامحدود؛ سقف پرتال جای دیگری آزموده می‌شود. */
+const plans = {
+  organizationOfWorkspace: () => Promise.resolve('org-1'),
+  assertQuota: () => Promise.resolve(),
+} as never;
+
 describe('PortalService', () => {
   describe('نمای عمومی', () => {
     const build = (over: {
@@ -67,6 +77,7 @@ describe('PortalService', () => {
         repo(over.publications ?? []),
         platform,
         tenant,
+        plans,
       );
 
     it('فقط فرم فعالِ منتشرشده را می‌آورد', async () => {
@@ -100,8 +111,20 @@ describe('PortalService', () => {
           { id: 'f2', title: 'فرم دو', status: FormStatus.ACTIVE },
         ],
         publications: [
-          { formId: 'f1', token: 't1', slug: null, type: PublicationType.LINK, isActive: true },
-          { formId: 'f2', token: 't2', slug: null, type: PublicationType.LINK, isActive: true },
+          {
+            formId: 'f1',
+            token: 't1',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+          },
+          {
+            formId: 'f2',
+            token: 't2',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+          },
         ],
       });
 
@@ -153,6 +176,7 @@ describe('PortalService', () => {
         repo([]),
         platform,
         tenant,
+        plans,
       );
 
       const saved = await service.save('w1', null, {
@@ -171,6 +195,7 @@ describe('PortalService', () => {
         repo([]),
         platform,
         tenant,
+        plans,
       );
       await expect(
         service.save('w1', null, { slug: 'panel', title: 'x' }),
@@ -184,6 +209,7 @@ describe('PortalService', () => {
         repo([]),
         platform,
         tenant,
+        plans,
       );
       await expect(
         service.save('w1', null, { slug: 'hotel', title: 'x' }),

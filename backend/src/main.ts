@@ -9,10 +9,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { uploadDirectory } from './uploads/upload.service';
+import { cacheControlFor } from './common/static-cache';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { runMigrations } from './database/migrate-on-boot';
+import { ensureDefaultPlans } from './database/plan-defaults';
 import { DB_DRIVER } from './database/column-types';
 
 const RENDERER_DIR = resolve(process.cwd(), '../form-renderer/dist');
@@ -29,7 +31,16 @@ function serveStaticIfBuilt(
   dir: string,
   prefix: string,
 ): void {
-  if (isBuilt(dir)) app.useStaticAssets(dir, { prefix });
+  if (!isBuilt(dir)) return;
+  app.useStaticAssets(dir, {
+    prefix,
+    // index.html از مسیر پوششی SPA داده می‌شود تا سربرگ کش یکسان بماند.
+    index: false,
+    setHeaders: (
+      res: { setHeader: (k: string, v: string) => void },
+      path: string,
+    ) => res.setHeader('Cache-Control', cacheControlFor(path)),
+  });
 }
 
 /**
@@ -52,13 +63,14 @@ function useSpaFallback(
   app.use((req: SpaRequest, res: SpaResponse, next: () => void) => {
     const path = req.path ?? '';
 
-    // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های غیر GET رد می‌شوند.
-    const isApiPath =
-      path.startsWith('/api') || path.startsWith('/uploads');
+    // فقط ناوبری مرورگر؛ API، آپلود و درخواست‌های نوشتنی رد می‌شوند.
+    const isApiPath = path.startsWith('/api') || path.startsWith('/uploads');
     const inScope = prefix === '/' ? true : path.startsWith(prefix);
     const wantsHtml = (req.headers?.accept ?? '').includes('text/html');
 
-    if (req.method !== 'GET' || isApiPath || !inScope || !wantsHtml) {
+    // HEAD هم پذیرفته می‌شود تا پایشگرهای بیرونی (uptime) ۴۰۴ نگیرند.
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
+    if (!isRead || isApiPath || !inScope || !wantsHtml) {
       next();
       return;
     }
@@ -69,6 +81,7 @@ function useSpaFallback(
       return;
     }
 
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(join(dir, 'index.html'));
   });
 }
@@ -80,11 +93,18 @@ interface SpaRequest {
 }
 
 interface SpaResponse {
+  setHeader: (name: string, value: string) => void;
   sendFile: (path: string) => void;
 }
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  /*
+   * با SIGTERM (systemctl stop/restart) اتصال دیتابیس و صف‌ها مرتب بسته
+   * می‌شوند؛ بدون این، فرایند وسط نوشتن کشته می‌شد.
+   */
+  app.enableShutdownHooks();
 
   /*
    * پشت پراکسیِ محلی (nginx) هستیم.
@@ -102,6 +122,8 @@ async function bootstrap() {
    * به کاربر می‌رسد؛ شکست اینجا صریح‌تر و بی‌ضررتر است.
    */
   await runMigrations(app.get(DataSource));
+  // نصب تازه بدون پلن‌های پیش‌فرض، سقف و امکانات هیچ سازمانی را نمی‌داند.
+  await ensureDefaultPlans(app.get(DataSource), { overwrite: false });
 
   /*
    * فایل‌های آپلودی (لوگوی سازمان‌ها) از همین سرور سرو می‌شوند.

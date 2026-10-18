@@ -12,6 +12,7 @@ import type {
 } from './messaging.types';
 import { KavenegarProvider } from './providers/kavenegar.provider';
 import { LocalFileProvider } from './providers/local-file.provider';
+import { SmtpProvider, smtpConfigFromEnv } from './providers/smtp.provider';
 import { WebhookProvider } from './providers/webhook.provider';
 
 /** نوع کار صف برای ارسال یک پیام. */
@@ -182,6 +183,15 @@ export class MessagingService {
       if (endpoint) return new WebhookProvider(channel, endpoint);
       this.logger.warn(
         `آدرس وبهوک برای کانال ${channel} تنظیم نشده؛ به سرویس‌دهنده محلی برگشت داده شد`,
+      );
+      return new LocalFileProvider(channel);
+    }
+
+    if (choice === 'smtp' && channel === 'email') {
+      const config = smtpConfigFromEnv();
+      if (config) return new SmtpProvider(config);
+      this.logger.warn(
+        'SMTP_HOST تنظیم نشده؛ به سرویس‌دهنده محلی برگشت داده شد',
       );
       return new LocalFileProvider(channel);
     }

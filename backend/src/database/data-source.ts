@@ -6,6 +6,14 @@ import { ALL_ENTITIES } from './entities';
 import { Baseline1788846783305 } from './migrations/1788846783305-Baseline';
 import { AddPortal1788865235241 } from './migrations/1788865235241-AddPortal';
 import { PgBaseline1788878200721 } from './migrations/1788878200721-PgBaseline';
+import { AddTotp1790656139923 } from './migrations/1790656139923-AddTotp';
+import { PgAddTotp1790656139924 } from './migrations/1790656139924-PgAddTotp';
+import { AddPasswordReset1791318984285 } from './migrations/1791318984285-AddPasswordReset';
+import { PgAddPasswordReset1791318984286 } from './migrations/1791318984286-PgAddPasswordReset';
+import { AddInvitations1791319534731 } from './migrations/1791319534731-AddInvitations';
+import { AddApiKeyRole1791319534733 } from './migrations/1791319534733-AddApiKeyRole';
+import { PgAddInvitations1791319534732 } from './migrations/1791319534732-PgAddInvitations';
+import { PgAddApiKeyRole1791319534734 } from './migrations/1791319534734-PgAddApiKeyRole';
 import { AddPlatformAiAndRegistration1792000000000 } from './migrations/1792000000000-AddPlatformAiAndRegistration';
 import { PgAddPlatformAiAndRegistration1792000000001 } from './migrations/1792000000001-PgAddPlatformAiAndRegistration';
 
@@ -19,13 +27,21 @@ import { PgAddPlatformAiAndRegistration1792000000001 } from './migrations/179200
  * هر گویش فهرست خودش را دارد: SQL تولیدشده برای SQLite روی Postgres خطای
  * نحوی می‌دهد و برعکس. یک فهرست مشترک یعنی یکی از دو گویش همیشه خراب است.
  */
-const SQLITE_MIGRATIONS = [
+export const SQLITE_MIGRATIONS = [
   Baseline1788846783305,
   AddPortal1788865235241,
+  AddTotp1790656139923,
+  AddPasswordReset1791318984285,
+  AddInvitations1791319534731,
+  AddApiKeyRole1791319534733,
   AddPlatformAiAndRegistration1792000000000,
 ];
-const POSTGRES_MIGRATIONS = [
+export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
+  PgAddTotp1790656139924,
+  PgAddPasswordReset1791318984286,
+  PgAddInvitations1791319534732,
+  PgAddApiKeyRole1791319534734,
   PgAddPlatformAiAndRegistration1792000000001,
 ];
 

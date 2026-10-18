@@ -22,12 +22,16 @@ import { ContactsModule } from './contacts/contacts.module';
 import { SpecializedModule } from './specialized/specialized.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { OpsModule } from './ops/ops.module';
+import { TeamModule } from './team/team.module';
+import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { buildDataSourceOptions } from './database/data-source';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(buildDataSourceOptions()),
+    // سراسری: گارد توکن روی همه‌ی ماژول‌ها به آن نیاز دارد.
+    ApiKeyAuthModule,
     AuthModule,
     WorkspaceModule,
     FormModule,
@@ -49,6 +53,7 @@ import { buildDataSourceOptions } from './database/data-source';
     SpecializedModule,
     RemindersModule,
     OpsModule,
+    TeamModule,
   ],
 })
 export class AppModule {}

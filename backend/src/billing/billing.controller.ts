@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { OrganizationId } from '../common/current-user.decorator';
+import { SuperAdminGuard } from '../common/super-admin.guard';
 import { BillingService } from './billing.service';
 import {
   CreateInvoiceDto,
@@ -17,7 +18,10 @@ import {
   UpdateSubscriptionDto,
   ValidateLicenseDto,
 } from './dto';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
+@MinRole(OrganizationRole.ADMIN)
 @Controller('billing')
 @UseGuards(JwtAuthGuard)
 export class BillingController {
@@ -37,23 +41,40 @@ export class BillingController {
   }
 
   @Post('payments')
-  createPayment(@Body() dto: CreatePaymentDto) {
-    // سازمان از روی فاکتور مرجع تعیین می‌شود، نه از ورودی کلاینت.
-    return this.billingService.createPayment(dto);
+  createPayment(
+    @Body() dto: CreatePaymentDto,
+    @OrganizationId() organizationId: string,
+  ) {
+    // فاکتور باید متعلق به سازمان همین کاربر باشد.
+    return this.billingService.createPayment(dto, organizationId);
   }
 
   @Patch('payments/:id/verify')
-  verifyPayment(@Param('id') id: string) {
+  verifyPayment(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
     // وضعیت از خود درگاه پرسیده می‌شود؛ بدنه‌ی درخواست نقشی ندارد.
-    return this.billingService.verifyPayment(id);
+    return this.billingService.verifyPayment(id, organizationId);
   }
 
+  /**
+   * تغییر پلن — فقط سوپرادمین.
+   *
+   * پیش از این هر کاربری می‌توانست پلن سازمان خودش را بی‌پرداخت به
+   * «اختصاصی» ببرد و همه‌ی سقف‌ها را دور بزند. سوپرادمین می‌تواند
+   * `organizationId` را در بدنه بدهد؛ بدون آن، سازمان خودش.
+   */
   @Post('subscriptions')
+  @UseGuards(SuperAdminGuard)
   updateSubscription(
     @Body() dto: UpdateSubscriptionDto,
     @OrganizationId() organizationId: string,
   ) {
-    return this.billingService.updateSubscription({ ...dto, organizationId });
+    return this.billingService.updateSubscription({
+      ...dto,
+      organizationId: dto.organizationId ?? organizationId,
+    });
   }
 
   @Get('subscriptions')
@@ -61,12 +82,17 @@ export class BillingController {
     return this.billingService.listSubscriptions(organizationId);
   }
 
+  /** صدور لایسنس On-Premise — فقط سوپرادمین. */
   @Post('licenses')
+  @UseGuards(SuperAdminGuard)
   createLicense(
     @Body() dto: CreateLicenseDto,
     @OrganizationId() organizationId: string,
   ) {
-    return this.billingService.createLicense({ ...dto, organizationId });
+    return this.billingService.createLicense({
+      ...dto,
+      organizationId: dto.organizationId ?? organizationId,
+    });
   }
 
   @Post('licenses/validate')

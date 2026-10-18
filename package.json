@@ -1,7 +1,7 @@
 {
   "name": "samaline",
   "private": true,
-  "version": "1.2.10",
+  "version": "1.5.2",
   "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین",
   "scripts": {
     "dev": "node scripts/dev.js",

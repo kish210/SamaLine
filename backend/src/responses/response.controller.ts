@@ -16,6 +16,8 @@ import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TenantAccessService } from '../common/tenant-access.service';
 import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
 import { ResponseService } from './response.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 /**
  * پاسخ‌نامه‌ها خام‌ترین داده‌ی سامانه‌اند (نام، شماره تماس، متن نظر). هر
@@ -40,6 +42,7 @@ export class ResponseController {
     return this.responseService.listByForm(formId, query);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Get('form/:formId/export')
   @Header(
     'Content-Type',
@@ -68,6 +71,7 @@ export class ResponseController {
     return this.responseService.getComments(responseId);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post(':responseId/comments')
   async addComment(
     @Param('responseId') responseId: string,

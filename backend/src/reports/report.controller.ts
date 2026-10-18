@@ -15,10 +15,13 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TenantAccessService } from '../common/tenant-access.service';
+import { PlanService } from '../plans/plan.service';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
 import { AnalyticsService } from './analytics.service';
+import { MinRole } from '../common/roles';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 /**
  * گزارش‌ها روی داده‌ی خام پاسخ‌دهنده‌ها کار می‌کنند، پس هر مسیر پیش از هر
@@ -33,13 +36,20 @@ export class ReportController {
     private readonly exportService: ExportService,
     private readonly analyticsService: AnalyticsService,
     private readonly tenant: TenantAccessService,
+    private readonly plans: PlanService,
   ) {}
 
+  /**
+   * خروجی «پیشرفته» (متادیتای پاسخ‌دهنده، زمان‌ها و شناسه‌ها) امکان پلن است؛
+   * خروجی ساده برای همه باز می‌ماند تا کسی داده‌ی خودش را گروگان نبیند.
+   */
+  private assertAdvancedExport(advanced: boolean, user: JwtUser) {
+    if (!advanced) return;
+    return this.plans.assertFeature(user.organizationId, 'advancedExcel');
+  }
+
   @Get('forms/:formId/summary')
-  async summary(
-    @Param('formId') formId: string,
-    @CurrentUser() user: JwtUser,
-  ) {
+  async summary(@Param('formId') formId: string, @CurrentUser() user: JwtUser) {
     await this.tenant.assertForm(formId, user);
     return this.reportService.formSummary(formId);
   }
@@ -90,6 +100,7 @@ export class ReportController {
   }
 
   /** خروجی اکسل پاسخ‌ها؛ advanced=true متادیتا را هم می‌آورد. */
+  @MinRole(OrganizationRole.ANALYST)
   @Get('forms/:formId/export.xlsx')
   async exportExcel(
     @Param('formId') formId: string,
@@ -98,6 +109,7 @@ export class ReportController {
     @Query('advanced') advanced?: string,
   ) {
     await this.tenant.assertForm(formId, user);
+    await this.assertAdvancedExport(advanced === 'true', user);
     const buffer = await this.exportService.toExcel(
       formId,
       advanced === 'true',
@@ -113,6 +125,7 @@ export class ReportController {
     res.send(buffer);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Get('forms/:formId/export.csv')
   async exportCsv(
     @Param('formId') formId: string,
@@ -121,6 +134,7 @@ export class ReportController {
     @Query('advanced') advanced?: string,
   ) {
     await this.tenant.assertForm(formId, user);
+    await this.assertAdvancedExport(advanced === 'true', user);
     const csv = await this.exportService.toCsv(formId, advanced === 'true');
     res.setHeader('content-type', 'text/csv; charset=utf-8');
     res.setHeader(
@@ -130,6 +144,7 @@ export class ReportController {
     res.send(csv);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Post('filters')
   async saveFilter(@Body() dto: SaveFilterDto, @CurrentUser() user: JwtUser) {
     await this.tenant.assertWorkspace(dto.workspaceId, user);
@@ -145,6 +160,7 @@ export class ReportController {
     return this.reportService.listFilters(workspaceId);
   }
 
+  @MinRole(OrganizationRole.ANALYST)
   @Delete('filters/:id')
   async deleteFilter(@Param('id') id: string, @CurrentUser() user: JwtUser) {
     // مالکیت از روی فضای کاریِ خودِ فیلتر بررسی می‌شود، نه از درخواست.

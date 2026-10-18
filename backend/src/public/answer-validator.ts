@@ -42,7 +42,13 @@ function isEmpty(value: unknown): boolean {
 }
 
 function asText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : String(value ?? '');
+  if (typeof value === 'string') return value.trim();
+  if (value === null || value === undefined) return '';
+  // شیء یا آرایه به‌صورت «[object Object]» سنجیده نشود.
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return JSON.stringify(value) ?? '';
 }
 
 /** عنوان سوال برای پیام خطا؛ اگر نبود، شناسه. */
@@ -113,9 +119,7 @@ function validateValue(
       // بازه‌ی NPS تعریفی است و همیشه صفر تا ده.
       const num = Number(toLatinDigits(asText(value)));
       if (!Number.isFinite(num)) return `«${name}» باید عدد باشد.`;
-      return num >= 0 && num <= 10
-        ? null
-        : `«${name}» باید بین ۰ تا ۱۰ باشد.`;
+      return num >= 0 && num <= 10 ? null : `«${name}» باید بین ۰ تا ۱۰ باشد.`;
     }
 
     case 'rating':

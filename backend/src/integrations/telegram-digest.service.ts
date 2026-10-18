@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { FormEntity } from '../database/entities/form.entity';
@@ -101,7 +106,7 @@ export class TelegramDigestService implements OnModuleInit, OnModuleDestroy {
       // مقصدی که گزارش دوره‌ای ندارد هم باید بتواند گزارش فوری بگیرد؛
       // بازه‌ی پیش‌فرض یک هفته است.
       const period =
-        recipient.digest === "monthly" ? "monthly" : ("weekly" as const);
+        recipient.digest === 'monthly' ? 'monthly' : ('weekly' as const);
       if (await this.sendDigest({ ...recipient, digest: period }, now, false)) {
         sent += 1;
       }

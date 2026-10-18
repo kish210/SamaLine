@@ -30,7 +30,12 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 interface TelegramUpdate {
   message?: {
     text?: string;
-    chat?: { id: number | string; title?: string; first_name?: string; username?: string };
+    chat?: {
+      id: number | string;
+      title?: string;
+      first_name?: string;
+      username?: string;
+    };
     from?: { first_name?: string; username?: string };
   };
 }

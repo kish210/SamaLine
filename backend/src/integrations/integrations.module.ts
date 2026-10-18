@@ -7,6 +7,8 @@ import { TelegramIntegrationEntity } from '../database/entities/telegram-integra
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { MessagingModule } from '../messaging/messaging.module';
+import { PlanModule } from '../plans/plan.module';
 import { PlatformModule } from '../platform/platform.module';
 import { ReportModule } from '../reports/report.module';
 import { IntegrationsController } from './integrations.controller';
@@ -17,6 +19,7 @@ import { TelegramService } from './telegram.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramDigestService } from './telegram-digest.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
+import { WebhookDeliveryService } from './webhook-delivery.service';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { TelegramWebhookController } from './telegram-webhook.controller';
     PlatformModule,
     // گزارش دوره‌ای از همان تجمیعی می‌آید که پنل استفاده می‌کند.
     ReportModule,
+    // وبهوک‌ها از همان صف پایدار پیام‌ها تحویل داده می‌شوند.
+    MessagingModule,
+    PlanModule,
     TypeOrmModule.forFeature([
       WebhookEntity,
       TelegramIntegrationEntity,
@@ -44,8 +50,9 @@ import { TelegramWebhookController } from './telegram-webhook.controller';
     TelegramService,
     TelegramBotService,
     TelegramDigestService,
+    WebhookDeliveryService,
   ],
   // مسیر ثبت پاسخ عمومی هم به این سرویس نیاز دارد.
-  exports: [TelegramService],
+  exports: [TelegramService, WebhookDeliveryService],
 })
 export class IntegrationsModule {}

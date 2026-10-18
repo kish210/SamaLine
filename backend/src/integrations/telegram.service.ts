@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
@@ -94,7 +90,8 @@ export class TelegramService {
      * توکن وبهوک یک بار ساخته می‌شود و بعد ثابت می‌ماند؛ عوض شدنش یعنی
      * نشانی ثبت‌شده در تلگرام دیگر کار نمی‌کند.
      */
-    const webhookToken = existing?.webhookToken ?? randomBytes(24).toString("hex");
+    const webhookToken =
+      existing?.webhookToken ?? randomBytes(24).toString('hex');
 
     await this.repo.save(
       this.repo.create({
@@ -122,7 +119,7 @@ export class TelegramService {
     const base = process.env.PUBLIC_URL?.replace(/\/+$/, '');
     if (!base) {
       this.logger.warn(
-        "PUBLIC_URL تنظیم نشده؛ وبهوک ثبت نشد و فرمان‌های ربات کار نمی‌کنند.",
+        'PUBLIC_URL تنظیم نشده؛ وبهوک ثبت نشد و فرمان‌های ربات کار نمی‌کنند.',
       );
       return;
     }
@@ -188,7 +185,9 @@ export class TelegramService {
     id: string,
     input: Partial<TelegramRecipientInput>,
   ) {
-    const row = await this.recipientRepo.findOne({ where: { id, workspaceId } });
+    const row = await this.recipientRepo.findOne({
+      where: { id, workspaceId },
+    });
     if (!row) throw new BadRequestException('مقصد یافت نشد');
 
     await this.recipientRepo.update(
@@ -311,8 +310,10 @@ export class TelegramService {
       await Promise.all(
         targets.map(async (recipient) => {
           const result = await this.api.send(
-      bot.botToken,
-      recipient.chatId, message);
+            bot.botToken,
+            recipient.chatId,
+            message,
+          );
           await this.recipientRepo.update(
             { id: recipient.id },
             result.ok
@@ -374,7 +375,6 @@ export class TelegramService {
     if (message.length <= MAX_MESSAGE) return message;
     return `${message.slice(0, MAX_MESSAGE - 40)}\n\n… (ادامه در پنل)`;
   }
-
 }
 
 interface TelegramChat {

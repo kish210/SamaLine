@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, Repository } from 'typeorm';
-import { ResponseEntity, ResponseStatus } from '../database/entities/response.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
 import { FormEntity } from '../database/entities/form.entity';
 import { MessagingService } from '../messaging/messaging.service';
@@ -88,7 +91,9 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
         where: {
           status: ResponseStatus.PARTIAL,
           submittedAt: IsNull(),
-          startedAt: LessThan(new Date(now.getTime() - DEFAULT_DELAY_HOURS * HOUR_MS)),
+          startedAt: LessThan(
+            new Date(now.getTime() - DEFAULT_DELAY_HOURS * HOUR_MS),
+          ),
         },
         order: { startedAt: 'ASC' },
         take: 200,
@@ -126,8 +131,10 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     const settings = this.readSettings(form.settings);
     if (!settings.enabled) return false;
 
-    const ageHours = (now.getTime() - new Date(partial.startedAt).getTime()) / HOUR_MS;
-    if (ageHours < settings.delayHours || ageHours > MAX_AGE_HOURS) return false;
+    const ageHours =
+      (now.getTime() - new Date(partial.startedAt).getTime()) / HOUR_MS;
+    if (ageHours < settings.delayHours || ageHours > MAX_AGE_HOURS)
+      return false;
 
     /*
      * اگر همین پاسخ‌دهنده بعدا فرم را کامل کرده، دیگر رهاشده نیست.
@@ -160,7 +167,8 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       {
         channel: contact.channel,
         recipient: contact.value,
-        subject: contact.channel === 'email' ? `تکمیل «${form.title}»` : undefined,
+        subject:
+          contact.channel === 'email' ? `تکمیل «${form.title}»` : undefined,
         body,
         meta: { kind: 'abandoned-reminder', responseId: partial.id },
       },
@@ -200,9 +208,9 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
       enabled: r.enabled === true,
       delayHours:
         Number.isFinite(delay) && delay > 0 ? delay : DEFAULT_DELAY_HOURS,
-      channel:
-        channel === 'sms' || channel === 'email' ? channel : 'auto',
-      message: typeof r.message === 'string' && r.message.trim() ? r.message : null,
+      channel: channel === 'sms' || channel === 'email' ? channel : 'auto',
+      message:
+        typeof r.message === 'string' && r.message.trim() ? r.message : null,
     };
   }
 
@@ -225,8 +233,10 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     const mobile = values.map(normalizeMobile).find(Boolean);
     const email = values.find((v) => EMAIL_RE.test(v));
 
-    if (prefer === 'sms') return mobile ? { channel: 'sms', value: mobile } : null;
-    if (prefer === 'email') return email ? { channel: 'email', value: email } : null;
+    if (prefer === 'sms')
+      return mobile ? { channel: 'sms', value: mobile } : null;
+    if (prefer === 'email')
+      return email ? { channel: 'email', value: email } : null;
 
     if (mobile) return { channel: 'sms', value: mobile };
     if (email) return { channel: 'email', value: email };
@@ -248,9 +258,7 @@ export class ReminderService implements OnModuleInit, OnModuleDestroy {
     link: string,
   ): string {
     if (template) {
-      return template
-        .replace(/\{form\}/g, title)
-        .replace(/\{link\}/g, link);
+      return template.replace(/\{form\}/g, title).replace(/\{link\}/g, link);
     }
     return `«${title}» را نیمه‌کاره رها کردید. برای ادامه از همان‌جا: ${link}`;
   }
@@ -266,9 +274,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 function normalizeMobile(raw: string): string {
   const latin = raw.replace(/[۰-۹٠-٩]/g, (d) =>
-    String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d) >= 0
-      ? '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)
-      : '٠١٢٣٤٥٦٧٨٩'.indexOf(d)),
+    String(
+      '۰۱۲۳۴۵۶۷۸۹'.indexOf(d) >= 0
+        ? '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)
+        : '٠١٢٣٤٥٦٧٨٩'.indexOf(d),
+    ),
   );
   const digits = latin.replace(/[^\d+]/g, '');
   let m = digits;

@@ -15,11 +15,13 @@ const USER: JwtUser = {
 function build(options: {
   workspace?: { id: string; organizationId: string } | null;
   form?: { id: string; workspace?: { organizationId: string } } | null;
+  publication?: { id: string; formId: string } | null;
   superAdmin?: boolean;
 }) {
   return new TenantAccessService(
     { findOne: async () => options.workspace ?? null } as never,
     { findOne: async () => options.form ?? null } as never,
+    { findOne: async () => options.publication ?? null } as never,
     { isSuperAdmin: async () => options.superAdmin ?? false } as never,
   );
 }
@@ -105,6 +107,40 @@ describe('TenantAccessService', () => {
         superAdmin: true,
       });
       await expect(service.assertForm('f9', USER)).resolves.toBeDefined();
+    });
+  });
+
+  describe('انتشار', () => {
+    it('انتشارِ فرم سازمان خودی پذیرفته می‌شود', async () => {
+      const service = build({
+        publication: { id: 'p1', formId: 'f1' },
+        form: { id: 'f1', workspace: { organizationId: 'org-1' } },
+      });
+      await expect(service.assertPublication('p1', USER)).resolves.toEqual({
+        id: 'p1',
+        formId: 'f1',
+      });
+    });
+
+    it('انتشارِ فرم سازمان دیگر رد می‌شود', async () => {
+      // بدون این، هر کاربری می‌توانست به نام سازمان دیگر کمپین بفرستد.
+      const service = build({
+        publication: { id: 'p9', formId: 'f9' },
+        form: { id: 'f9', workspace: { organizationId: 'org-2' } },
+      });
+      await expect(service.assertPublication('p9', USER)).rejects.toThrow(
+        'به این فرم دسترسی ندارید',
+      );
+    });
+
+    it('انتشار ناموجود یا شناسه‌ی خالی رد می‌شود', async () => {
+      const service = build({ publication: null });
+      await expect(service.assertPublication('', USER)).rejects.toThrow(
+        'انتشار یافت نشد',
+      );
+      await expect(service.assertPublication('x', USER)).rejects.toThrow(
+        'انتشار یافت نشد',
+      );
     });
   });
 });

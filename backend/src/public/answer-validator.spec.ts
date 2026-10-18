@@ -56,7 +56,12 @@ describe('validateAnswers — اعتبارسنجی پاسخ', () => {
 
   describe('عدد', () => {
     const q: FormQuestionNode[] = [
-      { id: 'n', type: 'number', title: 'شماره اتاق', meta: { min: 1, max: 999 } },
+      {
+        id: 'n',
+        type: 'number',
+        title: 'شماره اتاق',
+        meta: { min: 1, max: 999 },
+      },
     ];
 
     it('حروف پذیرفته نمی‌شود', () => {

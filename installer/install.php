@@ -440,9 +440,12 @@ function start_install(array $config): array
             . "SQLITE_PATH=data/samaline.sqlite\n"
             . "UPLOAD_DIR=data/uploads\n"
             . "PUBLIC_URL={$publicUrl}\n"
+            . "PUBLIC_FORM_BASE_URL={$publicUrl}/f\n"
             . 'JWT_SECRET=' . random_key(32) . "\n"
             . 'RESPONDENT_KEY_SALT=' . random_key(16) . "\n"
-            . 'SECRET_BOX_KEY=' . random_key(32) . "\n"
+            // نام درست کلیدی که برنامه می‌خواند؛ پیش از این SECRET_BOX_KEY
+            // نوشته می‌شد که هرگز خوانده نمی‌شد.
+            . 'SECRET_ENCRYPTION_KEY=' . random_key(32) . "\n"
             /*
              * پیامک برای «یادآوری فرم نیمه‌تمام» و تایید شماره لازم است.
              * خاموش گذاشته می‌شود تا نصب بدون درگاه پیامک هم کار کند؛ برای
@@ -461,6 +464,7 @@ function start_install(array $config): array
         $env = set_env_line($env, 'PORT', (string) $port);
         if ($publicUrl !== '') {
             $env = set_env_line($env, 'PUBLIC_URL', $publicUrl);
+            $env = set_env_line($env, 'PUBLIC_FORM_BASE_URL', $publicUrl . '/f');
         }
         file_put_contents($envPath, $env);
     }

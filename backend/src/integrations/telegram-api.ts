@@ -46,10 +46,7 @@ export class TelegramApi {
   }
 
   /** ثبت نشانی وبهوک؛ تلگرام پیام‌های کاربران را به آنجا می‌فرستد. */
-  async setWebhook(
-    botToken: string,
-    url: string,
-  ): Promise<TelegramOk> {
+  async setWebhook(botToken: string, url: string): Promise<TelegramOk> {
     return this.call(botToken, 'setWebhook', {
       url,
       // فقط پیام‌ها لازم است؛ گرفتن بقیه‌ی رویدادها ترافیک بی‌مصرف است.
@@ -58,19 +55,14 @@ export class TelegramApi {
     });
   }
 
-  async deleteWebhook(
-    botToken: string,
-  ): Promise<TelegramOk> {
+  async deleteWebhook(botToken: string): Promise<TelegramOk> {
     return this.call(botToken, 'deleteWebhook', { drop_pending_updates: true });
   }
 
   async getUpdates(
     botToken: string,
   ): Promise<TelegramResult<{ updates: unknown[] }>> {
-    const result = await this.call<unknown[]>(
-      botToken,
-      'getUpdates?limit=100',
-    );
+    const result = await this.call<unknown[]>(botToken, 'getUpdates?limit=100');
     if (!result.ok) return result;
     return { ok: true, updates: result.result ?? [] };
   }

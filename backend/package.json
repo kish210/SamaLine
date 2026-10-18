@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.2.10",
+  "version": "1.5.2",
   "description": "SamaLine — سامانه نظرسنجی و فرم‌ساز آنلاین",
   "author": "",
   "private": true,
@@ -24,6 +24,8 @@
     "release": "npm run build && npm run db:seed:prod && npm run start:prod",
     "smoke": "node scripts/smoke-test.js",
     "superadmin": "node scripts/grant-superadmin.js",
+    "reset-2fa": "node scripts/reset-2fa.js",
+    "reset-password": "node scripts/reset-password.js",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/migration-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/migration-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/migration-source.ts"
@@ -42,6 +44,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "exceljs": "^4.4.0",
+    "nodemailer": "^7.0.13",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.23.0",
@@ -59,6 +62,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.18.0",

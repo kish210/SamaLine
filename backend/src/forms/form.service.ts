@@ -9,7 +9,10 @@ import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { ResponseEntity } from '../database/entities/response.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
 import {
   PublicationAuthMode,
   PublicationEntity,
@@ -28,6 +31,11 @@ import { findTemplate } from '../templates/form-templates';
 import { LogicEngineService } from './logic-engine.service';
 import type { FormStructure } from './logic-types';
 import { validateSlug } from './slug';
+
+/** آرایه بودن یک مقدار ناشناخته، بدون تکرار شرط در چند جا. */
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
 
 @Injectable()
 export class FormService {
@@ -51,13 +59,49 @@ export class FormService {
    * برداشته شود، ولی با `includeArchived` باز هم قابل دیدن است.
    */
   async list(workspaceId: string, includeArchived = false) {
-    const forms = await this.formRepo.find({
+    const all = await this.formRepo.find({
       where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
-    return includeArchived
-      ? forms
-      : forms.filter((form) => form.status !== FormStatus.ARCHIVED);
+    const forms = includeArchived
+      ? all
+      : all.filter((form) => form.status !== FormStatus.ARCHIVED);
+    if (!forms.length) return [];
+
+    /*
+     * تعداد پاسخ کامل و زمان آخرین پاسخ هر فرم، با یک کوئری گروه‌بندی‌شده.
+     *
+     * کارت فرم در پنل بدون این فقط عنوان و نشانک داخلی نشان می‌داد؛ کاربر
+     * برای دیدن اینکه فرمی پاسخ گرفته یا نه باید تک‌تک بازشان می‌کرد.
+     */
+    const stats = await this.responseRepo
+      .createQueryBuilder('response')
+      .innerJoin('response.publication', 'publication')
+      .select('publication.formId', 'formId')
+      .addSelect('COUNT(response.id)', 'count')
+      .addSelect('MAX(response.submittedAt)', 'lastAt')
+      .where('publication.formId IN (:...ids)', {
+        ids: forms.map((form) => form.id),
+      })
+      .andWhere('response.status = :status', {
+        status: ResponseStatus.COMPLETED,
+      })
+      .groupBy('publication.formId')
+      .getRawMany<{
+        formId: string;
+        count: string | number;
+        lastAt: string | Date | null;
+      }>();
+    const byForm = new Map(stats.map((row) => [row.formId, row]));
+
+    return forms.map((form) => {
+      const row = byForm.get(form.id);
+      return {
+        ...form,
+        responseCount: Number(row?.count ?? 0),
+        lastResponseAt: row?.lastAt ? new Date(row.lastAt).toISOString() : null,
+      };
+    });
   }
 
   /**
@@ -74,10 +118,7 @@ export class FormService {
     await this.formRepo.save(form);
 
     // لینک فرم بایگانی‌شده نباید پاسخ تازه بگیرد.
-    await this.publicationRepo.update(
-      { formId: id },
-      { isActive: !archived },
-    );
+    await this.publicationRepo.update({ formId: id }, { isActive: !archived });
 
     return this.get(id);
   }
@@ -116,7 +157,9 @@ export class FormService {
 
   async create(dto: CreateFormDto) {
     // قالب فقط جای خالی‌ها را پر می‌کند؛ هرچه در درخواست آمده مقدم است.
-    const template = dto.templateKey ? findTemplate(dto.templateKey) : undefined;
+    const template = dto.templateKey
+      ? findTemplate(dto.templateKey)
+      : undefined;
     if (dto.templateKey && !template) {
       throw new BadRequestException('قالب انتخاب‌شده وجود ندارد');
     }
@@ -126,7 +169,29 @@ export class FormService {
       dto.questions,
     );
     await this.validatePages(pages, dto.workspaceId);
-    this.validateLogic(dto.logic ?? template?.structure.logic, pages);
+
+    /*
+     * ساختار درخواستی: آنچه کاربر فرستاده مقدم است و قالب فقط جای خالی را
+     * پر می‌کند. هرچه کاربر خودش نوشته باشد باید در پلنش بگنجد؛ آنچه از
+     * قالب آمده، اگر نگنجد کنار گذاشته می‌شود.
+     */
+    const draft = {
+      logic: dto.logic ?? template?.structure.logic,
+      scoreConfig:
+        dto.scoreConfig ??
+        (template?.structure.scoreIndexes
+          ? { indices: template.structure.scoreIndexes }
+          : undefined),
+      settings: dto.settings ?? template?.settings,
+    };
+    const fromTemplateOnly =
+      Boolean(template) && !dto.logic && !dto.scoreConfig;
+    const trimmed = fromTemplateOnly
+      ? await this.trimTemplateToPlan(dto.workspaceId, draft)
+      : { ...draft, skipped: [] as string[] };
+
+    this.validateLogic(trimmed.logic, pages);
+    await this.assertStructurePlan(dto.workspaceId, trimmed);
     const planCheck = await this.planService.canCreateForm(dto.workspaceId);
     if (!planCheck.allowed) {
       throw new BadRequestException(
@@ -140,8 +205,7 @@ export class FormService {
         title: dto.title,
         slug: dto.slug,
         status: FormStatus.DRAFT,
-        settings: dto.settings ??
-          template?.settings ?? {
+        settings: trimmed.settings ?? {
           theme: 'default',
           languages: ['fa'],
           startPageEnabled: true,
@@ -162,16 +226,17 @@ export class FormService {
         version: 1,
         structure: this.buildStructure(
           pages,
-          dto.logic ?? template?.structure.logic,
-          dto.scoreConfig ??
-            (template?.structure.scoreIndexes
-              ? { indices: template.structure.scoreIndexes }
-              : undefined),
+          trimmed.logic,
+          trimmed.scoreConfig,
         ),
       }),
     );
 
-    return this.get(form.id);
+    const created = await this.get(form.id);
+    // اگر چیزی به‌خاطر پلن کنار گذاشته شد، پنل باید بتواند بگوید چه چیزی.
+    return trimmed.skipped.length
+      ? { ...created, planSkipped: trimmed.skipped }
+      : created;
   }
 
   async get(id: string) {
@@ -211,6 +276,12 @@ export class FormService {
     const form = await this.formRepo.findOne({ where: { id } });
     if (!form) throw new NotFoundException('فرم یافت نشد');
 
+    if (dto.settings) {
+      await this.assertStructurePlan(form.workspaceId, {
+        settings: dto.settings,
+      });
+    }
+
     form.title = dto.title ?? form.title;
     form.status = dto.status ?? form.status;
     form.settings = dto.settings ?? form.settings;
@@ -232,6 +303,12 @@ export class FormService {
         dto.logic ?? (existing.logic as Record<string, unknown> | undefined),
         nextPages,
       );
+      await this.assertStructurePlan(form.workspaceId, {
+        logic: dto.logic ?? (existing.logic as Record<string, unknown>),
+        scoreConfig:
+          dto.scoreConfig ?? (existing.scoreConfig as Record<string, unknown>),
+        settings: form.settings,
+      });
       await this.versionRepo.save(
         this.versionRepo.create({
           formId: id,
@@ -432,6 +509,119 @@ export class FormService {
     }
 
     throw new BadRequestException('حداقل یک صفحه یا سوال لازم است');
+  }
+
+  /**
+   * امکانات پلن در خودِ ساختار فرم: منطق شرطی، منطق پرش، شاخص و چندزبانه.
+   *
+   * تا پیش از این جدول پلن فقط نمایشی بود و پلن رایگان هم همه‌ی این‌ها را
+   * داشت. بررسی سر ذخیره انجام می‌شود، نه سر نمایش، تا از راه API هم دور
+   * زده نشود.
+   */
+  private async assertStructurePlan(
+    workspaceId: string,
+    input: {
+      logic?: Record<string, unknown>;
+      scoreConfig?: Record<string, unknown>;
+      settings?: Record<string, unknown>;
+    },
+  ) {
+    const organizationId =
+      await this.planService.organizationOfWorkspace(workspaceId);
+    if (!organizationId) return;
+
+    const logic = input.logic ?? {};
+    if (asArray(logic.display).length) {
+      await this.planService.assertFeature(organizationId, 'logicDisplay');
+    }
+    if (asArray(logic.skip).length) {
+      await this.planService.assertFeature(organizationId, 'logicSkip');
+    }
+
+    const indices = asArray(input.scoreConfig?.indices);
+    if (indices.length) {
+      // سقف شمارشی است: هر شاخص یک «جا» از سهم پلن می‌گیرد.
+      await this.planService.assertQuota(
+        organizationId,
+        'indices',
+        indices.length - 1,
+      );
+    }
+
+    if (asArray(input.settings?.languages).length > 1) {
+      await this.planService.assertFeature(organizationId, 'multiLanguage');
+    }
+  }
+
+  /**
+   * بخش‌هایی از قالب آماده که پلن سازمان ندارد، کنار گذاشته می‌شوند.
+   *
+   * قالب‌ها منطق شرطی و شاخص دارند و پلن رایگان هیچ‌کدام را ندارد. اگر
+   * ساختِ قالب رد می‌شد، کتابخانه‌ی قالب در پلن رایگان بی‌استفاده می‌ماند؛
+   * پس سوال‌ها می‌مانند و فقط چیزی که پلن اجازه نمی‌دهد حذف می‌شود و در
+   * پاسخ گفته می‌شود چه چیزی کنار گذاشته شد.
+   */
+  private async trimTemplateToPlan(
+    workspaceId: string,
+    draft: {
+      logic?: Record<string, unknown>;
+      scoreConfig?: Record<string, unknown>;
+      settings?: Record<string, unknown>;
+    },
+  ): Promise<{
+    logic?: Record<string, unknown>;
+    scoreConfig?: Record<string, unknown>;
+    settings?: Record<string, unknown>;
+    skipped: string[];
+  }> {
+    const organizationId =
+      await this.planService.organizationOfWorkspace(workspaceId);
+    if (!organizationId) return { ...draft, skipped: [] };
+
+    const limits =
+      await this.planService.getPolicyByOrganization(organizationId);
+    const skipped: string[] = [];
+
+    const logic = { ...(draft.logic ?? {}) };
+    if (limits.logicDisplay !== true && asArray(logic.display).length) {
+      delete logic.display;
+      skipped.push('منطق شرطی نمایش');
+    }
+    if (limits.logicSkip !== true && asArray(logic.skip).length) {
+      delete logic.skip;
+      skipped.push('منطق پرش');
+    }
+
+    let scoreConfig = draft.scoreConfig;
+    const indices = asArray(scoreConfig?.indices);
+    const maxIndices = Number(limits.indices ?? 0);
+    if (indices.length && maxIndices !== -1 && indices.length > maxIndices) {
+      scoreConfig =
+        maxIndices > 0
+          ? { ...scoreConfig, indices: indices.slice(0, maxIndices) }
+          : undefined;
+      skipped.push(
+        maxIndices > 0
+          ? `شاخص‌های بیش از ${maxIndices.toLocaleString('fa-IR')} تا`
+          : 'شاخص و وزن‌دهی',
+      );
+    }
+
+    let settings = draft.settings;
+    if (
+      limits.multiLanguage !== true &&
+      asArray(settings?.languages).length > 1
+    ) {
+      settings = { ...settings, languages: ['fa'] };
+      skipped.push('چندزبانه');
+    }
+
+    return {
+      logic: Object.keys(logic).length ? logic : undefined,
+      scoreConfig,
+      settings,
+      skipped,
+    };
   }
 
   private validateLogic(

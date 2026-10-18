@@ -50,7 +50,9 @@ describe('runMigrations', () => {
     const path = tempDbPath();
 
     // نصب قدیمی: اسکیما با synchronize ساخته شده و داده دارد.
-    const legacy = await makeDataSource(path, { migrations: false }).initialize();
+    const legacy = await makeDataSource(path, {
+      migrations: false,
+    }).initialize();
     await legacy
       .getRepository(OrganizationEntity)
       .save({ name: 'سازمان قدیمی' });
@@ -91,7 +93,9 @@ describe('runMigrations', () => {
 
   it('پیش از اجرای مهاجرت روی نصب موجود، پشتیبان گرفته نمی‌شود چون اجرایی نیست', async () => {
     const path = tempDbPath();
-    const legacy = await makeDataSource(path, { migrations: false }).initialize();
+    const legacy = await makeDataSource(path, {
+      migrations: false,
+    }).initialize();
     await legacy.destroy();
 
     const ds = await makeDataSource(path, { migrations: true }).initialize();

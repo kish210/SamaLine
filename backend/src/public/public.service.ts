@@ -4,14 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { FormStatus } from '../database/entities/form.entity';
-import {
-  PublicationEntity,
-  PublicationType,
-} from '../database/entities/publication.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import {
   ResponseEntity,
   ResponseStatus,
@@ -26,6 +22,7 @@ import { SaveProgressDto, SubmitResponseDto } from './dto';
 import { RespondentAuthService } from './respondent-auth.service';
 import { validateAnswers } from './answer-validator';
 import { TelegramService } from '../integrations/telegram.service';
+import { WebhookDeliveryService } from '../integrations/webhook-delivery.service';
 import {
   PlatformSettingsService,
   type PublicFooter,
@@ -68,6 +65,7 @@ export class PublicService {
     private readonly respondentAuth: RespondentAuthService,
     private readonly platformSettings: PlatformSettingsService,
     private readonly telegramService: TelegramService,
+    private readonly webhookDelivery: WebhookDeliveryService,
   ) {}
 
   /**
@@ -290,7 +288,6 @@ export class PublicService {
     return this.respondentAuth.verifyOtp(publication, destination, code);
   }
 
-
   async getProgressByToken(
     token: string,
     respondentKey: string,
@@ -340,6 +337,12 @@ export class PublicService {
       order: { createdAt: 'DESC' },
     });
 
+    // پیش‌نویسِ خالی ساخته نمی‌شود؛ فقط آمار «شروع‌شده» را بی‌دلیل بالا می‌برد.
+    const hasAnswers = Object.keys(dto.answers ?? {}).length > 0;
+    if (!existing && !hasAnswers) {
+      return { id: null, status: 'skipped' };
+    }
+
     const progress = existing
       ? Object.assign(existing, {
           answers: dto.answers,
@@ -378,7 +381,12 @@ export class PublicService {
      */
     const withContext = (base: Record<string, unknown> | undefined) => ({
       ...(base ?? {}),
-      source: formData.publicationType,
+      /*
+       * کیوسک همان لینک فرم را با پیشوند /k باز می‌کند، پس نوع انتشارش
+       * «لینک» است؛ رندرر در حالت کیوسک `kiosk: true` می‌فرستد تا گزارش
+       * پاسخ‌های دستگاه مشترک را جدا نشان دهد. فقط برچسب است، نه دسترسی.
+       */
+      source: base?.kiosk === true ? 'kiosk' : formData.publicationType,
       ...(context?.ip ? { ip: context.ip } : {}),
     });
     const respondentKey = this.resolveRespondentKey(
@@ -509,6 +517,23 @@ export class PublicService {
       answers,
       scores,
     });
+
+    // وبهوک فقط در صف ثبت می‌شود؛ تحویلش پاسخ‌دهنده را منتظر نمی‌گذارد.
+    await this.webhookDelivery.dispatch(
+      formData.organizationId,
+      'response.completed',
+      {
+        form: { id: formData.formId, title: formData.formTitle },
+        response: {
+          id: response.id,
+          submittedAt: new Date().toISOString(),
+          answers,
+          scores,
+          // IP عمدا فرستاده نمی‌شود؛ داده‌ی شخصی بیش از نیاز گیرنده است.
+          source: formData.publicationType,
+        },
+      },
+    );
 
     return { id: response.id, status: 'completed', scores };
   }

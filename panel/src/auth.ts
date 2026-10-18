@@ -23,6 +23,8 @@ interface AuthState {
   token: string | null;
   user: AuthUser | null;
   signIn: (payload: AuthPayload) => void;
+  /** تازه‌سازی اطلاعات حساب (مثل نقش) بدون عوض کردن توکن. */
+  updateUser: (patch: Partial<AuthUser>) => void;
   signOut: () => void;
 }
 
@@ -46,6 +48,25 @@ export const useAuth = create<AuthState>((set) => ({
     }
     set({ token: payload.accessToken, user: payload.user });
   },
+
+  /*
+   * نقش کاربر در نشست ذخیره‌شده‌ی قدیمی نیست و می‌تواند هر لحظه عوض شده باشد؛
+   * پنل آن را از `/auth/me` می‌گیرد و همین‌جا به‌روز می‌کند.
+   */
+  updateUser: (patch) =>
+    set((state) => {
+      if (!state.user) return state;
+      const user = { ...state.user, ...patch };
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ token: state.token, user }),
+        );
+      } catch {
+        // بی‌اهمیت؛ فقط در همین نشست می‌ماند.
+      }
+      return { user };
+    }),
 
   signOut: () => {
     setAuthToken(undefined);

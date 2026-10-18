@@ -97,7 +97,6 @@ export class PublicationEntity {
   @Column({ type: 'int', default: 0 })
   viewCount: number;
 
-
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

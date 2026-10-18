@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FormEntity } from '../database/entities/form.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { PlatformModule } from '../platform/platform.module';
 import { TenantAccessService } from './tenant-access.service';
@@ -15,7 +16,7 @@ import { TenantAccessService } from './tenant-access.service';
 @Module({
   imports: [
     PlatformModule,
-    TypeOrmModule.forFeature([WorkspaceEntity, FormEntity]),
+    TypeOrmModule.forFeature([WorkspaceEntity, FormEntity, PublicationEntity]),
   ],
   providers: [TenantAccessService],
   exports: [TenantAccessService],

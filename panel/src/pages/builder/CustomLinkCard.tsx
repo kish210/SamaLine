@@ -72,9 +72,10 @@ export function CustomLinkCard({ formId, token, currentSlug }: Props) {
         )}
       </dl>
 
-      <label>
+      <label className="custom-slug-label">
         نشانی اختصاصی — فقط حروف کوچک انگلیسی، رقم و خط تیره
-        <div className="inline-form">
+        {/* نشانی چپ‌به‌راست خوانده می‌شود: پیشوند، سپس نشانک. */}
+        <div className="inline-form" dir="ltr">
           <span className="url-prefix">{RENDERER_BASE}/f/</span>
           <input
             value={slug}
