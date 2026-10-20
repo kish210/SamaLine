@@ -1,6 +1,19 @@
 import { Injectable } from '@nestjs/common';
 
 const TELEGRAM_API = 'https://api.telegram.org';
+/**
+ * بله (bale.ai) پیام‌رسان ایرانی است و API ربات آن با تلگرام سازگار است؛
+ * فقط نشانی پایه فرق می‌کند. چون تلگرام در ایران فیلتر است، بله مقصد عملی‌تری
+ * برای اطلاع‌رسانی است.
+ */
+const BALE_API = 'https://tapi.bale.ai';
+
+export type ChatPlatform = 'telegram' | 'bale';
+
+/** نشانی پایه‌ی API برای هر پیام‌رسان. */
+export function platformApiBase(platform?: string | null): string {
+  return platform === 'bale' ? BALE_API : TELEGRAM_API;
+}
 
 /** حداکثر طول پیام تلگرام؛ پیام بلندتر رد می‌شود، پس بریده می‌شود. */
 export const MAX_MESSAGE = 4096;
@@ -28,41 +41,76 @@ export class TelegramApi {
     botToken: string,
     chatId: string,
     text: string,
+    baseUrl: string = TELEGRAM_API,
   ): Promise<TelegramOk> {
-    return this.call(botToken, 'sendMessage', {
-      chat_id: chatId,
-      text: text.length > MAX_MESSAGE ? clip(text) : text,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    });
+    return this.call(
+      botToken,
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: text.length > MAX_MESSAGE ? clip(text) : text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      },
+      baseUrl,
+    );
   }
 
   async getMe(
     botToken: string,
+    baseUrl: string = TELEGRAM_API,
   ): Promise<TelegramResult<{ username: string | null }>> {
-    const result = await this.call<{ username?: string }>(botToken, 'getMe');
+    const result = await this.call<{ username?: string }>(
+      botToken,
+      'getMe',
+      undefined,
+      baseUrl,
+    );
     if (!result.ok) return result;
     return { ok: true, username: result.result?.username ?? null };
   }
 
-  /** ثبت نشانی وبهوک؛ تلگرام پیام‌های کاربران را به آنجا می‌فرستد. */
-  async setWebhook(botToken: string, url: string): Promise<TelegramOk> {
-    return this.call(botToken, 'setWebhook', {
-      url,
-      // فقط پیام‌ها لازم است؛ گرفتن بقیه‌ی رویدادها ترافیک بی‌مصرف است.
-      allowed_updates: ['message'],
-      drop_pending_updates: true,
-    });
+  /** ثبت نشانی وبهوک؛ پیام‌رسان پیام‌های کاربران را به آنجا می‌فرستد. */
+  async setWebhook(
+    botToken: string,
+    url: string,
+    baseUrl: string = TELEGRAM_API,
+  ): Promise<TelegramOk> {
+    return this.call(
+      botToken,
+      'setWebhook',
+      {
+        url,
+        // فقط پیام‌ها لازم است؛ گرفتن بقیه‌ی رویدادها ترافیک بی‌مصرف است.
+        allowed_updates: ['message'],
+        drop_pending_updates: true,
+      },
+      baseUrl,
+    );
   }
 
-  async deleteWebhook(botToken: string): Promise<TelegramOk> {
-    return this.call(botToken, 'deleteWebhook', { drop_pending_updates: true });
+  async deleteWebhook(
+    botToken: string,
+    baseUrl: string = TELEGRAM_API,
+  ): Promise<TelegramOk> {
+    return this.call(
+      botToken,
+      'deleteWebhook',
+      { drop_pending_updates: true },
+      baseUrl,
+    );
   }
 
   async getUpdates(
     botToken: string,
+    baseUrl: string = TELEGRAM_API,
   ): Promise<TelegramResult<{ updates: unknown[] }>> {
-    const result = await this.call<unknown[]>(botToken, 'getUpdates?limit=100');
+    const result = await this.call<unknown[]>(
+      botToken,
+      'getUpdates?limit=100',
+      undefined,
+      baseUrl,
+    );
     if (!result.ok) return result;
     return { ok: true, updates: result.result ?? [] };
   }
@@ -71,9 +119,10 @@ export class TelegramApi {
     botToken: string,
     method: string,
     body?: Record<string, unknown>,
+    baseUrl: string = TELEGRAM_API,
   ): Promise<TelegramResult<{ result?: T }>> {
     try {
-      const response = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
+      const response = await fetch(`${baseUrl}/bot${botToken}/${method}`, {
         method: body ? 'POST' : 'GET',
         headers: body ? { 'content-type': 'application/json' } : undefined,
         body: body ? JSON.stringify(body) : undefined,

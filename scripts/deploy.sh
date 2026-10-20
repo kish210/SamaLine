@@ -3,10 +3,13 @@
 # استقرار SamaLine روی یک سرور لینوکسی — روی خودِ سرور اجرا می‌شود.
 #
 # همه‌چیز خوداتکاست: نه داکر، نه nginx، نه پایگاه‌داده‌ی جداگانه. یک پروسه‌ی
-# Node روی یک پورت، هم API را می‌دهد هم پنل و هم فرم را.
+# Node هم API را می‌دهد هم پنل و هم فرم — روی HTTP (۸۰) و در صورت وجود گواهی،
+# هم‌زمان روی HTTPS (۴۴۳).
 #
-#   bash scripts/deploy.sh              اجرا روی پورت پیش‌فرض ۸۰۸۰
-#   PORT=9000 bash scripts/deploy.sh    پورت دلخواه
+#   bash scripts/deploy.sh              HTTP روی ۸۰ و HTTPS روی ۴۴۳
+#   PORT=9000 bash scripts/deploy.sh    پورت HTTP دلخواه
+#   TLS=0 bash scripts/deploy.sh        فقط HTTP (بدون ۴۴۳)
+#   TLS_CERT=... TLS_KEY=... bash scripts/deploy.sh   گواهی واقعی خودتان
 #   PUBLIC_URL=https://survey.example.com bash scripts/deploy.sh
 #                                       نشانی عمومی (برای لینک پیامک و ایمیل)
 #
@@ -21,6 +24,10 @@ SERVICE_NAME="${SERVICE_NAME:-samaline}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
 # حداقل نسخه‌ای که vite و nest می‌پذیرند.
 NODE_MIN="${NODE_MIN:-20}"
+# TLS پیش‌فرض روشن است؛ با TLS=0 خاموش می‌شود.
+TLS="${TLS:-1}"
+HTTPS_PORT="${HTTPS_PORT:-443}"
+CERT_DIR="$APP_DIR/backend/certs"
 
 log() { printf '\n\033[36m==> %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31mخطا: %s\033[0m\n' "$1" >&2; exit 1; }
@@ -33,7 +40,8 @@ env_value() {
   grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true
 }
 
-# افزودن یا جایگزینی یک کلید در فایل تنظیمات.
+# افزودن یا جایگزینی یک کلید در فایل تنظیمات. جداکننده‌ی sed را | می‌گذاریم
+# چون مقدار ممکن است / داشته باشد (مسیر گواهی).
 set_env() {
   if grep -qE "^$1=" "$ENV_FILE"; then
     sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"
@@ -51,7 +59,8 @@ elif [ -n "$(env_value PORT)" ]; then
   PORT="$(env_value PORT)"
   PORT_REUSED=1
 fi
-PORT="${PORT:-8080}"
+# پیش‌فرضِ انتشار: HTTP روی ۸۰ (کنار HTTPS روی ۴۴۳).
+PORT="${PORT:-80}"
 
 # آیا این پورت روی سرور در حال استفاده است؟
 port_busy() {
@@ -145,6 +154,39 @@ log "پاک‌سازی وابستگی‌های توسعه"
 npm --prefix backend prune --omit=dev >/dev/null 2>&1 || true
 rm -rf "$APP_DIR/form-renderer/node_modules" "$APP_DIR/panel/node_modules"
 
+# نشانیِ سرور برای SAN گواهی و نشانی پیش‌فرض: IPِ محلیِ خودِ سرور، نه IP
+# عمومیِ خروجی اینترنت. روی سرور on-prem پشت NAT نشانیِ درست همین است.
+SERVER_ADDR="${SERVER_ADDR:-$(hostname -I | awk '{print $1}')}"
+[ -n "$SERVER_ADDR" ] || SERVER_ADDR="127.0.0.1"
+
+log "گواهی TLS"
+if [ "$TLS" = "1" ]; then
+  # اگر کاربر گواهیِ خودش را نداده، یک گواهیِ self-signed می‌سازیم. سرور IP
+  # محلی دارد و دامنه‌ی عمومی ندارد، پس Let's Encrypt ممکن نیست؛ برای گواهیِ
+  # معتبر، TLS_CERT/TLS_KEY را خودتان بدهید.
+  if [ -z "${TLS_CERT:-}" ] || [ -z "${TLS_KEY:-}" ]; then
+    TLS_CERT="$CERT_DIR/server.crt"
+    TLS_KEY="$CERT_DIR/server.key"
+    if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then
+      mkdir -p "$CERT_DIR"
+      openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+        -keyout "$TLS_KEY" -out "$TLS_CERT" \
+        -subj "/CN=$SERVER_ADDR" \
+        -addext "subjectAltName=IP:$SERVER_ADDR" >/dev/null 2>&1
+      chmod 600 "$TLS_KEY"
+      echo "گواهیِ self-signed ساخته شد (SAN=IP:$SERVER_ADDR)."
+    else
+      echo "گواهیِ موجود استفاده می‌شود."
+    fi
+  else
+    echo "گواهیِ دستی: $TLS_CERT"
+  fi
+else
+  echo "TLS خاموش است؛ فقط HTTP."
+  TLS_CERT=""
+  TLS_KEY=""
+fi
+
 log "نشانی عمومی"
 # نشانی‌ای که کاربران فرم را با آن باز می‌کنند؛ لینک‌های پیامک، ایمیل و
 # یادآوری از روی همین ساخته می‌شوند. بدون آن، لینک یادآوری ناقص می‌رفت.
@@ -152,8 +194,18 @@ if [ -z "${PUBLIC_URL:-}" ]; then
   PUBLIC_URL="$(env_value PUBLIC_URL)"
 fi
 if [ -z "${PUBLIC_URL:-}" ]; then
-  HOST_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')"
-  PUBLIC_URL="http://${HOST_IP}:${PORT}"
+  if [ -n "$TLS_CERT" ]; then
+    # HTTPS روی ۴۴۳: پورت استاندارد در نشانی نوشته نمی‌شود.
+    if [ "$HTTPS_PORT" = "443" ]; then
+      PUBLIC_URL="https://${SERVER_ADDR}"
+    else
+      PUBLIC_URL="https://${SERVER_ADDR}:${HTTPS_PORT}"
+    fi
+  elif [ "$PORT" = "80" ]; then
+    PUBLIC_URL="http://${SERVER_ADDR}"
+  else
+    PUBLIC_URL="http://${SERVER_ADDR}:${PORT}"
+  fi
 fi
 PUBLIC_URL="${PUBLIC_URL%/}"
 echo "نشانی عمومی: $PUBLIC_URL"
@@ -174,11 +226,14 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "SECRET_ENCRYPTION_KEY=$(openssl rand -hex 32)"
     echo "PUBLIC_URL=$PUBLIC_URL"
     echo "PUBLIC_FORM_BASE_URL=$PUBLIC_URL/f"
+    echo "HTTPS_PORT=$HTTPS_PORT"
+    echo "TLS_CERT=$TLS_CERT"
+    echo "TLS_KEY=$TLS_KEY"
   } > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
   echo "backend/.env ساخته شد."
 else
-  # پورت و نشانی‌ها به‌روز می‌شوند ولی کلیدها دست نمی‌خورند.
+  # پورت، نشانی‌ها و گواهی به‌روز می‌شوند ولی کلیدها دست نمی‌خورند.
   #
   # نسخه‌های قبلی این اسکریپت کلید رمزنگاری را با نام اشتباه SECRET_BOX_KEY
   # می‌نوشتند که برنامه آن را نمی‌خواند؛ پس داده‌ی رمزشده‌ی آن نصب‌ها با
@@ -187,7 +242,10 @@ else
   set_env PORT "$PORT"
   set_env PUBLIC_URL "$PUBLIC_URL"
   set_env PUBLIC_FORM_BASE_URL "$PUBLIC_URL/f"
-  echo "backend/.env از قبل وجود داشت؛ فقط پورت و نشانی‌ها به‌روز شد."
+  set_env HTTPS_PORT "$HTTPS_PORT"
+  set_env TLS_CERT "$TLS_CERT"
+  set_env TLS_KEY "$TLS_KEY"
+  echo "backend/.env از قبل وجود داشت؛ فقط پورت، نشانی‌ها و گواهی به‌روز شد."
 fi
 
 log "ساخت سرویس systemd"
@@ -224,24 +282,43 @@ systemctl restart "$SERVICE_NAME"
 log "باز کردن پورت در فایروال"
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   ufw allow "$PORT/tcp" >/dev/null
+  [ -n "$TLS_CERT" ] && ufw allow "$HTTPS_PORT/tcp" >/dev/null
 elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
   firewall-cmd --permanent --add-port="$PORT/tcp" >/dev/null
+  [ -n "$TLS_CERT" ] && firewall-cmd --permanent --add-port="$HTTPS_PORT/tcp" >/dev/null
   firewall-cmd --reload >/dev/null
 fi
 
+# نشانیِ محلی برای بررسی سلامت: اگر TLS هست روی ۴۴۳ (با -k چون گواهی
+# self-signed است)، وگرنه روی پورت HTTP.
+if [ -n "$TLS_CERT" ]; then
+  HEALTH_URL="https://127.0.0.1:$HTTPS_PORT/api/v1/health"
+  CURL_INSECURE="-k"
+else
+  HEALTH_URL="http://127.0.0.1:$PORT/api/v1/health"
+  CURL_INSECURE=""
+fi
+
 log "بررسی سلامت"
+# تلاش‌ها بی‌صدا تا سرویس بالا بیاید؛ خطا فقط در شکستِ نهایی نشان داده می‌شود.
 for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/v1/health"; then
+  if curl -fsS $CURL_INSECURE -o /dev/null "$HEALTH_URL"; then
     printf '\n\033[32mبالا آمد.\033[0m\n'
     echo "  فرم‌ها:    $PUBLIC_URL/"
     echo "  پنل:       $PUBLIC_URL/panel"
     echo "  مستندات:   $PUBLIC_URL/api/docs"
     echo "  سلامت:     $PUBLIC_URL/api/v1/health"
+    if [ -n "$TLS_CERT" ]; then
+      echo
+      echo "توجه: گواهی self-signed است؛ مرورگر هشدار می‌دهد. برای گواهیِ"
+      echo "      معتبر، TLS_CERT و TLS_KEY را بدهید و دوباره اجرا کنید."
+    fi
     echo
     echo "لاگ:         journalctl -u $SERVICE_NAME -f"
     echo "توقف:        systemctl stop $SERVICE_NAME"
     echo "پشتیبان:     $APP_DIR/backend/data/backups/daily (روزانه، خودکار)"
     echo "مدیر کل:     cd $APP_DIR/backend && npm run superadmin -- you@example.com"
+    echo "منوی مدیریت: sudo bash $APP_DIR/scripts/manage.sh"
     exit 0
   fi
   sleep 2

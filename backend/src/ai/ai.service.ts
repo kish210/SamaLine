@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { PlatformSettingsService } from '../platform/platform-settings.service';
 import type { AiProvider } from './ai.types';
 import { validateGeneratedForm } from './form-schema.validator';
 import { MockAiProvider } from './mock-ai.provider';
@@ -7,12 +8,8 @@ import { OpenAiCompatibleProvider } from './openai-compatible.provider';
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly provider: AiProvider = AiService.resolveProvider();
 
-  /** نام سرویس‌دهنده‌ی فعال — برای نمایش در پنل. */
-  get providerName() {
-    return this.provider instanceof MockAiProvider ? 'mock' : 'openai';
-  }
+  constructor(private readonly platform: PlatformSettingsService) {}
 
   /**
    * ساخت پرسشنامه با AI.
@@ -20,7 +17,8 @@ export class AiService {
    * هرگز به فرم‌ساز نمی‌رسد (بند ۱۰ سند).
    */
   async createSurvey(goal: string, language?: 'fa' | 'en' | 'ar') {
-    const raw = await this.provider.createForm({ goal, language });
+    const { provider, name } = await this.resolveProvider();
+    const raw = await provider.createForm({ goal, language });
     const validation = validateGeneratedForm(raw);
 
     if (!validation.valid) {
@@ -31,19 +29,22 @@ export class AiService {
       });
     }
 
-    return { ...validation.normalized, aiProvider: this.providerName };
+    return { ...validation.normalized, aiProvider: name };
   }
 
-  reviewSurvey(structure: Record<string, unknown>) {
-    return this.provider.reviewForm({ structure });
+  async reviewSurvey(structure: Record<string, unknown>) {
+    const { provider } = await this.resolveProvider();
+    return provider.reviewForm({ structure });
   }
 
-  analyzeAnswers(answers: string[]) {
-    return this.provider.analyzeTextAnswers({ answers });
+  async analyzeAnswers(answers: string[]) {
+    const { provider } = await this.resolveProvider();
+    return provider.analyzeTextAnswers({ answers });
   }
 
-  chatWithData(question: string, context?: Record<string, unknown>) {
-    return this.provider.chatWithData({ question, context });
+  async chatWithData(question: string, context?: Record<string, unknown>) {
+    const { provider } = await this.resolveProvider();
+    return provider.chatWithData({ question, context });
   }
 
   summarizeMetrics(metrics: Record<string, number>) {
@@ -60,25 +61,57 @@ export class AiService {
     };
   }
 
-  translateSurvey(
+  async translateSurvey(
     structure: Record<string, unknown>,
     targetLanguage: 'fa' | 'en' | 'ar',
   ) {
-    return this.provider.translateForm({ structure, targetLanguage });
+    const { provider } = await this.resolveProvider();
+    return provider.translateForm({ structure, targetLanguage });
   }
 
   /**
-   * انتخاب سرویس‌دهنده از متغیر محیطی.
-   * پیش‌فرض ماک است تا سامانه بدون کلید و بدون اینترنت کار کند.
+   * انتخاب سرویس‌دهنده در هر درخواست.
+   *
+   * اول از تنظیمات سکو (قابل تغییر از پنل سوپرادمین) خوانده می‌شود؛ اگر آنجا
+   * چیزی تنظیم نشده بود، به متغیرهای محیطی برمی‌گردیم و در نهایت به ماک — تا
+   * سامانه بدون کلید و بدون اینترنت هم کار کند. خواندنِ هر بار یعنی تغییرِ
+   * تنظیمات بدون ری‌استارت اثر می‌کند.
    */
-  private static resolveProvider(): AiProvider {
-    const choice = (process.env.AI_PROVIDER ?? 'mock').toLowerCase();
-    const apiKey = process.env.AI_API_KEY;
+  private async resolveProvider(): Promise<{
+    provider: AiProvider;
+    name: string;
+  }> {
+    const config = await this.platform.getAiConfig();
 
-    if (choice === 'openai' && apiKey) {
-      return new OpenAiCompatibleProvider(apiKey);
+    const provider = (config.provider || 'mock').toLowerCase();
+    const envChoice = (process.env.AI_PROVIDER ?? 'mock').toLowerCase();
+
+    // تنظیمات پنل بر محیط اولویت دارد. برای سرویس آنلاین کلید لازم است، ولی
+    // مدل محلی (مثل Ollama) کلید نمی‌خواهد؛ در آن حالت نشانی پایه کافی است.
+    if (provider === 'openai' && (config.apiKey || config.baseUrl)) {
+      return {
+        provider: new OpenAiCompatibleProvider(
+          config.apiKey || 'local',
+          config.baseUrl || undefined,
+          config.model || undefined,
+        ),
+        name: 'openai',
+      };
     }
 
-    return new MockAiProvider();
+    if (
+      provider === 'mock' &&
+      envChoice === 'openai' &&
+      (process.env.AI_API_KEY || process.env.AI_BASE_URL)
+    ) {
+      return {
+        provider: new OpenAiCompatibleProvider(
+          process.env.AI_API_KEY || 'local',
+        ),
+        name: 'openai',
+      };
+    }
+
+    return { provider: new MockAiProvider(), name: 'mock' };
   }
 }

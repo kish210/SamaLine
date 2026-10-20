@@ -1,12 +1,19 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { SuperAdminGuard } from '../common/super-admin.guard';
 import { PlatformSettingsService } from './platform-settings.service';
+import type { PlatformSettingsEntity } from '../database/entities/platform-settings.entity';
 
-class UpdateFooterDto {
+class UpdatePlatformDto {
   @IsOptional()
   @IsBoolean()
   footerEnabled?: boolean;
@@ -20,6 +27,38 @@ class UpdateFooterDto {
   @IsString()
   @MaxLength(300)
   footerUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  registrationEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['mock', 'openai'])
+  aiProvider?: 'mock' | 'openai';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  aiBaseUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  aiModel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  aiApiKey?: string;
+}
+
+/**
+ * کلید API هرگز (حتی رمزشده) از سرور بیرون نمی‌رود؛ پنل فقط باید بداند
+ * کلیدی تنظیم شده یا نه.
+ */
+function toSafeSettings(settings: PlatformSettingsEntity) {
+  const { aiApiKey, ...rest } = settings;
+  return { ...rest, aiApiKeySet: !!aiApiKey };
 }
 
 @ApiTags('platform')
@@ -39,16 +78,26 @@ export class PlatformController {
     return { isSuperAdmin: await this.settings.isSuperAdmin(user.sub) };
   }
 
+  /**
+   * تنظیمات عمومیِ بی‌خطر، بدون احراز هویت.
+   *
+   * صفحه‌ی ورود پیش از لاگین باید بداند زبانه‌ی ثبت‌نام را نشان بدهد یا نه.
+   */
+  @Get('public-config')
+  publicConfig() {
+    return this.settings.publicConfig();
+  }
+
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @Get('settings')
-  get() {
-    return this.settings.get();
+  async get() {
+    return toSafeSettings(await this.settings.get());
   }
 
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @Patch('settings')
-  update(@Body() dto: UpdateFooterDto) {
-    return this.settings.update(dto);
+  async update(@Body() dto: UpdatePlatformDto) {
+    return toSafeSettings(await this.settings.update(dto));
   }
 
   /**

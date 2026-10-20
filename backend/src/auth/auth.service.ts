@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { OrganizationEntity } from '../database/entities/organization.entity';
 import {
   OrganizationRole,
@@ -47,10 +48,16 @@ export class AuthService {
     @InjectRepository(SubscriptionEntity)
     private readonly subscriptionRepo: Repository<SubscriptionEntity>,
     private readonly jwt: JwtService,
+    private readonly platform: PlatformSettingsService,
     private readonly twoFactor: TwoFactorService,
   ) {}
 
   async register(dto: RegisterDto) {
+    // ثبت‌نام را سوپرادمین می‌تواند ببندد؛ فقط اولین حساب (bootstrap) مستثناست.
+    if (!(await this.platform.isRegistrationOpen())) {
+      throw new ForbiddenException('ثبت‌نام در این سامانه غیرفعال است');
+    }
+
     const existing = await this.userRepo.findOne({
       where: { email: dto.email.toLowerCase() },
     });

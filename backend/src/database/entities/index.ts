@@ -32,6 +32,7 @@ import { WebhookEntity } from './webhook.entity';
 import { TelegramIntegrationEntity } from './telegram-integration.entity';
 import { TelegramRecipientEntity } from './telegram-recipient.entity';
 import { TelegramLinkCodeEntity } from './telegram-link-code.entity';
+import { EmailReportRecipientEntity } from './email-report-recipient.entity';
 import { PortalEntity } from './portal.entity';
 import { WorkspaceEntity } from './workspace.entity';
 
@@ -71,6 +72,7 @@ export const ALL_ENTITIES = [
   DashboardEntity,
   TelegramIntegrationEntity,
   TelegramRecipientEntity,
+  EmailReportRecipientEntity,
   TelegramLinkCodeEntity,
   PortalEntity,
 ];

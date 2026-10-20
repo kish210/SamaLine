@@ -32,6 +32,39 @@ export class PlatformSettingsEntity {
   @Column({ type: 'varchar', length: 300, default: '' })
   footerUrl: string;
 
+  /**
+   * آیا ثبت‌نام عمومی باز است؟
+   *
+   * سوپرادمین می‌تواند روی سامانه‌ی تک‌مستاجری ثبت‌نام را ببندد تا کسی جز
+   * حساب‌های موجود نتواند سازمان تازه بسازد. اولین حساب (bootstrap) همیشه
+   * اجازه دارد، وگرنه نصب تازه قفل می‌شود.
+   */
+  @Column({ type: 'boolean', default: true })
+  registrationEnabled: boolean;
+
+  /**
+   * سرویس‌دهنده‌ی هوش مصنوعی: 'mock' (بدون اینترنت، پاسخ نمونه) یا 'openai'
+   * (هر سرویس سازگار با OpenAI، شامل مدل محلی مثل Ollama).
+   */
+  @Column({ type: 'varchar', length: 20, default: 'mock' })
+  aiProvider: string;
+
+  /** نشانی پایه‌ی سرویس سازگار با OpenAI؛ خالی یعنی مقدار پیش‌فرض. */
+  @Column({ type: 'varchar', length: 300, default: '' })
+  aiBaseUrl: string;
+
+  /** نام مدل، مثلا gpt-4o-mini یا qwen2.5:3b. */
+  @Column({ type: 'varchar', length: 120, default: '' })
+  aiModel: string;
+
+  /**
+   * کلید API سرویس، رمزشده در سطح ستون (enc:v1:…).
+   *
+   * برای مدل محلی لازم نیست؛ هر مقدار ساختگی (مثلا «ollama») هم کار می‌کند.
+   */
+  @Column({ type: 'varchar', length: 500, default: '' })
+  aiApiKey: string;
+
   @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
   updatedAt: Date;
 }

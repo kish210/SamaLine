@@ -11,7 +11,7 @@ import { TelegramIntegrationEntity } from '../database/entities/telegram-integra
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { AnalyticsService } from '../reports/analytics.service';
 import { isoToJalaliText } from '../common/jalali';
-import { TelegramApi } from './telegram-api';
+import { TelegramApi, platformApiBase } from './telegram-api';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -150,7 +150,12 @@ export class TelegramDigestService implements OnModuleInit, OnModuleDestroy {
       ...sections,
     ].join('\n');
 
-    const result = await this.api.send(bot.botToken, recipient.chatId, message);
+    const result = await this.api.send(
+      bot.botToken,
+      recipient.chatId,
+      message,
+      platformApiBase(bot.platform),
+    );
 
     /*
      * `lastDigestAt` حتی در صورت شکست به‌روز می‌شود.

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { decryptSecret, encryptSecret } from '../common/secret-box';
 import {
   PLATFORM_SETTINGS_ID,
   PlatformSettingsEntity,
@@ -13,6 +14,19 @@ export interface PublicFooter {
   enabled: boolean;
   text: string;
   url: string;
+}
+
+/** تنظیمات رمزگشایی‌شده‌ی هوش مصنوعی، برای استفاده‌ی داخلی سرویس AI. */
+export interface AiConfig {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
+/** تنظیمات عمومیِ بی‌خطر که پیش از ورود هم خوانده می‌شوند. */
+export interface PublicConfig {
+  registrationEnabled: boolean;
 }
 
 /** متن پیش‌فرض نوار، وقتی سوپرادمین متنی ننوشته باشد. */
@@ -86,6 +100,11 @@ export class PlatformSettingsService {
     footerEnabled?: boolean;
     footerText?: string;
     footerUrl?: string;
+    registrationEnabled?: boolean;
+    aiProvider?: string;
+    aiBaseUrl?: string;
+    aiModel?: string;
+    aiApiKey?: string;
   }): Promise<PlatformSettingsEntity> {
     const current = await this.get();
 
@@ -96,7 +115,52 @@ export class PlatformSettingsService {
     if (patch.footerUrl !== undefined)
       current.footerUrl = safeHttpUrl(patch.footerUrl);
 
+    if (patch.registrationEnabled !== undefined)
+      current.registrationEnabled = patch.registrationEnabled;
+
+    if (patch.aiProvider !== undefined)
+      current.aiProvider = patch.aiProvider === 'openai' ? 'openai' : 'mock';
+    if (patch.aiBaseUrl !== undefined)
+      current.aiBaseUrl = safeHttpUrl(patch.aiBaseUrl);
+    if (patch.aiModel !== undefined)
+      current.aiModel = patch.aiModel.trim().slice(0, 120);
+    // کلید خالی یعنی «دست نزن»؛ وگرنه کلید موجود با هر ذخیره‌ی فرم پاک می‌شد،
+    // چون پنل کلید رمزشده را برنمی‌گرداند. برای پاک‌کردن عمدی، «-» بفرستید.
+    if (patch.aiApiKey !== undefined && patch.aiApiKey !== '') {
+      current.aiApiKey =
+        patch.aiApiKey === '-' ? '' : encryptSecret(patch.aiApiKey.trim());
+    }
+
     return this.repo.save(current);
+  }
+
+  /**
+   * تنظیمات رمزگشایی‌شده‌ی AI. کلید فقط اینجا باز می‌شود و هرگز از کنترلر
+   * بیرون نمی‌رود.
+   */
+  async getAiConfig(): Promise<AiConfig> {
+    const settings = await this.get();
+    return {
+      provider: settings.aiProvider || 'mock',
+      baseUrl: settings.aiBaseUrl || '',
+      model: settings.aiModel || '',
+      apiKey: settings.aiApiKey ? decryptSecret(settings.aiApiKey) : '',
+    };
+  }
+
+  /** آیا ثبت‌نام عمومی باز است؟ اولین حساب همیشه مجاز است. */
+  async isRegistrationOpen(): Promise<boolean> {
+    const settings = await this.get();
+    if (settings.registrationEnabled) return true;
+    // bootstrap: نصب تازه بدون هیچ کاربری نباید قفل بماند.
+    const count = await this.users.count();
+    return count === 0;
+  }
+
+  /** تنظیمات عمومیِ بی‌خطر برای صفحه‌ی ورود (بدون احراز هویت). */
+  async publicConfig(): Promise<PublicConfig> {
+    const settings = await this.get();
+    return { registrationEnabled: settings.registrationEnabled };
   }
 
   /**

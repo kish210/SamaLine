@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PlatformModule } from '../platform/platform.module';
 import { OrganizationEntity } from '../database/entities/organization.entity';
 import { OrganizationUserEntity } from '../database/entities/organization-user.entity';
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
@@ -24,6 +25,7 @@ import { TwoFactorService } from './two-factor.service';
       WorkspaceEntity,
       SubscriptionEntity,
     ]),
+    PlatformModule,
     // ایمیل بازیابی رمز از همان لایه‌ی ارسال پیام سامانه می‌رود.
     MessagingModule,
     PassportModule,

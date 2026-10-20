@@ -6,7 +6,7 @@
 با نمودار، شاخص و خروجی اکسل تحلیل کنید. روی سرور خودتان با یک دستور نصب می‌شود؛
 بدون Docker، بدون سرویس دیتابیس جداگانه و بدون وابستگی به هیچ سرویس خارجی.
 
-نسخه‌ی ۱.۵.۲ — ساخته‌شده با Node.js (نسخه‌ی ۲۰ به بالا)، NestJS و React؛ دیتابیس SQLite یا PostgreSQL.
+نسخه‌ی ۱.۵.۶ — ساخته‌شده با Node.js (نسخه‌ی ۲۰ به بالا)، NestJS و React؛ دیتابیس SQLite یا PostgreSQL.
 
 <p align="center">
   <img src="docs/screenshots/report.png" alt="گزارش فرم: شاخص‌ها، روند پاسخ‌ها و نمودار هر سوال" width="100%">
@@ -110,17 +110,30 @@
 **پیش‌نیاز:** اوبونتو یا دبیان (یا هر لینوکس با systemd)، دسترسی root، git و
 Node.js نسخه‌ی ۲۰ به بالا. حداقل ۱ گیگ رم و ۲ گیگ دیسک آزاد.
 
+مخزن **خصوصی** است، پس کلون روی سرور تازه به یک توکن گیت‌هاب (با دسترسی خواندن
+repo) نیاز دارد. `install.sh` پیش‌نیازها را نصب می‌کند و بعد خودِ استقرار را با
+اجازه‌ی نصب Node اجرا می‌کند:
+
 ```bash
-git clone https://github.com/kish210/SamaLine.git /opt/samaline
-cd /opt/samaline
-PUBLIC_URL=https://survey.example.com bash scripts/deploy.sh
+sudo apt-get update && sudo apt-get install -y git
+git clone https://<GITHUB_TOKEN>@github.com/kish210/SamaLine.git ~/SamaLine
+cd ~/SamaLine
+PUBLIC_URL=https://survey.example.com sudo -E bash scripts/install.sh
 ```
+
+> اگر مخزن را عمومی کنید، به‌جای `<GITHUB_TOKEN>@` فقط نشانی ساده‌ی https کافی است.
+> روی سروری که Node مناسب دارد، می‌توانید مستقیم `sudo bash scripts/deploy.sh`
+> را هم اجرا کنید.
 
 | تنظیم | معنا |
 | --- | --- |
-| `PUBLIC_URL` | نشانی‌ای که کاربران با آن فرم را باز می‌کنند؛ لینک پیامک، ایمیل و یادآوری از روی آن ساخته می‌شود. اگر ندهید `http://IP:PORT` می‌شود. |
-| `PORT` | پورت سامانه؛ پیش‌فرض ۸۰۸۰. اگر اشغال باشد اولین پورت آزاد بعدی انتخاب می‌شود. |
-| `ALLOW_NODE_INSTALL=1` | اگر Node روی سرور نیست یا قدیمی است، خودش نصب کند. |
+| `PUBLIC_URL` | نشانی‌ای که کاربران با آن فرم را باز می‌کنند؛ لینک پیامک، ایمیل و یادآوری از روی آن ساخته می‌شود. اگر ندهید از IP محلی سرور ساخته می‌شود. |
+| `PORT` / `HTTPS_PORT` | پورت HTTP و HTTPS؛ پیش‌فرض ۸۰ و ۴۴۳. نصب دوباره پورت قبلی را حفظ می‌کند. |
+| `TLS` | پیش‌فرض `1` (HTTPS روی ۴۴۳ با گواهی self-signed). با `TLS=0` فقط HTTP. گواهی واقعی: `TLS_CERT` و `TLS_KEY`. |
+| `ALLOW_NODE_INSTALL=1` | اگر Node روی سرور نیست یا قدیمی است، خودش نصب کند. (`install.sh` خودش این را روشن می‌کند.) |
+
+پس از نصب، کارهای رایج (به‌روزرسانی، تغییر پورت/شبکه/گواهی، مدیر کل، مدل هوش
+مصنوعی) از منوی مدیریت در دسترس است: `sudo bash scripts/manage.sh`.
 
 اسکریپت همه‌چیز را روی خودِ سرور انجام می‌دهد: نصب دقیق نسخه‌های قفل‌شده‌ی
 وابستگی‌ها، build، ساخت فایل تنظیمات با کلیدهای تصادفی، ساخت سرویس systemd
@@ -239,7 +252,7 @@ npm run dev               # بک‌اند، پنل و فرم با هم
 
 ```bash
 cd backend
-npm test            # ۶۳۸ تست واحد و ادغام روی SQLite واقعی در حافظه
+npm test            # ۶۴۵ تست واحد و ادغام روی SQLite واقعی در حافظه
 npm run lint        # اسلینت (بدون خطا)
 npm run typecheck
 npm run smoke       # چرخه‌ی کامل روی سرور در حال اجرا (BASE=...)

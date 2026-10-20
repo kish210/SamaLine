@@ -550,17 +550,36 @@ export interface PlatformSettings {
   footerEnabled: boolean;
   footerText: string;
   footerUrl: string;
+  registrationEnabled: boolean;
+  aiProvider: 'mock' | 'openai';
+  aiBaseUrl: string;
+  aiModel: string;
+  /** کلید هرگز برنمی‌گردد؛ فقط می‌دانیم تنظیم شده یا نه. */
+  aiApiKeySet?: boolean;
+}
+
+/** تکه‌ای از تنظیمات که سوپرادمین می‌فرستد؛ aiApiKey فقط هنگام تغییر. */
+export type PlatformSettingsPatch = Partial<
+  Omit<PlatformSettings, 'aiApiKeySet'>
+> & { aiApiKey?: string };
+
+/** تنظیمات عمومی که پیش از ورود خوانده می‌شوند. */
+export interface PublicConfig {
+  registrationEnabled: boolean;
 }
 
 export const platformApi = {
   me: () =>
     api.get<{ isSuperAdmin: boolean }>("/platform/me").then((r) => r.data),
 
+  publicConfig: () =>
+    api.get<PublicConfig>('/platform/public-config').then((r) => r.data),
+
   getSettings: () =>
     api.get<PlatformSettings>("/platform/settings").then((r) => r.data),
 
-  updateSettings: (body: Partial<PlatformSettings>) =>
-    api.patch<PlatformSettings>("/platform/settings", body).then((r) => r.data),
+  updateSettings: (body: PlatformSettingsPatch) =>
+    api.patch<PlatformSettings>('/platform/settings', body).then((r) => r.data),
 
   /** همه‌ی فضاهای کاری سکو؛ فقط برای سوپرادمین. */
   workspaces: () =>
@@ -629,10 +648,12 @@ export function absoluteUploadUrl(url: string): string {
   return `${base}${url}`;
 }
 
-/** وضعیت ربات تلگرام؛ توکن هرگز از سرور برنمی‌گردد. */
+/** وضعیت ربات تلگرام/بله؛ توکن هرگز از سرور برنمی‌گردد. */
 export interface TelegramBotStatus {
   configured: boolean;
   isActive: boolean;
+  /** پیام‌رسان مقصد: تلگرام یا بله. */
+  platform: 'telegram' | 'bale';
   botUsername: string | null;
   lastError: string | null;
   lastSentAt: string | null;
@@ -660,7 +681,10 @@ export const telegramApi = {
       })
       .then((r) => r.data),
 
-  saveBot: (workspaceId: string, body: { botToken?: string }) =>
+  saveBot: (
+    workspaceId: string,
+    body: { botToken?: string; platform?: 'telegram' | 'bale'; isActive?: boolean },
+  ) =>
     api
       .post<TelegramBotStatus>("/integrations/telegram", body, {
         params: { workspaceId },
@@ -750,6 +774,67 @@ export const telegramApi = {
       }>(`/integrations/telegram/recipients/${id}/test`, null, {
         params: { workspaceId },
       })
+      .then((r) => r.data),
+};
+
+/** گیرنده‌ی گزارش دوره‌ای ایمیلی. */
+export interface EmailReportRecipient {
+  id: string;
+  formId: string | null;
+  email: string;
+  label: string;
+  digest: 'weekly' | 'monthly';
+  isActive: boolean;
+  lastError: string | null;
+  lastSentAt: string | null;
+}
+
+export const emailReportApi = {
+  list: (workspaceId: string) =>
+    api
+      .get<EmailReportRecipient[]>('/integrations/email-reports', {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  add: (
+    workspaceId: string,
+    body: {
+      formId: string | null;
+      email: string;
+      label?: string;
+      digest?: 'weekly' | 'monthly';
+    },
+  ) =>
+    api
+      .post<EmailReportRecipient>('/integrations/email-reports', body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  update: (
+    workspaceId: string,
+    id: string,
+    body: { label?: string; digest?: 'weekly' | 'monthly'; isActive?: boolean },
+  ) =>
+    api
+      .patch<EmailReportRecipient>(`/integrations/email-reports/${id}`, body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  remove: (workspaceId: string, id: string) =>
+    api
+      .delete(`/integrations/email-reports/${id}`, { params: { workspaceId } })
+      .then((r) => r.data),
+
+  test: (workspaceId: string, id: string) =>
+    api
+      .post<{ ok: boolean }>(
+        `/integrations/email-reports/${id}/test`,
+        null,
+        { params: { workspaceId } },
+      )
       .then((r) => r.data),
 };
 
