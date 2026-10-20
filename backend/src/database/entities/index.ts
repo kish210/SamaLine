@@ -11,6 +11,7 @@ import { FormVersionEntity } from './form-version.entity';
 import { IdentityProviderEntity } from './identity-provider.entity';
 import { InterviewerQuotaEntity } from './interviewer-quota.entity';
 import { InvitationEntity } from './invitation.entity';
+import { MenuEntity } from './menu.entity';
 import { InvoiceEntity } from './invoice.entity';
 import { KioskSessionEntity } from './kiosk-session.entity';
 import { OnPremLicenseEntity } from './onprem-license.entity';
@@ -61,6 +62,7 @@ export const ALL_ENTITIES = [
   InterviewerQuotaEntity,
   InvoiceEntity,
   InvitationEntity,
+  MenuEntity,
   PaymentEntity,
   PlatformSettingsEntity,
   OnPremLicenseEntity,

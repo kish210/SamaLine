@@ -10,6 +10,9 @@ import type {
   FormPage,
   FormSummary,
   InvitationPreview,
+  Menu,
+  MenuSection,
+  MenuTemplateSummary,
   OrganizationRole,
   Portal,
   Publication,
@@ -551,7 +554,7 @@ export interface PlatformSettings {
   footerText: string;
   footerUrl: string;
   registrationEnabled: boolean;
-  aiProvider: 'mock' | 'openai';
+  aiProvider: "mock" | "openai";
   aiBaseUrl: string;
   aiModel: string;
   /** کلید هرگز برنمی‌گردد؛ فقط می‌دانیم تنظیم شده یا نه. */
@@ -560,7 +563,7 @@ export interface PlatformSettings {
 
 /** تکه‌ای از تنظیمات که سوپرادمین می‌فرستد؛ aiApiKey فقط هنگام تغییر. */
 export type PlatformSettingsPatch = Partial<
-  Omit<PlatformSettings, 'aiApiKeySet'>
+  Omit<PlatformSettings, "aiApiKeySet">
 > & { aiApiKey?: string };
 
 /** تنظیمات عمومی که پیش از ورود خوانده می‌شوند. */
@@ -573,13 +576,13 @@ export const platformApi = {
     api.get<{ isSuperAdmin: boolean }>("/platform/me").then((r) => r.data),
 
   publicConfig: () =>
-    api.get<PublicConfig>('/platform/public-config').then((r) => r.data),
+    api.get<PublicConfig>("/platform/public-config").then((r) => r.data),
 
   getSettings: () =>
     api.get<PlatformSettings>("/platform/settings").then((r) => r.data),
 
   updateSettings: (body: PlatformSettingsPatch) =>
-    api.patch<PlatformSettings>('/platform/settings', body).then((r) => r.data),
+    api.patch<PlatformSettings>("/platform/settings", body).then((r) => r.data),
 
   /** همه‌ی فضاهای کاری سکو؛ فقط برای سوپرادمین. */
   workspaces: () =>
@@ -653,7 +656,7 @@ export interface TelegramBotStatus {
   configured: boolean;
   isActive: boolean;
   /** پیام‌رسان مقصد: تلگرام یا بله. */
-  platform: 'telegram' | 'bale';
+  platform: "telegram" | "bale";
   botUsername: string | null;
   lastError: string | null;
   lastSentAt: string | null;
@@ -683,7 +686,11 @@ export const telegramApi = {
 
   saveBot: (
     workspaceId: string,
-    body: { botToken?: string; platform?: 'telegram' | 'bale'; isActive?: boolean },
+    body: {
+      botToken?: string;
+      platform?: "telegram" | "bale";
+      isActive?: boolean;
+    },
   ) =>
     api
       .post<TelegramBotStatus>("/integrations/telegram", body, {
@@ -783,7 +790,7 @@ export interface EmailReportRecipient {
   formId: string | null;
   email: string;
   label: string;
-  digest: 'weekly' | 'monthly';
+  digest: "weekly" | "monthly";
   isActive: boolean;
   lastError: string | null;
   lastSentAt: string | null;
@@ -792,7 +799,7 @@ export interface EmailReportRecipient {
 export const emailReportApi = {
   list: (workspaceId: string) =>
     api
-      .get<EmailReportRecipient[]>('/integrations/email-reports', {
+      .get<EmailReportRecipient[]>("/integrations/email-reports", {
         params: { workspaceId },
       })
       .then((r) => r.data),
@@ -803,11 +810,11 @@ export const emailReportApi = {
       formId: string | null;
       email: string;
       label?: string;
-      digest?: 'weekly' | 'monthly';
+      digest?: "weekly" | "monthly";
     },
   ) =>
     api
-      .post<EmailReportRecipient>('/integrations/email-reports', body, {
+      .post<EmailReportRecipient>("/integrations/email-reports", body, {
         params: { workspaceId },
       })
       .then((r) => r.data),
@@ -815,7 +822,7 @@ export const emailReportApi = {
   update: (
     workspaceId: string,
     id: string,
-    body: { label?: string; digest?: 'weekly' | 'monthly'; isActive?: boolean },
+    body: { label?: string; digest?: "weekly" | "monthly"; isActive?: boolean },
   ) =>
     api
       .patch<EmailReportRecipient>(`/integrations/email-reports/${id}`, body, {
@@ -830,12 +837,41 @@ export const emailReportApi = {
 
   test: (workspaceId: string, id: string) =>
     api
-      .post<{ ok: boolean }>(
-        `/integrations/email-reports/${id}/test`,
-        null,
-        { params: { workspaceId } },
-      )
+      .post<{
+        ok: boolean;
+      }>(`/integrations/email-reports/${id}/test`, null, { params: { workspaceId } })
       .then((r) => r.data),
+};
+
+export const menusApi = {
+  templates: () =>
+    api.get<MenuTemplateSummary[]>("/menus/templates").then((r) => r.data),
+
+  list: (workspaceId: string) =>
+    api.get<Menu[]>("/menus", { params: { workspaceId } }).then((r) => r.data),
+
+  save: (
+    workspaceId: string,
+    id: string | null,
+    body: Partial<{
+      slug: string;
+      title: string;
+      description: string;
+      logoUrl: string;
+      images: string[];
+      sections: MenuSection[];
+      isActive: boolean;
+      templateKey: string;
+    }>,
+  ) =>
+    api
+      .post<Menu>(id ? `/menus/${id}` : "/menus", body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  remove: (workspaceId: string, id: string) =>
+    api.delete(`/menus/${id}`, { params: { workspaceId } }).then((r) => r.data),
 };
 
 export const portalsApi = {

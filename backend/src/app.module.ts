@@ -23,6 +23,7 @@ import { SpecializedModule } from './specialized/specialized.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { OpsModule } from './ops/ops.module';
 import { TeamModule } from './team/team.module';
+import { MenuModule } from './menus/menu.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { buildDataSourceOptions } from './database/data-source';
 
@@ -54,6 +55,7 @@ import { buildDataSourceOptions } from './database/data-source';
     RemindersModule,
     OpsModule,
     TeamModule,
+    MenuModule,
   ],
 })
 export class AppModule {}

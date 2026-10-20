@@ -1,14 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { authApi, platformApi } from './api';
-import { NavIcon } from './NavIcon';
-import { useAuth } from './auth';
-import { ROLE_LABELS } from './types';
-import { useNarrowScreen } from './useNarrowScreen';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { authApi, platformApi } from "./api";
+import { NavIcon } from "./NavIcon";
+import { useAuth } from "./auth";
+import { ROLE_LABELS } from "./types";
+import { useNarrowScreen } from "./useNarrowScreen";
 
 /** انتخاب کاربر برای جمع بودن سایدبار، بین نشست‌ها می‌ماند. */
-const SIDEBAR_KEY = 'samaline.sidebar.collapsed';
+const SIDEBAR_KEY = "samaline.sidebar.collapsed";
 
 /**
  * آیتم‌های سایدبار.
@@ -17,26 +17,27 @@ const SIDEBAR_KEY = 'samaline.sidebar.collapsed';
  * فقط آیکون دیده می‌شود، پس هر آیتم آیکون اختصاصی دارد.
  */
 const NAV = [
-  { to: '/forms', label: 'فرم‌ها', icon: 'forms' },
-  { to: '/dashboards', label: 'داشبوردها', icon: 'dashboards' },
-  { to: '/portals', label: 'پرتال', icon: 'portal' },
-  { to: '/contacts', label: 'مخاطبان', icon: 'contacts' },
-  { to: '/sources', label: 'اتصال به CRM', icon: 'crm' },
-  { to: '/campaigns', label: 'ارسال گروهی', icon: 'campaigns' },
-  { to: '/ai', label: 'هوش مصنوعی', icon: 'ai' },
-  { to: '/settings', label: 'تنظیمات', icon: 'settings' },
+  { to: "/forms", label: "فرم‌ها", icon: "forms" },
+  { to: "/dashboards", label: "داشبوردها", icon: "dashboards" },
+  { to: "/portals", label: "پرتال", icon: "portal" },
+  { to: "/menus", label: "منوی QR", icon: "menu" },
+  { to: "/contacts", label: "مخاطبان", icon: "contacts" },
+  { to: "/sources", label: "اتصال به CRM", icon: "crm" },
+  { to: "/campaigns", label: "ارسال گروهی", icon: "campaigns" },
+  { to: "/ai", label: "هوش مصنوعی", icon: "ai" },
+  { to: "/settings", label: "تنظیمات", icon: "settings" },
 ];
 
 /** آیتم ویژه‌ی سوپرادمین؛ فقط برای مدیر کل سامانه. */
 const PLATFORM_NAV = {
-  to: '/platform',
-  label: 'تنظیمات سامانه',
-  icon: 'platform',
+  to: "/platform",
+  label: "تنظیمات سامانه",
+  icon: "platform",
 };
 
 /** حرف اول نام، برای آواتار. */
 function initial(name?: string): string {
-  return (name ?? '؟').trim().charAt(0) || '؟';
+  return (name ?? "؟").trim().charAt(0) || "؟";
 }
 
 export function Layout() {
@@ -48,7 +49,7 @@ export function Layout() {
    * ندارد و نقش می‌تواند بیرون از این مرورگر عوض شده باشد.
    */
   const account = useQuery({
-    queryKey: ['account'],
+    queryKey: ["account"],
     queryFn: authApi.me,
     retry: false,
   });
@@ -76,7 +77,7 @@ export function Layout() {
    * منو پنهان می‌ماند و چیزی نمی‌شکند.
    */
   const platform = useQuery({
-    queryKey: ['platform-me'],
+    queryKey: ["platform-me"],
     queryFn: platformApi.me,
     retry: false,
   });
@@ -93,7 +94,7 @@ export function Layout() {
    * منو نامرئی بود.
    */
   const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_KEY) === '1',
+    () => localStorage.getItem(SIDEBAR_KEY) === "1",
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const narrow = useNarrowScreen();
@@ -105,7 +106,7 @@ export function Layout() {
     }
     setCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0');
+      localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
       return next;
     });
   };
@@ -125,18 +126,22 @@ export function Layout() {
 
   return (
     <div
-      className={['app-shell', collapsed ? 'collapsed' : '', drawerOpen ? 'drawer-open' : '']
+      className={[
+        "app-shell",
+        collapsed ? "collapsed" : "",
+        drawerOpen ? "drawer-open" : "",
+      ]
         .filter(Boolean)
-        .join(' ')}
+        .join(" ")}
     >
       <header className="topbar">
         <button
           type="button"
           className="sidebar-toggle"
           onClick={toggleSidebar}
-          aria-label={menuOpen ? 'بستن منو' : 'باز کردن منو'}
+          aria-label={menuOpen ? "بستن منو" : "باز کردن منو"}
           aria-expanded={menuOpen}
-          title={menuOpen ? 'بستن منو' : 'باز کردن منو'}
+          title={menuOpen ? "بستن منو" : "باز کردن منو"}
         >
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
             <path
@@ -161,7 +166,7 @@ export function Layout() {
           <select
             className="org-switcher"
             aria-label="سازمان"
-            value={user?.organizationId ?? ''}
+            value={user?.organizationId ?? ""}
             disabled={switchOrganization.isPending}
             onChange={(e) => switchOrganization.mutate(e.target.value)}
           >
@@ -193,13 +198,13 @@ export function Layout() {
               title={item.label}
               className={({ isActive }) =>
                 [
-                  'nav-item',
-                  isActive ? 'active' : '',
+                  "nav-item",
+                  isActive ? "active" : "",
                   // بخش سوپرادمین با یک خط از منوی عادی جدا می‌شود.
-                  item.to === PLATFORM_NAV.to ? 'platform-item' : '',
+                  item.to === PLATFORM_NAV.to ? "platform-item" : "",
                 ]
                   .filter(Boolean)
-                  .join(' ')
+                  .join(" ")
               }
             >
               <span className="nav-icon">
@@ -231,7 +236,9 @@ export function Layout() {
         </span>
         <span>{user?.email}</span>
         {role && <span className="statusbar-extra">{ROLE_LABELS[role]}</span>}
-        {isSuperAdmin && <span className="statusbar-extra">مدیر کل سامانه</span>}
+        {isSuperAdmin && (
+          <span className="statusbar-extra">مدیر کل سامانه</span>
+        )}
         <span className="spacer" />
         <span className="statusbar-extra">شرکت سماع رایانه کیش</span>
       </footer>

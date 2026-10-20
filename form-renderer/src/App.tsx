@@ -1,8 +1,9 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { FormPage } from './FormScreen';
-import { KioskPage } from './KioskPage';
-import { PortalPage } from './PortalPage';
-import { PublicDashboard } from './PublicDashboard';
+import { Navigate, Route, Routes } from "react-router-dom";
+import { FormPage } from "./FormScreen";
+import { KioskPage } from "./KioskPage";
+import { PortalPage } from "./PortalPage";
+import { PublicDashboard } from "./PublicDashboard";
+import { MenuPage } from "./MenuPage";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Route path="/k/:token" element={<KioskPage />} />
       <Route path="/d/:publicToken" element={<PublicDashboard />} />
       <Route path="/p/:slug" element={<PortalPage />} />
+      <Route path="/m/:slug" element={<MenuPage />} />
       <Route path="*" element={<Navigate to="/f/demo" replace />} />
     </Routes>
   );

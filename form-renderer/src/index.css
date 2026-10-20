@@ -1321,3 +1321,107 @@ body {
   color: #92400e;
   font-size: 0.9rem;
 }
+
+/* ── منوی QR ──
+   موبایل‌اول: مهمان با گوشی و اغلب روی اینترنت ضعیف بازش می‌کند. */
+.menu-page {
+  max-width: 680px;
+  margin: 0 auto;
+  /* نوار پایین سکو fixed است؛ فاصله به ارتفاع خودش گره خورده تا آخرین
+     قلم منو زیرش پنهان نشود، حتی اگر آن ارتفاع عوض شود. */
+  padding: 20px 16px calc(var(--platform-footer-height, 40px) + 24px);
+}
+
+.menu-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.menu-logo {
+  display: block;
+  max-height: 90px;
+  max-width: 220px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+
+.menu-header h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+.menu-description {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.menu-section {
+  margin-bottom: 28px;
+}
+
+.menu-section h2 {
+  font-size: 17px;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid currentColor;
+}
+
+.menu-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.menu-item:last-child {
+  border-bottom: 0;
+}
+
+.menu-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-item-text strong {
+  display: block;
+  font-weight: 600;
+}
+
+.menu-item-text small {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* قیمت نباید بشکند یا با نام قاطی شود. */
+.menu-price {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.menu-images img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 12px;
+  border-radius: 10px;
+}
+
+.menu-note {
+  text-align: center;
+  color: #6b7280;
+  padding: 32px 12px;
+  line-height: 1.9;
+}

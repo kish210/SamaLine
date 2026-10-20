@@ -1,21 +1,21 @@
-import axios from 'axios';
+import axios from "axios";
 import type {
   Answers,
   NextStepResponse,
   PublicForm,
   ResolvePageResponse,
-} from './types';
+} from "./types";
 
-const apiBase = import.meta.env.VITE_API_URL ?? '/api/v1';
+const apiBase = import.meta.env.VITE_API_URL ?? "/api/v1";
 
 const client = axios.create({ baseURL: apiBase });
 
 /** اعتبار دسترسی پاسخ‌دهنده در هدر جدا می‌رود، نه Authorization. */
 export function setRespondentToken(token?: string) {
   if (token) {
-    client.defaults.headers.common['x-respondent-token'] = token;
+    client.defaults.headers.common["x-respondent-token"] = token;
   } else {
-    delete client.defaults.headers.common['x-respondent-token'];
+    delete client.defaults.headers.common["x-respondent-token"];
   }
 }
 
@@ -40,6 +40,32 @@ export const portalApi = {
       .then((r) => r.data),
 };
 
+export interface PublicMenu {
+  title: string;
+  description: string;
+  logoUrl: string;
+  images: string[];
+  sections: Array<{
+    id: string;
+    title: string;
+    items: Array<{
+      id: string;
+      name: string;
+      description: string;
+      price: string;
+    }>;
+  }>;
+  footer?: { enabled: boolean; text: string; url: string };
+  updatedAt: string;
+}
+
+export const menuApi = {
+  get: (slug: string) =>
+    client
+      .get<PublicMenu>(`/public/menu/${encodeURIComponent(slug)}`)
+      .then((r) => r.data),
+};
+
 export const dashboardApi = {
   getPublic: (publicToken: string) =>
     client
@@ -47,7 +73,7 @@ export const dashboardApi = {
         name: string;
         widgets: Array<{
           id: string;
-          type: 'stat' | 'bar' | 'nps' | 'text' | 'score';
+          type: "stat" | "bar" | "nps" | "text" | "score";
           title: string;
           layout: { x: number; y: number; w: number; h: number };
           value?: number | string;
@@ -62,9 +88,10 @@ export const dashboardApi = {
 export const formApi = {
   authInfo: (token: string) =>
     client
-      .get<{ authMode: string; requiresAuth: boolean }>(
-        `/public/forms/${token}/auth-info`,
-      )
+      .get<{
+        authMode: string;
+        requiresAuth: boolean;
+      }>(`/public/forms/${token}/auth-info`)
       .then((r) => r.data),
 
   loginWithPassword: (token: string, password: string) =>
@@ -76,18 +103,19 @@ export const formApi = {
 
   requestOtp: (token: string, destination: string) =>
     client
-      .post<{ sent: boolean; channel: string; expiresInSeconds: number }>(
-        `/public/forms/${token}/auth/otp/request`,
-        { destination },
-      )
+      .post<{
+        sent: boolean;
+        channel: string;
+        expiresInSeconds: number;
+      }>(`/public/forms/${token}/auth/otp/request`, { destination })
       .then((r) => r.data),
 
   verifyOtp: (token: string, destination: string, code: string) =>
     client
-      .post<{ accessToken: string; respondentKey: string | null }>(
-        `/public/forms/${token}/auth/otp/verify`,
-        { destination, code },
-      )
+      .post<{
+        accessToken: string;
+        respondentKey: string | null;
+      }>(`/public/forms/${token}/auth/otp/verify`, { destination, code })
       .then((r) => r.data),
 
   get: (token: string) =>
@@ -121,9 +149,10 @@ export const formApi = {
 
   getProgress: (token: string, respondentKey: string) =>
     client
-      .get<{ exists: boolean; answers: Answers }>(
-        `/public/forms/${token}/progress/${encodeURIComponent(respondentKey)}`,
-      )
+      .get<{
+        exists: boolean;
+        answers: Answers;
+      }>(`/public/forms/${token}/progress/${encodeURIComponent(respondentKey)}`)
       .then((r) => r.data),
 
   saveProgress: (

@@ -196,6 +196,42 @@ export interface AccountInfo {
   organizations: { id: string; name: string; role: OrganizationRole }[];
 }
 
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+}
+
+export interface MenuSection {
+  id: string;
+  title: string;
+  items: MenuItem[];
+}
+
+export interface Menu {
+  id: string;
+  workspaceId: string;
+  slug: string;
+  title: string;
+  description: string;
+  logoUrl: string;
+  images: string[];
+  sections: MenuSection[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuTemplateSummary {
+  key: string;
+  title: string;
+  summary: string;
+  icon: string;
+  category: string;
+  itemCount: number;
+}
+
 export interface ApiKey {
   id: string;
   name: string;

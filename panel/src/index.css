@@ -3127,3 +3127,68 @@ input[type='color'] {
   margin: 12px auto 0;
   font-size: 13px;
 }
+
+/* ── ویرایشگر منوی QR ── */
+.menu-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.menu-section-editor {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.menu-section-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.menu-section-head input {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* نام، توضیح و قیمت در یک ردیف؛ روی موبایل زیر هم می‌روند. */
+.menu-item-editor {
+  display: grid;
+  grid-template-columns: 1.2fr 1.6fr 0.8fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .menu-item-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qr-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.qr-box {
+  width: 170px;
+  flex: none;
+}
+
+.qr-box svg {
+  width: 100%;
+  height: auto;
+}
+
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}

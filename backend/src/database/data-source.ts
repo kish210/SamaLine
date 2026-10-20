@@ -12,8 +12,10 @@ import { AddPasswordReset1791318984285 } from './migrations/1791318984285-AddPas
 import { PgAddPasswordReset1791318984286 } from './migrations/1791318984286-PgAddPasswordReset';
 import { AddInvitations1791319534731 } from './migrations/1791319534731-AddInvitations';
 import { AddApiKeyRole1791319534733 } from './migrations/1791319534733-AddApiKeyRole';
+import { AddMenus1792100000000 } from './migrations/1792100000000-AddMenus';
 import { PgAddInvitations1791319534732 } from './migrations/1791319534732-PgAddInvitations';
 import { PgAddApiKeyRole1791319534734 } from './migrations/1791319534734-PgAddApiKeyRole';
+import { PgAddMenus1792100000001 } from './migrations/1792100000001-PgAddMenus';
 import { AddPlatformAiAndRegistration1792000000000 } from './migrations/1792000000000-AddPlatformAiAndRegistration';
 import { PgAddPlatformAiAndRegistration1792000000001 } from './migrations/1792000000001-PgAddPlatformAiAndRegistration';
 import { AddChatPlatform1793000000000 } from './migrations/1793000000000-AddChatPlatform';
@@ -38,6 +40,7 @@ export const SQLITE_MIGRATIONS = [
   AddPasswordReset1791318984285,
   AddInvitations1791319534731,
   AddApiKeyRole1791319534733,
+  AddMenus1792100000000,
   AddPlatformAiAndRegistration1792000000000,
   AddChatPlatform1793000000000,
   AddEmailReports1793000000002,
@@ -48,6 +51,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddPasswordReset1791318984286,
   PgAddInvitations1791319534732,
   PgAddApiKeyRole1791319534734,
+  PgAddMenus1792100000001,
   PgAddPlatformAiAndRegistration1792000000001,
   PgAddChatPlatform1793000000001,
   PgAddEmailReports1793000000003,
