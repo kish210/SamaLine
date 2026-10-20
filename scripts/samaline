@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+# دستور کوتاه مدیریت SamaLine.
+#
+# به‌جای به‌خاطر سپردن مسیر و `sudo bash .../manage.sh`:
+#
+#   samaline            منوی مدیریت
+#   samaline update     به‌روزرسانی از گیت و استقرار دوباره
+#   samaline status     وضعیت سرویس و پورت‌ها
+#   samaline logs       لاگ زنده
+#   samaline restart    ری‌استارت سرویس
+#
+# هنگام استقرار، پیوندی از این فایل در /usr/local/bin/samaline ساخته می‌شود.
+# پیوند است نه کپی، تا با هر `git pull` همین نسخه‌ی تازه اجرا شود و لازم
+# نباشد چیزی دوباره نصب شود.
+#
+set -euo pipefail
+
+# مسیر واقعی خودِ فایل، نه پیوند؛ وگرنه APP_DIR به /usr/local می‌افتاد.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+APP_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
+SERVICE_NAME="${SERVICE_NAME:-samaline}"
+ENV_FILE="$APP_DIR/backend/.env"
+
+# همه‌ی کارها root می‌خواهند؛ به‌جای خطا دادن، خودش بالا می‌رود تا کاربر
+# لازم نباشد `sudo` را هم یادش بماند.
+if [ "$(id -u)" -ne 0 ]; then
+  exec sudo bash "$SELF" "$@"
+fi
+
+c_cyan='\033[36m'; c_green='\033[32m'; c_red='\033[31m'; c_off='\033[0m'
+
+usage() {
+  cat <<USAGE
+
+مدیریت SamaLine — $APP_DIR
+
+  samaline              منوی کامل مدیریت
+  samaline update       به‌روزرسانی از گیت و استقرار دوباره
+  samaline status       وضعیت سرویس، پورت‌ها و سلامت
+  samaline logs         لاگ زنده (Ctrl+C برای خروج)
+  samaline restart      ری‌استارت سرویس
+  samaline start        روشن کردن سرویس
+  samaline stop         خاموش کردن سرویس
+  samaline health       فقط بررسی سلامت
+  samaline version      نسخه و آخرین کامیت
+  samaline help         همین راهنما
+
+USAGE
+}
+
+# نشانی محلی سلامت، از روی تنظیمات واقعی همین نصب.
+health_url() {
+  local port https_port cert
+  port="$(grep -E '^PORT=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  https_port="$(grep -E '^HTTPS_PORT=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  cert="$(grep -E '^TLS_CERT=' "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  if [ -n "$cert" ]; then
+    printf 'https://127.0.0.1:%s/api/v1/health' "${https_port:-443}"
+  else
+    printf 'http://127.0.0.1:%s/api/v1/health' "${port:-8080}"
+  fi
+}
+
+check_health() {
+  local url code
+  url="$(health_url)"
+  # -k چون گواهی خودامضا هم ممکن است؛ مقصد خودِ همین ماشین است.
+  # خود curl در شکست هم `000` چاپ می‌کند؛ `|| echo` اضافی آن را دوبار می‌کرد.
+  code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "$url" 2>/dev/null || true)"
+  code="${code:-000}"
+  if [ "$code" = "200" ]; then
+    printf "${c_green}سلامت: %s → %s${c_off}\n" "$url" "$code"
+  else
+    printf "${c_red}سلامت: %s → %s${c_off}\n" "$url" "$code"
+    return 1
+  fi
+}
+
+case "${1:-menu}" in
+  menu)
+    exec bash "$APP_DIR/scripts/manage.sh"
+    ;;
+  update)
+    exec bash "$APP_DIR/scripts/update.sh"
+    ;;
+  status)
+    printf "${c_cyan}==> سرویس${c_off}\n"
+    systemctl status "$SERVICE_NAME" --no-pager --lines=5 || true
+    printf "\n${c_cyan}==> پورت‌های در حال گوش دادن${c_off}\n"
+    ss -ltnp 2>/dev/null | grep -E 'node|:(80|443|8080)\s' || echo "چیزی پیدا نشد"
+    printf "\n${c_cyan}==> سلامت${c_off}\n"
+    check_health || true
+    ;;
+  logs)
+    exec journalctl -u "$SERVICE_NAME" -f
+    ;;
+  restart)
+    systemctl restart "$SERVICE_NAME"
+    sleep 2
+    check_health
+    ;;
+  start)
+    systemctl start "$SERVICE_NAME"
+    sleep 2
+    check_health
+    ;;
+  stop)
+    systemctl stop "$SERVICE_NAME"
+    printf "سرویس خاموش شد؛ پنل و فرم‌ها از دسترس خارج‌اند.\n"
+    ;;
+  health)
+    check_health
+    ;;
+  version)
+    printf "نسخه:  %s\n" "$(node -p "require('$APP_DIR/package.json').version" 2>/dev/null || echo '؟')"
+    printf "کامیت: %s\n" "$(git -C "$APP_DIR" log --oneline -1 2>/dev/null || echo '؟')"
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    printf "${c_red}دستور ناشناخته: %s${c_off}\n" "$1"
+    usage
+    exit 1
+    ;;
+esac

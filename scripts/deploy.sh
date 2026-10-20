@@ -279,6 +279,15 @@ systemctl daemon-reload
 systemctl enable "$SERVICE_NAME" >/dev/null
 systemctl restart "$SERVICE_NAME"
 
+log "نصب دستور کوتاه samaline"
+# پیوند، نه کپی: با هر به‌روزرسانی همان نسخه‌ی تازه‌ی مخزن اجرا می‌شود.
+chmod +x "$APP_DIR/scripts/samaline" 2>/dev/null || true
+if ln -sfn "$APP_DIR/scripts/samaline" /usr/local/bin/samaline 2>/dev/null; then
+  echo "از این پس فقط «samaline» را بزنید (بدون sudo و بدون مسیر)."
+else
+  echo "نصب نشد؛ همان «sudo bash $APP_DIR/scripts/manage.sh» کار می‌کند."
+fi
+
 log "باز کردن پورت در فایروال"
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
   ufw allow "$PORT/tcp" >/dev/null
@@ -317,7 +326,8 @@ for _ in $(seq 1 30); do
     echo "لاگ:         journalctl -u $SERVICE_NAME -f"
     echo "توقف:        systemctl stop $SERVICE_NAME"
     echo "پشتیبان:     $APP_DIR/backend/data/backups/daily (روزانه، خودکار)"
-    echo "مدیر کل:     cd $APP_DIR/backend && npm run superadmin -- you@example.com"
+    echo "مدیریت:      samaline            (منو)  |  samaline update  |  samaline status"
+  echo "مدیر کل:     cd $APP_DIR/backend && npm run superadmin -- you@example.com"
     echo "منوی مدیریت: sudo bash $APP_DIR/scripts/manage.sh"
     exit 0
   fi
