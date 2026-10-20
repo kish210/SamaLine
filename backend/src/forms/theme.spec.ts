@@ -58,6 +58,31 @@ describe('resolveTheme — ظاهر فرم', () => {
       ).toBe('https://cdn.test/logo.png');
     });
 
+    /*
+     * آپلود لوگو نشانی نسبی می‌دهد (`/uploads/...`) و در استقرار واقعی
+     * همین در تنظیمات ذخیره می‌شود. پیش از این حذف می‌شد: لوگو در فرم‌ساز
+     * دیده می‌شد ولی در فرم منتشرشده نه.
+     */
+    it('نشانی نسبیِ همین میزبان را نگه می‌دارد (لوگوی آپلودشده)', () => {
+      expect(
+        resolveTheme({ theme: { logoUrl: '/uploads/logo-abc.png' } }).logoUrl,
+      ).toBe('/uploads/logo-abc.png');
+      expect(
+        resolveTheme({ theme: { backgroundImageUrl: '/uploads/bg.jpg' } })
+          .backgroundImageUrl,
+      ).toBe('/uploads/bg.jpg');
+    });
+
+    it('نشانی بدون پروتکل که به میزبان دیگر می‌رود رد می‌شود', () => {
+      // `//host/x` نسبی به‌نظر می‌رسد ولی مرورگر آن را به میزبان دیگری می‌برد.
+      expect(
+        resolveTheme({ theme: { logoUrl: '//evil.test/logo.png' } }).logoUrl,
+      ).toBe('');
+      expect(
+        resolveTheme({ theme: { logoUrl: '/\\evil.test/logo.png' } }).logoUrl,
+      ).toBe('');
+    });
+
     it('تصویر data: را می‌پذیرد', () => {
       const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
       expect(resolveTheme({ theme: { logoUrl: dataUrl } }).logoUrl).toBe(

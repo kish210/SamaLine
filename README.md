@@ -6,7 +6,7 @@
 با نمودار، شاخص و خروجی اکسل تحلیل کنید. روی سرور خودتان با یک دستور نصب می‌شود؛
 بدون Docker، بدون سرویس دیتابیس جداگانه و بدون وابستگی به هیچ سرویس خارجی.
 
-نسخه‌ی ۱.۵.۱ — ساخته‌شده با Node.js (نسخه‌ی ۲۰ به بالا)، NestJS و React؛ دیتابیس SQLite یا PostgreSQL.
+نسخه‌ی ۱.۵.۲ — ساخته‌شده با Node.js (نسخه‌ی ۲۰ به بالا)، NestJS و React؛ دیتابیس SQLite یا PostgreSQL.
 
 <p align="center">
   <img src="docs/screenshots/report.png" alt="گزارش فرم: شاخص‌ها، روند پاسخ‌ها و نمودار هر سوال" width="100%">
@@ -239,7 +239,7 @@ npm run dev               # بک‌اند، پنل و فرم با هم
 
 ```bash
 cd backend
-npm test            # ۶۳۶ تست واحد و ادغام روی SQLite واقعی در حافظه
+npm test            # ۶۳۸ تست واحد و ادغام روی SQLite واقعی در حافظه
 npm run lint        # اسلینت (بدون خطا)
 npm run typecheck
 npm run smoke       # چرخه‌ی کامل روی سرور در حال اجرا (BASE=...)
