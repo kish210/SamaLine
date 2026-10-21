@@ -6,7 +6,7 @@
  * - درخواست‌های API هرگز کش نمی‌شوند: پاسخ کهنه‌ی فرم یا منطق، بدتر از
  *   خطای شبکه است.
  */
-const CACHE_NAME = 'samaline-renderer-v1';
+const CACHE_NAME = 'samaline-renderer-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -38,8 +38,21 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // درخواست‌های API و مبدا دیگر دست‌نخورده به شبکه می‌روند.
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/api')) {
+  /*
+   * درخواست‌های API و مبدا دیگر دست‌نخورده به شبکه می‌روند.
+   *
+   * `/panel` و `/uploads` هم کنار گذاشته می‌شوند: این سرویس‌ورکر فقط مالِ
+   * رندرر فرم است، ولی چون روی مبدا `/` ثبت می‌شود، پیمایش به `/panel` را هم
+   * می‌گرفت و پوسته‌ی رندرر را به‌جای پنل می‌داد — در نتیجه کاربر به‌جای پنل
+   * به صفحه‌ی دموی فرم پرت می‌شد. با این استثنا، `/panel` همیشه از سرور
+   * می‌آید.
+   */
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/panel') ||
+    url.pathname.startsWith('/uploads')
+  ) {
     return;
   }
 
