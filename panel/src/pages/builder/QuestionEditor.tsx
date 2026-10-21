@@ -253,6 +253,25 @@ export function QuestionEditor({
         </label>
       )}
 
+      {/*
+       * اجازه‌ی انتخاب چند گزینه.
+       *
+       * رندرر از قبل این را می‌فهمید (با meta.multiple کارت‌ها چک‌باکس می‌شوند
+       * نه رادیو)، ولی فرم‌ساز راهی برای روشن کردنش نداشت؛ برای همین هر
+       * «چندگزینه‌ای» تک‌انتخابی می‌ماند. فقط برای multiple_choice است چون
+       * تنها همین نوع در رندرر حالت چندتایی دارد.
+       */}
+      {question.type === 'multiple_choice' && (
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={meta.multiple === true}
+            onChange={(e) => patchMeta({ multiple: e.target.checked })}
+          />
+          امکان انتخاب چند گزینه
+        </label>
+      )}
+
       {SCALE_TYPES.includes(question.type) && (
         <ScaleSettings
           type={question.type}

@@ -359,6 +359,147 @@ const BASE_TEMPLATES: FormTemplate[] = [
   hotelGatedTemplate(),
 
   {
+    key: 'hotel-maintenance',
+    title: 'ثبت تعمیرات فنی اتاق‌های هتل',
+    summary:
+      'فرم واحد فنی و مهندسی برای ثبت کار تعمیراتی هر اتاق یا واحد هتل: نوع خرابی، کار انجام‌شده، قطعات و وضعیت.',
+    category: 'گردشگری و هتلداری',
+    icon: '🛠️',
+    structure: {
+      pages: [
+        {
+          id: 'p1',
+          title: 'مشخصات اتاق و کار',
+          questions: [
+            {
+              id: 'm_room',
+              type: 'short_text',
+              title: 'شماره اتاق / واحد',
+              required: true,
+            },
+            {
+              id: 'm_floor',
+              type: 'short_text',
+              title: 'طبقه / بخش',
+              required: false,
+            },
+            {
+              id: 'm_date',
+              type: 'date',
+              title: 'تاریخ انجام کار',
+              required: true,
+            },
+            {
+              id: 'm_technician',
+              type: 'short_text',
+              title: 'تکنسین / مسئول انجام کار',
+              required: true,
+            },
+            /*
+             * حوزه‌ی کار چندانتخابی است: یک کار تعمیری اغلب هم‌زمان چند حوزه
+             * را درگیر می‌کند (مثلا برق و تهویه). meta.multiple کارت‌ها را
+             * چک‌باکس می‌کند نه رادیو.
+             */
+            {
+              id: 'm_area',
+              type: 'multiple_choice',
+              title: 'نوع خرابی / حوزه‌ی کار',
+              required: true,
+              options: [
+                'برق و روشنایی',
+                'لوله‌کشی و تأسیسات آب',
+                'تهویه و سرمایش/گرمایش',
+                'نجاری و درب و کمد',
+                'رنگ و نقاشی',
+                'لوازم و مبلمان',
+                'شبکه، تلفن و تلویزیون',
+                'قفل و سیستم کارت اتاق',
+                'سایر',
+              ],
+              meta: { multiple: true },
+            },
+            {
+              id: 'm_fault',
+              type: 'long_text',
+              title: 'شرح خرابی یا درخواست',
+              required: false,
+            },
+            {
+              id: 'm_work',
+              type: 'long_text',
+              title: 'شرح کار انجام‌شده',
+              required: true,
+            },
+            {
+              id: 'm_parts',
+              type: 'long_text',
+              title: 'قطعات و مصالح مصرف‌شده',
+              required: false,
+            },
+            {
+              id: 'm_minutes',
+              type: 'number',
+              title: 'مدت زمان کار (دقیقه)',
+              required: false,
+              meta: { min: 0 },
+            },
+            {
+              id: 'm_status',
+              type: 'multiple_choice',
+              title: 'وضعیت کار',
+              required: true,
+              options: [
+                'انجام شد',
+                'نیاز به پیگیری دارد',
+                'در انتظار قطعه',
+                'ارجاع به پیمانکار',
+              ],
+            },
+            {
+              id: 'm_priority',
+              type: 'multiple_choice',
+              title: 'اولویت',
+              required: true,
+              options: ['عادی', 'فوری', 'اضطراری'],
+            },
+            {
+              id: 'm_room_ready',
+              type: 'boolean',
+              title: 'اتاق پس از کار آماده‌ی واگذاری است؟',
+              options: ['بله', 'خیر'],
+              required: false,
+            },
+            {
+              id: 'm_cost',
+              type: 'number',
+              title: 'هزینه (تومان)',
+              required: false,
+              meta: { min: 0 },
+            },
+            {
+              id: 'm_photo',
+              type: 'file_upload',
+              title: 'عکس قبل/بعد یا سند کار',
+              required: false,
+            },
+            {
+              id: 'm_notes',
+              type: 'long_text',
+              title: 'توضیحات تکمیلی',
+              required: false,
+            },
+          ],
+        },
+      ],
+    },
+    settings: {
+      // فرم عملیاتیِ داخلی است، نه نظرسنجی؛ همه‌ی سوال‌ها در یک صفحه بهتر است.
+      theme: { oneQuestionPerStep: false },
+      startPageEnabled: false,
+    },
+  },
+
+  {
     key: 'nps',
     title: 'سنجش وفاداری مشتری (NPS)',
     summary:
