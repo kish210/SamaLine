@@ -43,17 +43,24 @@ export class TelegramApi {
     text: string,
     baseUrl: string = TELEGRAM_API,
   ): Promise<TelegramOk> {
-    return this.call(
-      botToken,
-      'sendMessage',
-      {
-        chat_id: chatId,
-        text: text.length > MAX_MESSAGE ? clip(text) : text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      },
-      baseUrl,
-    );
+    /*
+     * پیام‌ها با HTML نوشته می‌شوند (تلگرام با parse_mode=HTML رندر می‌کند).
+     * اما بله parse_mode ندارد و طبق مستند رسمی‌اش «همه‌ی پیام‌ها را خودکار
+     * Markdown قالب‌بندی می‌کند» (پررنگ با دو ستاره). پس اگر همان HTML را به
+     * بله بفرستیم، کاربر تگ خام <b> می‌بیند. برای بله HTML را به Markdownِ بله
+     * تبدیل می‌کنیم و parse_mode نمی‌فرستیم.
+     */
+    const isBale = baseUrl === BALE_API;
+    const prepared = isBale ? htmlToBaleMarkdown(text) : text;
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      text: prepared.length > MAX_MESSAGE ? clip(prepared) : prepared,
+    };
+    if (!isBale) {
+      body.parse_mode = 'HTML';
+      body.disable_web_page_preview = true;
+    }
+    return this.call(botToken, 'sendMessage', body, baseUrl);
   }
 
   async getMe(
@@ -149,6 +156,24 @@ export class TelegramApi {
 }
 
 /** پیام‌های خیلی بلند را تلگرام رد می‌کند؛ بریدن بهتر از نفرستادن است. */
+/**
+ * تبدیل پیامِ HTML (که برای تلگرام ساخته شده) به Markdownِ بله.
+ *
+ * - `<b>…</b>` → `**…**` (پررنگ بله با دو ستاره است، نه یک).
+ * - بقیه‌ی تگ‌ها حذف می‌شوند (پیام‌های ما جز <b> تگ دیگری ندارند، ولی برای
+ *   اطمینان).
+ * - موجودیت‌های HTML (`&amp;` و …) به کاراکتر اصلی برمی‌گردند، چون سازنده‌ی
+ *   پیام آن‌ها را برای HTML گریز زده بود و بله خام نمایش‌شان می‌دهد.
+ */
+export function htmlToBaleMarkdown(html: string): string {
+  return html
+    .replace(/<\/?b>/g, '**')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
 function clip(text: string): string {
   return `${text.slice(0, MAX_MESSAGE - 40)}\n\n… (ادامه در پنل)`;
 }
