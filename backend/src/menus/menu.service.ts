@@ -73,8 +73,15 @@ export class MenuService {
       throw new BadRequestException('قالب انتخاب‌شده وجود ندارد');
     }
 
-    const sections =
-      input.sections ?? existing?.sections ?? template?.sections ?? [];
+    /*
+     * وقتی کاربر یک قالب انتخاب می‌کند، باید محتوای همان قالب بیاید. پیش‌تر
+     * چون پنل هنگام ساخت، `sections: []` هم می‌فرستاد و `[] ?? x` همان `[]`
+     * می‌ماند، قالب نادیده گرفته می‌شد و همه‌ی قالب‌ها یک منوی خالیِ یکسان
+     * می‌ساختند. پس اگر قالبی صریح انتخاب شده، بخش‌های همان قالب مرجع‌اند.
+     */
+    const sections = template
+      ? template.sections
+      : (input.sections ?? existing?.sections ?? []);
     const images = input.images ?? existing?.images ?? [];
     this.assertSize(images, sections);
 

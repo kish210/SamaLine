@@ -42,6 +42,13 @@ export class FormEntity {
   @Column({ type: ENUM_COLUMN, enum: FormStatus, default: FormStatus.DRAFT })
   status: FormStatus;
 
+  /**
+   * بخشِ مالکِ فرم. null یعنی فرمِ «نظرسنجی»/عمومی بدون بخش؛ مقداردار یعنی فرمِ
+   * «عملیاتی» که فقط اعضای همان بخش (یا مدیر/مالک) اجازه‌اش را دارند.
+   */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  departmentId: string | null;
+
   @Column({ type: JSON_COLUMN, default: {} })
   settings: Record<string, unknown>;
 
