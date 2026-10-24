@@ -86,6 +86,12 @@ function FormBody({ token, flow, endSlot }: FormBodyProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   useTheme(flow.form?.theme);
 
+  // عنوان صفحه برابر نام همین فرم؛ نه برچسب ثابت «نظرسنجی». هر فرم لزوماً
+  // نظرسنجی نیست (مثلاً فرم گزارش کار فنی).
+  useEffect(() => {
+    if (flow.form?.formTitle) document.title = flow.form.formTitle;
+  }, [flow.form?.formTitle]);
+
   // در حالت تک‌سوالی، شماره‌ی سوال جاری درون صفحه.
   const [questionIndex, setQuestionIndex] = useState(0);
   const oneAtATime = Boolean(flow.form?.theme?.oneQuestionPerStep);

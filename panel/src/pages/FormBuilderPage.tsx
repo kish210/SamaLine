@@ -74,6 +74,7 @@ export function FormBuilderPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('build');
   const [pages, setPages] = useState<FormPage[]>([]);
+  const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -101,6 +102,13 @@ export function FormBuilderPage() {
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
+  // نام فرم فقط یک بار (هنگام بارگذاری فرم) در وضعیت محلی نشانده می‌شود تا
+  // ویرایشِ کاربر با بازخوانیِ بعد از ذخیره بازنویسی نشود.
+  const loadedFormId = form.data?.id;
+  useEffect(() => {
+    if (form.data?.title !== undefined) setTitle(form.data.title);
+  }, [loadedFormId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /*
    * سرور کل `logic` را جایگزین می‌کند، نه ادغام. پس هر بار باید تمامش
    * فرستاده شود وگرنه کلیدهایی که اینجا ویرایشگر ندارند (مثل Piping) بی‌صدا
@@ -126,6 +134,7 @@ export function FormBuilderPage() {
   const save = useMutation({
     mutationFn: () =>
       formsApi.update(formId, {
+        title: title.trim() || form.data?.title,
         pages,
         scoreConfig: { indices: indexes },
         logic: { ...existingLogic, skip: skipRules, display: displayRules },
@@ -300,7 +309,30 @@ export function FormBuilderPage() {
           <Link to="/forms" className="back">
             ← فرم‌ها
           </Link>
-          <h1>{form.data.title}</h1>
+          <input
+            className="form-title-input"
+            value={title}
+            placeholder="نام فرم"
+            aria-label="نام فرم"
+            title="برای تغییر نام فرم اینجا بنویسید"
+            style={{
+              font: 'inherit',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              border: '1px solid transparent',
+              borderRadius: 8,
+              padding: '2px 8px',
+              background: 'transparent',
+              width: 'min(100%, 28rem)',
+              color: 'inherit',
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--border, #cbd5e1)')}
+            onBlur={(e) => (e.currentTarget.style.borderColor = 'transparent')}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              markDirty();
+            }}
+          />
         </div>
         <div className="header-actions">
           {saved && <span className="saved">ذخیره شد</span>}
