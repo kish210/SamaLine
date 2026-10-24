@@ -116,6 +116,21 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **onprem_licenses** — `organizationId`, `licenseKey`, `capabilities`(JSON),
   `expiresAt*`, `isActive`. (صدور/اعتبارسنجی هست؛ بررسی هنگام اجرا هنوز نه.)
 
+### نگهداری و تعمیرات هتل (ماژول maintenance)
+- **maintenance_requests** — `workspaceId`, `requestNo` (یکتا در فضای کاری),
+  `createdByUserId*`, `requesterName`, `building`/`floor`/`room`/`locationNote`,
+  `category` (MaintenanceCategory), `description`, `priority` (MaintenancePriority),
+  `assignedTo`, `status` (MaintenanceStatus), `workNotes`, `completionNotes`,
+  `estimatedCost`/`actualCost` (bigint), `attachments`(JSON [{url,name}]),
+  `closedAt*`, `archivedAt*` (حذف نرم). ایندکس (workspaceId,status) و یکتا
+  (workspaceId,requestNo).
+- **maintenance_events** — `requestId`(FK→maintenance_requests, CASCADE),
+  `actorId*`, `actorName`, `action` (created/status_changed/assigned/note_added/
+  archived), `fromValue*`, `toValue*`, `note`. ردپای ممیزیِ هر درخواست.
+- **room_readiness** — `workspaceId`, `room` (یکتا با workspaceId),
+  `building`/`floor`, `status` (RoomReadinessStatus), `note`, `updatedByName`.
+  **مستقل از وضعیت درخواست**؛ بسته‌شدن تیکت آن را خودکار عوض نمی‌کند.
+
 ### سکو و متفرقه
 - **platform_settings** — کلید ثابت `singleton`. `footerEnabled/Text/Url`
   (نوار پایین فرم‌ها)، `registrationEnabled` (سوئیچ ثبت‌نام)، `aiProvider`
@@ -137,6 +152,12 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **PublicationAuthMode**: none / param / link / password / otp / oauth / ldap
 - **InvoiceStatus**, **PaymentStatus**, **JobStatus**, **IdentityProviderType** —
   در فایل موجودیت همان‌ها.
+- **MaintenanceCategory**: electrical / plumbing / hvac / carpentry / painting /
+  furniture / network_phone_tv / locks_access / other
+- **MaintenancePriority**: normal / urgent / emergency
+- **MaintenanceStatus**: new / in_progress / waiting_part / contractor_required /
+  follow_up / done / cancelled
+- **RoomReadinessStatus**: ready / needs_inspection / not_ready
 
 ## مهاجرت‌ها
 
@@ -152,6 +173,7 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 8. `AddMenus` — جدول menus.
 9. `AddChatPlatform` — ستون `platform` روی telegram_integrations.
 10. `AddEmailReports` — جدول email_report_recipients.
+11. `AddMaintenance` — جدول‌های maintenance_requests، maintenance_events، room_readiness.
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

@@ -25,6 +25,9 @@ const PortalsPage = lazyPage(() =>
 const MenusPage = lazyPage(() =>
   import("./pages/MenusPage").then((m) => ({ default: m.MenusPage })),
 );
+const MaintenancePage = lazyPage(() =>
+  import("./pages/MaintenancePage").then((m) => ({ default: m.MaintenancePage })),
+);
 const ContactsPage = lazyPage(() =>
   import("./pages/ContactsPage").then((m) => ({ default: m.ContactsPage })),
 );
@@ -69,6 +72,7 @@ function App() {
         <Route path="/dashboards" element={page(<DashboardsPage />)} />
         <Route path="/portals" element={page(<PortalsPage />)} />
         <Route path="/menus" element={page(<MenusPage />)} />
+        <Route path="/maintenance" element={page(<MaintenancePage />)} />
         <Route path="/contacts" element={page(<ContactsPage />)} />
         <Route path="/sources" element={page(<ContactSourcesPage />)} />
         <Route path="/campaigns" element={page(<CampaignsPage />)} />

@@ -65,6 +65,7 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 | `billing` | `/billing` | فاکتور و پرداخت (زرین‌پال) | Invoice، Payment |
 | `channels` | `/channels` | تنظیم سرویس‌دهنده‌های پیام (SMTP/پیامک) | — |
 | `menus` | `/menus`, `/public/menu` | منوی دیجیتال (قابلیت افزوده) | Menu |
+| `maintenance` | `/maintenance` | نگهداری/تعمیرات هتل: درخواست‌ها، داشبورد، ردپای ممیزی، آماده‌بودن اتاق (مستقل از وضعیت تیکت) | MaintenanceRequest، MaintenanceEvent، RoomReadiness |
 | `platform` | `/platform` | تنظیمات سکو، سوپرادمین، AI، نوار پایین، ثبت‌نام | PlatformSettings |
 | `admin` | `/admin` | ابزار مدیر کل روی سازمان‌ها/پلن‌ها | — |
 | `ops` | `/ops` | پایش و کنترل سرویس systemd از پنل سوپرادمین | — |

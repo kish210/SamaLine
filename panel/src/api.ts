@@ -929,3 +929,133 @@ export const opsApi = {
       }>(`/ops/services/${encodeURIComponent(name)}/${action}`)
       .then((r) => r.data),
 };
+
+// ── نگهداری و تعمیرات هتل ──────────────────────────────────────────────────
+
+export type MaintenanceCategory =
+  | 'electrical' | 'plumbing' | 'hvac' | 'carpentry' | 'painting'
+  | 'furniture' | 'network_phone_tv' | 'locks_access' | 'other';
+export type MaintenancePriority = 'normal' | 'urgent' | 'emergency';
+export type MaintenanceStatus =
+  | 'new' | 'in_progress' | 'waiting_part' | 'contractor_required'
+  | 'follow_up' | 'done' | 'cancelled';
+export type RoomReadinessStatus = 'ready' | 'needs_inspection' | 'not_ready';
+
+export interface MaintenanceRequest {
+  id: string;
+  requestNo: string;
+  requesterName: string;
+  building: string;
+  floor: string;
+  room: string;
+  locationNote: string;
+  category: MaintenanceCategory;
+  description: string;
+  priority: MaintenancePriority;
+  assignedTo: string;
+  status: MaintenanceStatus;
+  workNotes: string;
+  completionNotes: string;
+  estimatedCost: string;
+  actualCost: string;
+  attachments: Array<{ url: string; name: string }>;
+  closedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MaintenanceEvent {
+  id: string;
+  action: string;
+  actorName: string;
+  fromValue: string | null;
+  toValue: string | null;
+  note: string;
+  createdAt: string;
+}
+
+export interface RoomReadiness {
+  id: string;
+  room: string;
+  building: string;
+  floor: string;
+  status: RoomReadinessStatus;
+  note: string;
+  updatedByName: string;
+  updatedAt: string;
+}
+
+export interface MaintenanceDashboard {
+  totals: {
+    total: number; open: number; unassigned: number; waitingPart: number;
+    contractor: number; followUp: number; urgent: number; done: number;
+  };
+  byStatus: Array<{ key: string; count: number }>;
+  byCategory: Array<{ key: string; count: number }>;
+  byPriority: Array<{ key: string; count: number }>;
+  roomReadiness: Array<{ key: string; count: number }>;
+}
+
+export const maintenanceApi = {
+  dashboard: (workspaceId: string) =>
+    api
+      .get<MaintenanceDashboard>('/maintenance/dashboard', { params: { workspaceId } })
+      .then((r) => r.data),
+
+  listRequests: (
+    workspaceId: string,
+    filters: {
+      status?: MaintenanceStatus; category?: MaintenanceCategory;
+      priority?: MaintenancePriority; room?: string; q?: string;
+      includeArchived?: boolean;
+    } = {},
+  ) =>
+    api
+      .get<MaintenanceRequest[]>('/maintenance/requests', {
+        params: { workspaceId, ...filters },
+      })
+      .then((r) => r.data),
+
+  getRequest: (workspaceId: string, id: string) =>
+    api
+      .get<{ request: MaintenanceRequest; history: MaintenanceEvent[] }>(
+        `/maintenance/requests/${id}`,
+        { params: { workspaceId } },
+      )
+      .then((r) => r.data),
+
+  createRequest: (workspaceId: string, body: Partial<MaintenanceRequest> & { description: string }) =>
+    api
+      .post<MaintenanceRequest>('/maintenance/requests', body, { params: { workspaceId } })
+      .then((r) => r.data),
+
+  updateRequest: (
+    workspaceId: string,
+    id: string,
+    body: Partial<MaintenanceRequest> & { eventNote?: string },
+  ) =>
+    api
+      .patch<MaintenanceRequest>(`/maintenance/requests/${id}`, body, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+
+  archiveRequest: (workspaceId: string, id: string) =>
+    api
+      .delete(`/maintenance/requests/${id}`, { params: { workspaceId } })
+      .then((r) => r.data),
+
+  listRooms: (workspaceId: string) =>
+    api
+      .get<RoomReadiness[]>('/maintenance/rooms', { params: { workspaceId } })
+      .then((r) => r.data),
+
+  setRoom: (
+    workspaceId: string,
+    body: { room: string; building?: string; floor?: string; status: RoomReadinessStatus; note?: string },
+  ) =>
+    api
+      .post<RoomReadiness>('/maintenance/rooms', body, { params: { workspaceId } })
+      .then((r) => r.data),
+};
