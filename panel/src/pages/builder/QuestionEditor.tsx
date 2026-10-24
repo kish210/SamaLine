@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { QUESTION_CATEGORIES, typeLabel } from '../../question-catalog';
+import { reconcileQuestionType } from '../../question-type';
 import type { Question, QuestionType } from '../../types';
 
 interface Props {
@@ -23,13 +24,21 @@ interface Props {
   onDragEnd: () => void;
 }
 
-/** نوع‌هایی که فهرست گزینه دارند. */
+/**
+ * نوع‌هایی که در ویرایشگر فهرست «گزینه‌ها» را نشان می‌دهند.
+ *
+ * `ranking` هم گزینه لازم دارد (رندرر `options` را برای آیتم‌های اولویت‌بندی
+ * می‌خواند) ولی پیش‌تر اینجا نبود، پس آیتم‌هایش از ویرایشگر قابل تنظیم نبود.
+ * `matrix` گزینه‌ها را به‌عنوان ستون‌ها می‌گیرد (ویرایش ردیف/ستونِ کامل هنوز
+ * نیست — نقص شناخته‌شده).
+ */
 const CHOICE_TYPES: QuestionType[] = [
   'multiple_choice',
   'dropdown',
   'image_choice',
   'emoji',
   'matrix',
+  'ranking',
 ];
 
 export function QuestionEditor({
@@ -59,6 +68,23 @@ export function QuestionEditor({
 
   const patchMeta = (patch: Record<string, unknown>) =>
     onChange({ meta: { ...meta, ...patch } });
+
+  /**
+   * تغییر نوع سوال: پیکربندی را بازسازی می‌کند (تنظیمات ناسازگار حذف، پیش‌فرض
+   * نوع تازه پر، گزینه‌ها فقط میان نوع‌های گزینه‌دار حفظ). اگر چیزی قرار است
+   * دور ریخته شود، اول از کاربر تأیید می‌گیرد تا داده بی‌صدا نابود نشود.
+   */
+  const changeType = (newType: QuestionType) => {
+    const { patch, dropped } = reconcileQuestionType(question, newType);
+    if (dropped.length > 0) {
+      const ok = window.confirm(
+        `با تغییر نوع به «${typeLabel(newType)}» این موارد حذف می‌شوند:\n` +
+          `${dropped.join('، ')}\nادامه می‌دهید؟`,
+      );
+      if (!ok) return;
+    }
+    onChange(patch);
+  };
 
   /**
    * درج `{{شناسه}}` در محل مکان‌نما.
@@ -192,7 +218,7 @@ export function QuestionEditor({
           نوع سوال
           <select
             value={question.type}
-            onChange={(e) => onChange({ type: e.target.value as QuestionType })}
+            onChange={(e) => changeType(e.target.value as QuestionType)}
           >
             {QUESTION_CATEGORIES.map((category) => (
               <optgroup key={category.key} label={category.label}>
