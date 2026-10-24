@@ -66,6 +66,7 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 | `channels` | `/channels` | تنظیم سرویس‌دهنده‌های پیام (SMTP/پیامک) | — |
 | `menus` | `/menus`, `/public/menu` | منوی دیجیتال (قابلیت افزوده) | Menu |
 | `maintenance` | `/maintenance` | نگهداری/تعمیرات هتل: درخواست‌ها، داشبورد، ردپای ممیزی، آماده‌بودن اتاق (مستقل از وضعیت تیکت) | MaintenanceRequest، MaintenanceEvent، RoomReadiness |
+| `sensors` | `/sensors` | پایش دمای سردخانه: سنسور، قرائت‌ها، هشدار حد/کهنگی، تأیید هشدار؛ connector ماژولار (manual/http/simulated) + poll زمان‌بند | ColdRoomSensor، SensorReading، SensorAlert |
 | `platform` | `/platform` | تنظیمات سکو، سوپرادمین، AI، نوار پایین، ثبت‌نام | PlatformSettings |
 | `admin` | `/admin` | ابزار مدیر کل روی سازمان‌ها/پلن‌ها | — |
 | `ops` | `/ops` | پایش و کنترل سرویس systemd از پنل سوپرادمین | — |

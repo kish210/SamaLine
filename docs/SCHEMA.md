@@ -131,6 +131,22 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
   `building`/`floor`, `status` (RoomReadinessStatus), `note`, `updatedByName`.
   **مستقل از وضعیت درخواست**؛ بسته‌شدن تیکت آن را خودکار عوض نمی‌کند.
 
+### سنسور دمای سردخانه (ماژول sensors — فاز ۴، اختیاری)
+- **cold_room_sensors** — `workspaceId`, `name`, `location`, `unit` (C/F),
+  `minThreshold*`/`maxThreshold*`, `staleAfterSeconds`, `connector`
+  (SensorConnectorKind: manual/http/simulated), `connectorConfig`(JSON؛ token
+  رمزشده با secret-box، در API پنهان)، `isActive`, `lastValue*`,
+  `lastReadingAt*`, `lastHealth` (SensorHealth). ایندکس (workspaceId).
+- **sensor_readings** — `sensorId`(FK→cold_room_sensors, CASCADE), `value`,
+  `unit`, `isSimulated` (داده‌ی آزمایشیِ شبیه‌ساز، صریح علامت‌خورده), `observedAt`.
+  ایندکس (sensorId, observedAt).
+- **sensor_alerts** — `sensorId`(FK, CASCADE), `kind` (SensorAlertKind:
+  low/high/stale), `value*`, `message`, `acknowledgedAt*`, `acknowledgedBy*`.
+  هشدار + تأیید/رسیدگی + تاریخچه.
+
+> **نکته:** MQTT/Modbus/وندور تا رسیدن مشخصات واقعی سخت‌افزار پیاده نشده؛ فقط
+> رابط ماژولار + HTTP عمومی + شبیه‌سازِ آزمایشی.
+
 ### سکو و متفرقه
 - **platform_settings** — کلید ثابت `singleton`. `footerEnabled/Text/Url`
   (نوار پایین فرم‌ها)، `registrationEnabled` (سوئیچ ثبت‌نام)، `aiProvider`
@@ -158,6 +174,9 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **MaintenanceStatus**: new / in_progress / waiting_part / contractor_required /
   follow_up / done / cancelled
 - **RoomReadinessStatus**: ready / needs_inspection / not_ready
+- **SensorConnectorKind**: manual / http / simulated
+- **SensorHealth**: ok / low / high / stale / unknown
+- **SensorAlertKind**: low / high / stale
 
 ## مهاجرت‌ها
 
@@ -174,6 +193,7 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 9. `AddChatPlatform` — ستون `platform` روی telegram_integrations.
 10. `AddEmailReports` — جدول email_report_recipients.
 11. `AddMaintenance` — جدول‌های maintenance_requests، maintenance_events، room_readiness.
+12. `AddColdRoomSensors` — جدول‌های cold_room_sensors، sensor_readings، sensor_alerts.
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

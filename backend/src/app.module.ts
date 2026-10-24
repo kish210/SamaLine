@@ -25,6 +25,7 @@ import { OpsModule } from './ops/ops.module';
 import { TeamModule } from './team/team.module';
 import { MenuModule } from './menus/menu.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
+import { SensorsModule } from './sensors/sensors.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { buildDataSourceOptions } from './database/data-source';
 
@@ -58,6 +59,7 @@ import { buildDataSourceOptions } from './database/data-source';
     TeamModule,
     MenuModule,
     MaintenanceModule,
+    SensorsModule,
   ],
 })
 export class AppModule {}

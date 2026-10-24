@@ -1059,3 +1059,80 @@ export const maintenanceApi = {
       .post<RoomReadiness>('/maintenance/rooms', body, { params: { workspaceId } })
       .then((r) => r.data),
 };
+
+// ── سنسور دمای سردخانه ─────────────────────────────────────────────────────
+
+export type SensorConnectorKind = 'manual' | 'http' | 'simulated';
+export type SensorHealth = 'ok' | 'low' | 'high' | 'stale' | 'unknown';
+export type SensorAlertKind = 'low' | 'high' | 'stale';
+
+export interface ColdRoomSensor {
+  id: string;
+  name: string;
+  location: string;
+  unit: 'C' | 'F';
+  minThreshold: number | null;
+  maxThreshold: number | null;
+  staleAfterSeconds: number;
+  connector: SensorConnectorKind;
+  connectorConfig: Record<string, unknown> & { tokenSet?: boolean };
+  isActive: boolean;
+  lastValue: number | null;
+  lastReadingAt: string | null;
+  lastHealth: SensorHealth;
+}
+
+export interface SensorReading {
+  id: string;
+  value: number;
+  unit: 'C' | 'F';
+  isSimulated: boolean;
+  observedAt: string;
+}
+
+export interface SensorAlert {
+  id: string;
+  sensorId: string;
+  kind: SensorAlertKind;
+  value: number | null;
+  message: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  createdAt: string;
+}
+
+export const sensorsApi = {
+  list: (workspaceId: string) =>
+    api.get<ColdRoomSensor[]>('/sensors', { params: { workspaceId } }).then((r) => r.data),
+
+  create: (workspaceId: string, body: Partial<ColdRoomSensor>) =>
+    api.post<ColdRoomSensor>('/sensors', body, { params: { workspaceId } }).then((r) => r.data),
+
+  update: (workspaceId: string, id: string, body: Partial<ColdRoomSensor>) =>
+    api.patch<ColdRoomSensor>(`/sensors/${id}`, body, { params: { workspaceId } }).then((r) => r.data),
+
+  remove: (workspaceId: string, id: string) =>
+    api.delete(`/sensors/${id}`, { params: { workspaceId } }).then((r) => r.data),
+
+  readings: (workspaceId: string, id: string, limit = 100) =>
+    api
+      .get<SensorReading[]>(`/sensors/${id}/readings`, { params: { workspaceId, limit } })
+      .then((r) => r.data),
+
+  submitReading: (workspaceId: string, id: string, value: number) =>
+    api
+      .post<ColdRoomSensor>(`/sensors/${id}/readings`, { value }, { params: { workspaceId } })
+      .then((r) => r.data),
+
+  alerts: (workspaceId: string, includeAcknowledged = false) =>
+    api
+      .get<SensorAlert[]>('/sensors/alerts/list', {
+        params: { workspaceId, includeAcknowledged },
+      })
+      .then((r) => r.data),
+
+  ackAlert: (workspaceId: string, alertId: string) =>
+    api
+      .post<SensorAlert>(`/sensors/alerts/${alertId}/ack`, {}, { params: { workspaceId } })
+      .then((r) => r.data),
+};
