@@ -21,8 +21,6 @@ const NAV = [
   { to: "/dashboards", label: "داشبوردها", icon: "dashboards" },
   { to: "/portals", label: "پرتال", icon: "portal" },
   { to: "/menus", label: "منوی QR", icon: "menu" },
-  { to: "/maintenance", label: "نگهداری و تعمیرات", icon: "settings" },
-  { to: "/sensors", label: "پایش سردخانه", icon: "dashboards" },
   { to: "/contacts", label: "مخاطبان", icon: "contacts" },
   { to: "/sources", label: "اتصال به CRM", icon: "crm" },
   { to: "/campaigns", label: "ارسال گروهی", icon: "campaigns" },

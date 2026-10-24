@@ -34,12 +34,6 @@ import { TelegramIntegrationEntity } from './telegram-integration.entity';
 import { TelegramRecipientEntity } from './telegram-recipient.entity';
 import { TelegramLinkCodeEntity } from './telegram-link-code.entity';
 import { EmailReportRecipientEntity } from './email-report-recipient.entity';
-import { MaintenanceRequestEntity } from './maintenance-request.entity';
-import { MaintenanceEventEntity } from './maintenance-event.entity';
-import { RoomReadinessEntity } from './room-readiness.entity';
-import { ColdRoomSensorEntity } from './cold-room-sensor.entity';
-import { SensorReadingEntity } from './sensor-reading.entity';
-import { SensorAlertEntity } from './sensor-alert.entity';
 import { PortalEntity } from './portal.entity';
 import { WorkspaceEntity } from './workspace.entity';
 
@@ -81,12 +75,6 @@ export const ALL_ENTITIES = [
   TelegramIntegrationEntity,
   TelegramRecipientEntity,
   EmailReportRecipientEntity,
-  MaintenanceRequestEntity,
-  MaintenanceEventEntity,
-  RoomReadinessEntity,
-  ColdRoomSensorEntity,
-  SensorReadingEntity,
-  SensorAlertEntity,
   TelegramLinkCodeEntity,
   PortalEntity,
 ];
