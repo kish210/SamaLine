@@ -56,7 +56,7 @@
 - [اجرا برای توسعه](#development)
 - [تنظیمات و سرویس‌های بیرونی](#configuration)
 - [راهنمای امکانات](#guide)
-- [معماری](#architecture)
+- [معماری](#architecture) — نقشه‌ی کامل در [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) و شمای دیتابیس در [docs/SCHEMA.md](docs/SCHEMA.md)
 - [امنیت](#security)
 - [وضعیت و نقشه‌ی راه](#status)
 
@@ -570,6 +570,10 @@ curl -H "Authorization: Bearer sl_..." https://survey.example.com/api/v1/reports
 <a id="architecture"></a>
 
 ## معماری
+
+> نقشه‌ی کامل کدبیس (ماژول‌ها، قراردادها، دستور آشپزی افزودن قابلیت) در
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) و شمای کامل جدول‌ها و روابط در
+> [docs/SCHEMA.md](docs/SCHEMA.md). این دو سند برای توسعه و ارتقای سریع‌ترند.
 
 ```
 backend/          NestJS + TypeORM — API، منطق فرم، صف، گزارش؛ پنل و فرم را هم سرو می‌کند
