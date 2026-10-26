@@ -212,6 +212,46 @@ export const workspaceApi = {
 };
 
 /** بخش‌ها و عضویتشان؛ پایه‌ی دسترسیِ فرم‌های عملیاتی. */
+export interface RoomAsset {
+  name: string;
+  serial?: string;
+  note?: string;
+}
+
+export interface HotelRoom {
+  id: string;
+  number: string;
+  floor: number;
+  kind: string;
+  assets: RoomAsset[];
+  isActive: boolean;
+}
+
+/** اتاق‌های هتل به‌عنوان داده‌ی پایه. */
+export const roomsApi = {
+  list: () => api.get<HotelRoom[]>('/rooms').then((r) => r.data),
+
+  create: (body: Partial<HotelRoom>) =>
+    api.post<HotelRoom>('/rooms', body).then((r) => r.data),
+
+  update: (id: string, body: Partial<HotelRoom>) =>
+    api.patch<HotelRoom>(`/rooms/${id}`, body).then((r) => r.data),
+
+  remove: (id: string) =>
+    api.delete<{ ok: boolean }>(`/rooms/${id}`).then((r) => r.data),
+
+  bulk: (body: {
+    floors: number;
+    roomsPerFloor: number;
+    numberingBase?: number;
+    startFloor?: number;
+    kind?: string;
+  }) =>
+    api
+      .post<{ created: number; skipped: number }>('/rooms/bulk', body)
+      .then((r) => r.data),
+};
+
 export const departmentsApi = {
   list: () => api.get<Department[]>('/departments').then((r) => r.data),
 

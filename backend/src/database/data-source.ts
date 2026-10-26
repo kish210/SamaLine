@@ -34,6 +34,8 @@ import { AddStaffAuthMode1798000000000 } from './migrations/1798000000000-AddSta
 import { PgAddStaffAuthMode1798000000001 } from './migrations/1798000000001-PgAddStaffAuthMode';
 import { AddDepartmentScope1799000000000 } from './migrations/1799000000000-AddDepartmentScope';
 import { PgAddDepartmentScope1799000000001 } from './migrations/1799000000001-PgAddDepartmentScope';
+import { AddHotelRooms1800000000000 } from './migrations/1800000000000-AddHotelRooms';
+import { PgAddHotelRooms1800000000001 } from './migrations/1800000000001-PgAddHotelRooms';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -62,6 +64,7 @@ export const SQLITE_MIGRATIONS = [
   AddDepartments1797000000000,
   AddStaffAuthMode1798000000000,
   AddDepartmentScope1799000000000,
+  AddHotelRooms1800000000000,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -79,6 +82,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddDepartments1797000000001,
   PgAddStaffAuthMode1798000000001,
   PgAddDepartmentScope1799000000001,
+  PgAddHotelRooms1800000000001,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

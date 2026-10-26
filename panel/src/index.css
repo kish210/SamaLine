@@ -3192,3 +3192,20 @@ input[type='color'] {
   gap: 8px;
   margin-top: 16px;
 }
+
+/* ── اتاق‌های هتل ── */
+.floor-block { margin-bottom: 16px; }
+.floor-block h4 { margin: 8px 0; color: var(--muted); }
+.room-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.room-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px); font-size: 13px;
+  background: var(--bg-surface);
+}
+.room-chip.off { opacity: 0.45; }
+.room-del {
+  width: auto; margin: 0; padding: 0 2px; line-height: 1;
+  background: none; border: none; color: var(--danger);
+  font-size: 15px; cursor: pointer;
+}

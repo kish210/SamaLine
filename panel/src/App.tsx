@@ -3,6 +3,7 @@ import { Layout } from "./Layout";
 import { useAuth } from "./auth";
 import { lazyPage, PageFallback } from "./lazy-page";
 import { FormsPage } from "./pages/FormsPage";
+import { RoomsPage } from "./pages/RoomsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -73,6 +74,7 @@ function App() {
         <Route path="/sources" element={page(<ContactSourcesPage />)} />
         <Route path="/campaigns" element={page(<CampaignsPage />)} />
         <Route path="/ai" element={page(<AiPage />)} />
+        <Route path="/rooms" element={page(<RoomsPage />)} />
         <Route path="/settings" element={page(<SettingsPage />)} />
         <Route path="/platform" element={page(<PlatformSettingsPage />)} />
         <Route path="*" element={<Navigate to="/forms" replace />} />
