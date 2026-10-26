@@ -51,6 +51,11 @@ export class CreateDashboardDto {
   @IsNotEmpty()
   @IsString()
   name: string;
+
+  /** بخشِ مالکِ داشبورد؛ خالی یعنی عمومیِ سازمان. */
+  @IsOptional()
+  @IsString()
+  departmentId?: string | null;
 }
 
 export class DashboardWidgetDto {
@@ -92,6 +97,10 @@ export class UpdateDashboardDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  departmentId?: string | null;
 
   @IsOptional()
   @IsArray()

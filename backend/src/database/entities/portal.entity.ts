@@ -42,6 +42,15 @@ export class PortalEntity {
   @Column({ type: JSON_COLUMN, default: '[]' })
   formIds: string[];
 
+  /**
+   * بخشِ مالکِ پرتال؛ null یعنی پرتالِ عمومیِ سازمان.
+   *
+   * پرتالِ بخشی فقط فرم‌های همان بخش را می‌پذیرد و در پنل فقط برای اعضای
+   * همان بخش (و مدیران) دیده می‌شود.
+   */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  departmentId: string | null;
+
   /** نشانی لوگو بالای صفحه‌ی پرتال. */
   @Column({ type: 'varchar', length: 500, default: '' })
   logoUrl: string;

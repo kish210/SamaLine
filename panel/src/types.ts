@@ -431,6 +431,8 @@ export interface FormAnalytics {
 /** پرتال: چند فرم روی یک نشانی عمومی. */
 export interface Portal {
   id: string;
+  /** بخشِ مالک؛ null یعنی پرتالِ عمومیِ سازمان. */
+  departmentId?: string | null;
   slug: string;
   title: string;
   description: string;

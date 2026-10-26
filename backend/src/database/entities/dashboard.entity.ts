@@ -48,6 +48,10 @@ export class DashboardEntity {
   @Column({ type: JSON_COLUMN, default: [] })
   widgets: DashboardWidget[];
 
+  /** بخشِ مالکِ داشبورد؛ null یعنی داشبوردِ عمومیِ سازمان. */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  departmentId: string | null;
+
   /** اشتراک‌گذاری عمومی با لینک، بدون نیاز به ورود. */
   @Column({ type: 'boolean', default: false })
   isPublic: boolean;

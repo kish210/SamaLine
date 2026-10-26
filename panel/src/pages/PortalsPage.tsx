@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { describeError, formsApi, portalsApi, workspaceApi } from '../api';
+import {
+  departmentsApi,
+  describeError,
+  formsApi,
+  portalsApi,
+  workspaceApi,
+} from '../api';
 import type { Portal } from '../types';
 import { RENDERER_BASE } from '../renderer-url';
 
@@ -146,7 +152,15 @@ function PortalEditor({
   const [logoUrl, setLogoUrl] = useState(portal?.logoUrl ?? '');
   const [isActive, setIsActive] = useState(portal?.isActive ?? true);
   const [formIds, setFormIds] = useState<string[]>(portal?.formIds ?? []);
+  const [departmentId, setDepartmentId] = useState<string>(
+    portal?.departmentId ?? '',
+  );
   const [error, setError] = useState('');
+
+  const departments = useQuery({
+    queryKey: ['departments'],
+    queryFn: departmentsApi.list,
+  });
 
   const save = useMutation({
     mutationFn: () =>
@@ -157,6 +171,7 @@ function PortalEditor({
         logoUrl: logoUrl.trim(),
         formIds,
         isActive,
+        departmentId: departmentId || null,
       }),
     onSuccess: () => onDone(portal ? 'پرتال ذخیره شد.' : 'پرتال ساخته شد.'),
     onError: (err) => setError(describeError(err)),
@@ -230,6 +245,24 @@ function PortalEditor({
           onChange={(e) => setLogoUrl(e.target.value)}
         />
       </label>
+
+      <label>
+        بخش
+        <select
+          value={departmentId}
+          onChange={(e) => setDepartmentId(e.target.value)}
+        >
+          <option value="">عمومی (همه‌ی سازمان)</option>
+          {departments.data?.map((dept) => (
+            <option key={dept.id} value={dept.id}>
+              {dept.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="hint">
+        پرتالِ بخشی فقط برای اعضای همان بخش (و مدیران) در پنل دیده می‌شود.
+      </p>
 
       <label className="checkbox">
         <input

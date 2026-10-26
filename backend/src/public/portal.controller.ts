@@ -19,9 +19,15 @@ import {
 } from 'class-validator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
+import { TenantAccessService } from '../common/tenant-access.service';
 import { PortalService } from './portal.service';
 
 export class PortalDto {
+  /** بخشِ مالکِ پرتال؛ خالی یعنی عمومیِ سازمان. */
+  @IsOptional()
+  @IsString()
+  departmentId?: string | null;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)
@@ -57,7 +63,10 @@ export class PortalDto {
 @Controller('portals')
 @UseGuards(JwtAuthGuard)
 export class PortalAdminController {
-  constructor(private readonly portalService: PortalService) {}
+  constructor(
+    private readonly portalService: PortalService,
+    private readonly tenant: TenantAccessService,
+  ) {}
 
   @Get()
   async list(
@@ -65,7 +74,10 @@ export class PortalAdminController {
     @CurrentUser() user: JwtUser,
   ) {
     await this.portalService.assertAccess(workspaceId, user);
-    return this.portalService.list(workspaceId);
+    return this.portalService.list(workspaceId, {
+      isManager: this.tenant.isManager(user),
+      departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+    });
   }
 
   @Post()

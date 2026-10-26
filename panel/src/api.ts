@@ -538,13 +538,17 @@ export interface Dashboard {
   widgets: DashboardWidget[];
   isPublic: boolean;
   publicToken: string | null;
+  /** بخشِ مالک؛ null یعنی داشبوردِ عمومیِ سازمان. */
+  departmentId?: string | null;
 }
 
 export const dashboardsApi = {
   list: () => api.get<Dashboard[]>("/dashboards").then((r) => r.data),
 
-  create: (name: string) =>
-    api.post<Dashboard>("/dashboards", { name }).then((r) => r.data),
+  create: (name: string, departmentId?: string | null) =>
+    api
+      .post<Dashboard>("/dashboards", { name, departmentId })
+      .then((r) => r.data),
 
   get: (id: string) =>
     api.get<Dashboard>(`/dashboards/${id}`).then((r) => r.data),
@@ -933,6 +937,7 @@ export const portalsApi = {
       logoUrl?: string;
       formIds: string[];
       isActive: boolean;
+      departmentId?: string | null;
     },
   ) =>
     api

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
   dashboardsApi,
+  departmentsApi,
   describeError,
   formsApi,
   reportsApi,
@@ -28,6 +29,7 @@ export function DashboardsPage() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState('');
   const [newName, setNewName] = useState('');
+  const [newDept, setNewDept] = useState('');
   const [widgetType, setWidgetType] = useState<WidgetType>('stat');
   const [widgetFormId, setWidgetFormId] = useState('');
   const [widgetQuestionId, setWidgetQuestionId] = useState('');
@@ -73,8 +75,13 @@ export function DashboardsPage() {
     ),
   ];
 
+  const departments = useQuery({
+    queryKey: ['departments'],
+    queryFn: departmentsApi.list,
+  });
+
   const create = useMutation({
-    mutationFn: () => dashboardsApi.create(newName),
+    mutationFn: () => dashboardsApi.create(newName, newDept || null),
     onSuccess: async (dashboard) => {
       setNewName('');
       setSelectedId(dashboard.id);
@@ -192,6 +199,14 @@ export function DashboardsPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
+          <select value={newDept} onChange={(e) => setNewDept(e.target.value)}>
+            <option value="">عمومی</option>
+            {departments.data?.map((dept) => (
+              <option key={dept.id} value={dept.id}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             disabled={!newName.trim() || create.isPending}

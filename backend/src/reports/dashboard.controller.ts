@@ -8,9 +8,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { OrganizationId } from '../common/current-user.decorator';
+import {
+  CurrentUser,
+  OrganizationId,
+  type JwtUser,
+} from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { PlanService } from '../plans/plan.service';
+import { TenantAccessService } from '../common/tenant-access.service';
 import { DashboardService } from './dashboard.service';
 import {
   CreateDashboardDto,
@@ -26,6 +31,7 @@ export class DashboardController {
   constructor(
     private readonly dashboards: DashboardService,
     private readonly plans: PlanService,
+    private readonly tenant: TenantAccessService,
   ) {}
 
   @MinRole(OrganizationRole.ANALYST)
@@ -36,12 +42,18 @@ export class DashboardController {
   ) {
     const used = (await this.dashboards.list(organizationId)).length;
     await this.plans.assertQuota(organizationId, 'dashboards', used);
-    return this.dashboards.create(organizationId, dto.name);
+    return this.dashboards.create(organizationId, dto.name, dto.departmentId);
   }
 
   @Get()
-  list(@OrganizationId() organizationId: string) {
-    return this.dashboards.list(organizationId);
+  async list(
+    @OrganizationId() organizationId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.dashboards.list(organizationId, {
+      isManager: this.tenant.isManager(user),
+      departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+    });
   }
 
   @Get(':id')

@@ -23,6 +23,8 @@ export interface PortalInput {
   formIds?: string[];
   logoUrl?: string;
   isActive?: boolean;
+  /** بخشِ مالک؛ null یعنی پرتالِ عمومیِ سازمان. */
+  departmentId?: string | null;
 }
 
 /**
@@ -54,11 +56,26 @@ export class PortalService {
     return this.tenant.assertWorkspace(workspaceId, user as never);
   }
 
-  list(workspaceId: string) {
-    return this.portalRepo.find({
+  /**
+   * پرتال‌های یک فضای کاری.
+   *
+   * کارمندِ غیرمدیر فقط پرتال‌های عمومی و پرتال‌های بخش‌های خودش را می‌بیند؛
+   * وگرنه فهرستِ پرتال‌ها نقشه‌ی کلِ عملیات هتل را لو می‌داد.
+   */
+  async list(
+    workspaceId: string,
+    scope?: { departmentIds: string[]; isManager: boolean },
+  ) {
+    const all = await this.portalRepo.find({
       where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
+    if (!scope || scope.isManager) return all;
+    return all.filter(
+      (portal) =>
+        !portal.departmentId ||
+        scope.departmentIds.includes(portal.departmentId),
+    );
   }
 
   async save(workspaceId: string, id: string | null, input: PortalInput) {
@@ -107,6 +124,10 @@ export class PortalService {
       description: input.description ?? existing?.description ?? '',
       logoUrl: input.logoUrl ?? existing?.logoUrl ?? '',
       formIds,
+      departmentId:
+        input.departmentId !== undefined
+          ? input.departmentId || null
+          : (existing?.departmentId ?? null),
       isActive: input.isActive ?? existing?.isActive ?? true,
     });
 

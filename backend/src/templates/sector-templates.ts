@@ -38,6 +38,7 @@ export const TEMPLATE_CATEGORIES = [
   'ساختمان و املاک',
   'حمل‌ونقل و خودرو',
   'ورزش و تندرستی',
+  'عملیات هتل',
 ] as const;
 
 type Category = (typeof TEMPLATE_CATEGORIES)[number];
@@ -1927,6 +1928,217 @@ const TEMPLATES: TemplateDef[] = [
         'gm_crowd',
         'gm_price',
       ]),
+    ],
+  },
+  // ── عملیات هتل (فرم‌های داخلیِ بخش‌ها) ──
+  /*
+   * این دسته با بقیه فرق دارد: مخاطبش مهمان نیست، کارمند است. پس نه امتیاز
+   * رضایت دارد نه NPS؛ چیزی که مهم است ثبتِ «چه کاری، کجا، توسط چه کسی، با
+   * چه قطعه‌ای» است تا سابقه بماند و مدیر بتواند بررسی کند. همه هم
+   * `oneAtATime: false` دارند چون کارمند فرم را سرِ کار پر می‌کند و دیدن
+   * همه‌ی فیلدها با هم سریع‌تر است تا یک‌سوال‌در‌یک‌صفحه.
+   */
+  {
+    key: 'ops-technical-daily',
+    title: 'چک‌لیست روزانه‌ی تأسیسات (واحد فنی)',
+    summary:
+      'بازدید روزانه‌ی موتورخانه، چیلر، دیگ، ژنراتور و پمپ‌ها؛ هر مورد سالم/معیوب با توضیح خرابی.',
+    category: 'عملیات هتل',
+    icon: '🔧',
+    theme: 'mohandes',
+    oneAtATime: false,
+    endText: 'چک‌لیست ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'بازدید روزانه',
+        questions: [
+          date('td_date', 'تاریخ بازدید', true),
+          list('td_shift', 'شیفت', ['صبح', 'عصر', 'شب']),
+          text('td_by', 'نام تکنسین', true),
+          yesNo('td_boiler', 'دیگ و موتورخانه سالم است؟'),
+          { ...longText('td_boiler_note', 'شرح ایراد دیگ/موتورخانه'), showWhen: is('td_boiler', false) },
+          yesNo('td_chiller', 'چیلر و هواساز سالم است؟'),
+          { ...longText('td_chiller_note', 'شرح ایراد چیلر/هواساز'), showWhen: is('td_chiller', false) },
+          yesNo('td_generator', 'ژنراتور اضطراری سالم است؟'),
+          { ...longText('td_generator_note', 'شرح ایراد ژنراتور'), showWhen: is('td_generator', false) },
+          yesNo('td_pumps', 'پمپ‌های آب و آتش‌نشانی سالم‌اند؟'),
+          { ...longText('td_pumps_note', 'شرح ایراد پمپ‌ها'), showWhen: is('td_pumps', false) },
+          yesNo('td_elevator', 'آسانسورها سالم‌اند؟'),
+          { ...longText('td_elevator_note', 'شرح ایراد آسانسور'), showWhen: is('td_elevator', false) },
+          longText('td_extra', 'توضیحات تکمیلی'),
+          file('td_photo', 'عکس (در صورت خرابی)'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-housekeeping-room',
+    title: 'چک‌لیست آماده‌سازی اتاق (خانه‌داری)',
+    summary:
+      'کنترل نظافت و تجهیزات اتاق پیش از تحویل به مهمان: ملحفه، سرویس بهداشتی، مینی‌بار و اقلام مصرفی.',
+    category: 'عملیات هتل',
+    icon: '🛏️',
+    theme: 'barf',
+    oneAtATime: false,
+    endText: 'اتاق ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'آماده‌سازی اتاق',
+        questions: [
+          text('hr_room', 'شماره اتاق', true),
+          number('hr_floor', 'طبقه', 1, 16, true),
+          date('hr_date', 'تاریخ', true),
+          text('hr_by', 'نام سرویس‌کار', true),
+          yesNo('hr_linen', 'ملحفه و حوله تعویض شد؟'),
+          yesNo('hr_bath', 'سرویس بهداشتی نظافت شد؟'),
+          yesNo('hr_amenities', 'اقلام مصرفی (شامپو، صابون، دمپایی) تکمیل شد؟'),
+          yesNo('hr_minibar', 'مینی‌بار کنترل و تکمیل شد؟'),
+          yesNo('hr_tech', 'تلویزیون، کولر و روشنایی سالم‌اند؟'),
+          {
+            ...longText('hr_tech_note', 'چه چیزی خراب است؟ (به واحد فنی ارجاع می‌شود)'),
+            showWhen: is('hr_tech', false),
+          },
+          multi('hr_missing', 'کمبود یا خرابی مشاهده‌شده', [
+            'ملحفه/حوله',
+            'اقلام مصرفی',
+            'لوازم برقی',
+            'مبلمان',
+            'لوله‌کشی',
+            'سایر',
+          ]),
+          longText('hr_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-it-incident',
+    title: 'ثبت خرابی و درخواست فناوری اطلاعات',
+    summary:
+      'ثبت مشکل شبکه، سیستم، دوربین یا نرم‌افزار هتل همراه با محل، فوریت و شرح مشکل.',
+    category: 'عملیات هتل',
+    icon: '💻',
+    theme: 'aseman',
+    oneAtATime: false,
+    endText: 'درخواست ثبت شد؛ واحد IT پیگیری می‌کند.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'مشخصات مشکل',
+        questions: [
+          text('it_by', 'نام درخواست‌کننده', true),
+          list('it_area', 'محل مشکل', [
+            'پذیرش',
+            'اتاق مهمان',
+            'رستوران',
+            'اداری',
+            'موتورخانه/فنی',
+            'سایر',
+          ]),
+          text('it_place', 'شماره اتاق یا نام دقیق محل'),
+          list('it_kind', 'نوع مشکل', [
+            'شبکه و اینترنت',
+            'کامپیوتر و چاپگر',
+            'نرم‌افزار هتلداری (PMS)',
+            'دوربین مداربسته',
+            'تلفن',
+            'قفل الکترونیکی اتاق',
+            'سایر',
+          ]),
+          list('it_priority', 'فوریت', ['عادی', 'فوری', 'اضطراری']),
+          longText('it_desc', 'شرح مشکل', true),
+          yesNo('it_blocking', 'کار را کاملاً متوقف کرده است؟'),
+          file('it_photo', 'عکس یا تصویر خطا'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-contractor-visit',
+    title: 'ثبت کار پیمانکار',
+    summary:
+      'ثبت ورود و خروج پیمانکار، کار انجام‌شده، قطعات مصرفی و تأیید سرپرست؛ برای نگهداری سوابق پیمانکاران.',
+    category: 'عملیات هتل',
+    icon: '👷',
+    theme: 'sakhteman',
+    oneAtATime: false,
+    endText: 'کار پیمانکار ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'مشخصات پیمانکار و کار',
+        questions: [
+          text('cv_company', 'نام شرکت/پیمانکار', true),
+          text('cv_person', 'نام فرد حاضر در محل', true),
+          mobile('cv_mobile', 'شماره تماس', false),
+          date('cv_date', 'تاریخ', true),
+          text('cv_in', 'ساعت ورود'),
+          text('cv_out', 'ساعت خروج'),
+          list('cv_field', 'حوزه‌ی کار', [
+            'برق',
+            'تأسیسات و لوله‌کشی',
+            'آسانسور',
+            'تهویه و چیلر',
+            'ساختمان و نازک‌کاری',
+            'شبکه و دوربین',
+            'سایر',
+          ]),
+          text('cv_place', 'محل کار (اتاق/طبقه/بخش)', true),
+          longText('cv_work', 'شرح کار انجام‌شده', true),
+          longText('cv_parts', 'قطعات و مصالح مصرفی'),
+          number('cv_cost', 'هزینه (تومان)', 0, 1000000000),
+          list('cv_status', 'وضعیت کار', [
+            'تمام شد',
+            'ادامه دارد',
+            'نیاز به قطعه',
+            'نیاز به بازدید مجدد',
+          ]),
+          text('cv_supervisor', 'تأییدکننده از طرف هتل', true),
+          file('cv_doc', 'فاکتور یا عکس کار'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-hr-request',
+    title: 'درخواست پرسنلی (مرخصی، مأموریت، …)',
+    summary:
+      'ثبت درخواست مرخصی، مأموریت، اضافه‌کار یا گواهی اشتغال با بازه‌ی زمانی و توضیح.',
+    category: 'عملیات هتل',
+    icon: '📝',
+    theme: 'khakestar',
+    oneAtATime: false,
+    endText: 'درخواست شما ثبت شد و پس از بررسی اطلاع داده می‌شود.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'درخواست',
+        questions: [
+          text('hq_name', 'نام و نام خانوادگی', true),
+          text('hq_unit', 'واحد سازمانی', true),
+          mobile('hq_mobile', 'شماره موبایل', true),
+          list('hq_kind', 'نوع درخواست', [
+            'مرخصی استحقاقی',
+            'مرخصی استعلاجی',
+            'مرخصی ساعتی',
+            'مأموریت',
+            'اضافه‌کار',
+            'گواهی اشتغال به کار',
+            'سایر',
+          ]),
+          date('hq_from', 'از تاریخ', true),
+          date('hq_to', 'تا تاریخ'),
+          longText('hq_reason', 'توضیح درخواست', true),
+          text('hq_cover', 'جانشین در زمان غیبت'),
+          file('hq_doc', 'مدرک پیوست (در صورت نیاز)'),
+        ],
+      },
     ],
   },
 ];

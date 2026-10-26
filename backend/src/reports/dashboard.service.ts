@@ -38,11 +38,12 @@ export class DashboardService {
     private readonly reports: ReportService,
   ) {}
 
-  create(organizationId: string, name: string) {
+  create(organizationId: string, name: string, departmentId?: string | null) {
     return this.dashboardRepo.save(
       this.dashboardRepo.create({
         organizationId,
         name,
+        departmentId: departmentId || null,
         widgets: [],
         isPublic: false,
         publicToken: null,
@@ -50,11 +51,26 @@ export class DashboardService {
     );
   }
 
-  list(organizationId: string) {
-    return this.dashboardRepo.find({
+  /**
+   * داشبوردهای سازمان.
+   *
+   * کارمندِ غیرمدیر فقط داشبوردهای عمومی و داشبوردهای بخش‌های خودش را
+   * می‌بیند؛ داشبوردِ یک بخش می‌تواند عددهای همان بخش را نشان دهد.
+   */
+  async list(
+    organizationId: string,
+    scope?: { departmentIds: string[]; isManager: boolean },
+  ) {
+    const all = await this.dashboardRepo.find({
       where: { organizationId },
       order: { createdAt: 'DESC' },
     });
+    if (!scope || scope.isManager) return all;
+    return all.filter(
+      (dashboard) =>
+        !dashboard.departmentId ||
+        scope.departmentIds.includes(dashboard.departmentId),
+    );
   }
 
   async get(organizationId: string, id: string) {
@@ -68,7 +84,11 @@ export class DashboardService {
   async update(
     organizationId: string,
     id: string,
-    patch: { name?: string; widgets?: DashboardWidget[] },
+    patch: {
+      name?: string;
+      widgets?: DashboardWidget[];
+      departmentId?: string | null;
+    },
   ) {
     const dashboard = await this.get(organizationId, id);
 
@@ -77,6 +97,9 @@ export class DashboardService {
       dashboard.widgets = patch.widgets;
     }
     if (patch.name) dashboard.name = patch.name;
+    if (patch.departmentId !== undefined) {
+      dashboard.departmentId = patch.departmentId || null;
+    }
 
     return this.dashboardRepo.save(dashboard);
   }
