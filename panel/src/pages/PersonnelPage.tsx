@@ -177,6 +177,7 @@ export function PersonnelPage() {
                 <th>موبایل</th>
                 <th>سمت</th>
                 <th>بخش</th>
+                <th>ربات</th>
                 <th>وضعیت</th>
                 {canEdit && <th></th>}
               </tr>
@@ -190,6 +191,15 @@ export function PersonnelPage() {
                   </td>
                   <td>{p.position || "—"}</td>
                   <td>{p.departmentId ? deptName.get(p.departmentId) ?? "—" : "—"}</td>
+                  <td>
+                    {p.botChatId ? (
+                      <span className="review-badge approved" title={p.botPlatform}>
+                        متصل
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td>
                     {canEdit ? (
                       <button

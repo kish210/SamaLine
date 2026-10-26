@@ -27,6 +27,7 @@ export interface PersonnelDocument {
 @Entity('personnel')
 @Index('IDX_personnel_org', ['organizationId'])
 @Index('IDX_personnel_mobile', ['organizationId', 'mobile'])
+@Index('IDX_personnel_chat', ['botPlatform', 'botChatId'])
 export class PersonnelEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -62,6 +63,17 @@ export class PersonnelEntity {
 
   @Column({ type: 'text', default: '' })
   notes: string;
+
+  /**
+   * شناسه‌ی گفتگوی رباتِ پرسنل (بله/تلگرام) پس از اتصال با موبایل — فاز F.
+   * خالی یعنی هنوز به ربات وصل نشده.
+   */
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  botChatId: string | null;
+
+  /** پیام‌رسانِ گفتگوی متصل: 'bale' یا 'telegram'. */
+  @Column({ type: 'varchar', length: 16, default: '' })
+  botPlatform: string;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

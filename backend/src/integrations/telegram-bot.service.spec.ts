@@ -108,6 +108,8 @@ function harness(options: {
         return options.recipients?.length ? 1 : 0;
       },
     } as never,
+    // رباتِ پرسنل این تست‌ها را نمی‌گیرد؛ null یعنی ادامه با رباتِ مدیریتی.
+    { tryHandle: async () => null } as never,
   );
 
   return { service, sent, saved, updates, deletes, codeUpdates, digestSends };

@@ -269,6 +269,9 @@ export interface Personnel {
   documents: PersonnelDocument[];
   notes: string;
   isActive: boolean;
+  /** گفتگوی رباتِ پرسنل پس از اتصال با موبایل (فاز F)؛ خالی یعنی وصل‌نشده. */
+  botChatId: string | null;
+  botPlatform: string;
 }
 
 /** پروندهٔ پرسنل به‌عنوان داده‌ی پایهٔ HR. */

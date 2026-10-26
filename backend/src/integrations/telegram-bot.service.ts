@@ -8,6 +8,7 @@ import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramApi, platformApiBase } from './telegram-api';
 import { TelegramDigestService } from './telegram-digest.service';
+import { StaffBotService } from './staff-bot.service';
 
 /**
  * عمر کد اتصال.
@@ -64,6 +65,7 @@ export class TelegramBotService {
     private readonly formRepo: Repository<FormEntity>,
     private readonly api: TelegramApi,
     private readonly digest: TelegramDigestService,
+    private readonly staffBot: StaffBotService,
   ) {}
 
   // ── کد اتصال ──────────────────────────────────────────────────────────
@@ -158,6 +160,15 @@ export class TelegramBotService {
     text: string,
     chat: NonNullable<TelegramUpdate['message']>['chat'],
   ): Promise<string | null> {
+    /*
+     * رباتِ پرسنل (فاز F) اول فرصت می‌یابد: پیام‌های شبیهِ موبایل و فرمان‌های
+     * پرسنلی (/me، /خروج) را می‌گیرد و گفتگو را به پروندهٔ پرسنل وصل می‌کند.
+     * اگر پیام پرسنلی نبود null می‌دهد و مثل قبل به رباتِ مدیریتی می‌رسد؛ پس
+     * فرمان‌ها و کدهای اتصالِ مدیران دست‌نخورده می‌ماند.
+     */
+    const staffReply = await this.staffBot.tryHandle(bot, chatId, text);
+    if (staffReply) return staffReply;
+
     const [rawCommand, ...rest] = text.split(/\s+/);
     const command = rawCommand.toLowerCase().replace(/@.*$/, '');
     const argument = rest.join(' ').trim();

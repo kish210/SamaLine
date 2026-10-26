@@ -112,6 +112,48 @@ export class HrService {
     });
   }
 
+  /** پرسنلِ متصل به یک گفتگوی ربات — برای پاسخ‌دهی و اعلان (فاز F). */
+  findByChat(botChatId: string, botPlatform: string) {
+    if (!botChatId) return Promise.resolve(null);
+    return this.people.findOne({ where: { botChatId, botPlatform } });
+  }
+
+  /**
+   * اتصالِ یک گفتگوی رباتِ پرسنل به پروندهٔ پرسنل با موبایل (فاز F).
+   *
+   * فقط پرسنلِ فعال وصل می‌شود. اگر همان گفتگو قبلا به پرسنلِ دیگری وصل بوده
+   * (مثلا موبایلِ اشتباه)، اتصالِ قبلی پاک می‌شود تا یک گفتگو تنها به یک پرسنل
+   * متصل بماند. نتیجه: پرسنلِ وصل‌شده یا null اگر موبایل پیدا نشد.
+   */
+  async linkBotChat(
+    organizationId: string,
+    mobile: string,
+    botChatId: string,
+    botPlatform: string,
+  ): Promise<PersonnelEntity | null> {
+    const person = await this.findByMobile(organizationId, mobile);
+    if (!person || !person.isActive) return null;
+
+    // گفتگو را از هر پرسنلِ دیگری که قبلا به آن وصل بوده جدا کن.
+    await this.people.update(
+      { botChatId, botPlatform },
+      { botChatId: null, botPlatform: '' },
+    );
+
+    person.botChatId = botChatId;
+    person.botPlatform = botPlatform;
+    return this.people.save(person);
+  }
+
+  /** قطعِ اتصالِ یک گفتگوی ربات از پرونده (فاز F). */
+  async unlinkBotChat(botChatId: string, botPlatform: string) {
+    const { affected } = await this.people.update(
+      { botChatId, botPlatform },
+      { botChatId: null, botPlatform: '' },
+    );
+    return { unlinked: Boolean(affected) };
+  }
+
   private async assertMobileFree(organizationId: string, mobile: string) {
     const clash = await this.people.findOne({
       where: { organizationId, mobile },

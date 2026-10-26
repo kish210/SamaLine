@@ -19,6 +19,8 @@ import { TelegramController } from './telegram.controller';
 import { TelegramService } from './telegram.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramDigestService } from './telegram-digest.service';
+import { StaffBotService } from './staff-bot.service';
+import { HrModule } from '../hr/hr.module';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { EmailReportController } from './email-report.controller';
@@ -33,6 +35,8 @@ import { EmailReportService } from './email-report.service';
     // وبهوک‌ها از همان صف پایدار پیام‌ها تحویل داده می‌شوند.
     MessagingModule,
     PlanModule,
+    // رباتِ پرسنل (فاز F) پرونده‌ها را با موبایل وصل می‌کند.
+    HrModule,
     TypeOrmModule.forFeature([
       WebhookEntity,
       TelegramIntegrationEntity,
@@ -55,6 +59,7 @@ import { EmailReportService } from './email-report.service';
     TelegramService,
     TelegramBotService,
     TelegramDigestService,
+    StaffBotService,
     EmailReportService,
     WebhookDeliveryService,
   ],
