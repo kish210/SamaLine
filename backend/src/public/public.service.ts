@@ -385,6 +385,13 @@ export class PublicService {
      * نوع انتشار می‌آید (لینک/پیامک/کیوسک/…) تا در گزارش معلوم شود پاسخ از
      * کدام کانال آمده. IP فقط وقتی نوشته می‌شود که پشت پراکسی واقعی باشد.
      */
+    /*
+     * فرم‌هایی که در تنظیماتشان `requiresApproval` دارند (مثلِ درخواستِ مرخصی)
+     * هر پاسخ را با وضعیتِ «در انتظارِ تأیید» ثبت می‌کنند؛ گردش‌کارِ تأیید فاز E
+     * همین را در داشبوردِ HR نشان می‌دهد و پاسخ‌دهنده در پورتالِ خودش می‌بیند.
+     * review هم در meta (JSON) می‌نشیند، پس نه ستونِ تازه می‌خواهد نه مهاجرت.
+     */
+    const needsApproval = Boolean(formData.settings?.requiresApproval);
     const withContext = (base: Record<string, unknown> | undefined) => ({
       ...(base ?? {}),
       /*
@@ -394,6 +401,15 @@ export class PublicService {
        */
       source: base?.kiosk === true ? 'kiosk' : formData.publicationType,
       ...(context?.ip ? { ip: context.ip } : {}),
+      ...(needsApproval
+        ? {
+            review: {
+              ...((base?.review as Record<string, unknown>) ?? {}),
+              status: 'pending',
+              requestedAt: submittedAt.toISOString(),
+            },
+          }
+        : {}),
     });
     const respondentKey = this.resolveRespondentKey(
       dto.respondentKey,

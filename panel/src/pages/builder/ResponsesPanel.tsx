@@ -1,10 +1,34 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { reportsApi } from '../../api';
+import { reportsApi, responsesApi } from '../../api';
 import type { ResponseRow } from '../../types';
+import { useAuth } from '../../auth';
+import { hasRole } from '../../types';
 import { isoToJalaliText } from '../../jalali';
 import { QuestionCharts } from './QuestionCharts';
 import { DateRangeFilter, type DateRange } from './DateRangeFilter';
+
+/** وضعیتِ بررسیِ یک درخواست، ذخیره‌شده داخلِ `meta.review`. */
+interface ReviewMeta {
+  status?: 'pending' | 'approved' | 'rejected';
+  byEmail?: string;
+  at?: string;
+  note?: string;
+  requestedAt?: string;
+}
+
+const REVIEW_LABELS: Record<string, string> = {
+  pending: 'در انتظار تأیید',
+  approved: 'تأییدشده',
+  rejected: 'ردشده',
+};
+
+function reviewOf(meta: Record<string, unknown> | undefined): ReviewMeta | null {
+  const review = meta?.review;
+  return review && typeof review === 'object'
+    ? (review as ReviewMeta)
+    : null;
+}
 
 interface Props {
   formId: string;
@@ -338,6 +362,17 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                           >
                             {row.status === 'completed' ? 'کامل' : 'ناقص'}
                           </span>
+                          {(() => {
+                            const rv = reviewOf(row.meta);
+                            return rv ? (
+                              <span
+                                className={`review-badge ${rv.status ?? 'pending'}`}
+                              >
+                                {REVIEW_LABELS[rv.status ?? 'pending'] ??
+                                  rv.status}
+                              </span>
+                            ) : null;
+                          })()}
                         </td>
                         <td className="nowrap">
                           {formatDuration(row.durationSeconds)}
@@ -397,9 +432,11 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
       {detail && (
         <ResponseDetail
           row={detail}
+          formId={formId}
           titleOf={titleOf}
           questionIds={questionIds}
           onClose={() => setDetail(null)}
+          onReviewed={(updated) => setDetail(updated)}
         />
       )}
     </div>
@@ -414,19 +451,39 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
  */
 function ResponseDetail({
   row,
+  formId,
   titleOf,
   questionIds,
   onClose,
+  onReviewed,
 }: {
   row: ResponseRow;
+  formId: string;
   titleOf: (id: string) => string;
   questionIds: string[];
   onClose: () => void;
+  onReviewed: (updated: ResponseRow) => void;
 }) {
+  const queryClient = useQueryClient();
+  const me = useAuth((s) => s.user);
+  // تأیید/رد یک تصمیمِ مدیریتی است؛ بیننده/تحلیل‌گر فقط می‌خواند.
+  const canReview = hasRole(me?.role ?? null, 'editor');
+  const review = reviewOf(row.meta);
+  const [note, setNote] = useState(review?.note ?? '');
+
   // سوال‌هایی که در این پاسخ جوابی دارند، به ترتیب ستون‌های جدول.
   const answered = questionIds.filter(
     (id) => row.answers?.[id] !== undefined && row.answers?.[id] !== null,
   );
+
+  const decide = useMutation({
+    mutationFn: (decision: 'approved' | 'rejected') =>
+      responsesApi.review(row.id, { decision, note: note.trim() }),
+    onSuccess: async (updated) => {
+      onReviewed(updated);
+      await queryClient.invalidateQueries({ queryKey: ['responses', formId] });
+    },
+  });
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -492,6 +549,57 @@ function ResponseDetail({
               </div>
             ))}
           </dl>
+        )}
+
+        {review && (
+          <div className="review-box">
+            <div className="review-head">
+              <span>گردش‌کارِ تأیید</span>
+              <span className={`review-badge ${review.status ?? 'pending'}`}>
+                {REVIEW_LABELS[review.status ?? 'pending'] ?? review.status}
+              </span>
+            </div>
+            {review.byEmail && review.status !== 'pending' && (
+              <p className="review-by">
+                {review.status === 'approved' ? 'تأیید' : 'رد'} توسطِ{' '}
+                {review.byEmail}
+                {review.at ? ` — ${jalaliDateTime(review.at)}` : ''}
+              </p>
+            )}
+            {canReview ? (
+              <>
+                <textarea
+                  className="review-note"
+                  placeholder="یادداشتِ بررسی (اختیاری)"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                />
+                <div className="review-actions">
+                  <button
+                    type="button"
+                    disabled={decide.isPending}
+                    onClick={() => decide.mutate('approved')}
+                  >
+                    تأیید
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={decide.isPending}
+                    onClick={() => decide.mutate('rejected')}
+                  >
+                    رد
+                  </button>
+                </div>
+                {decide.isError && (
+                  <p className="error">ثبتِ تصمیم ناموفق بود.</p>
+                )}
+              </>
+            ) : (
+              review.note && <p className="review-by">یادداشت: {review.note}</p>
+            )}
+          </div>
         )}
       </div>
     </div>

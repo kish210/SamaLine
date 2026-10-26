@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ResponseFilterDto {
   @IsOptional()
@@ -32,4 +32,14 @@ export class CreateResponseCommentDto {
 
   @IsNotEmpty()
   body: string;
+}
+
+/** تصمیمِ بررسیِ یک درخواست (گردش‌کارِ تأیید؛ فاز E). */
+export class ReviewResponseDto {
+  @IsIn(['approved', 'rejected'])
+  decision: 'approved' | 'rejected';
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

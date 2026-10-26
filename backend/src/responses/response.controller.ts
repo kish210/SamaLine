@@ -5,6 +5,7 @@ import {
   Header,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -14,7 +15,11 @@ import type { Response as ExpressResponse } from 'express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { TenantAccessService } from '../common/tenant-access.service';
-import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
+import {
+  CreateResponseCommentDto,
+  ResponseFilterDto,
+  ReviewResponseDto,
+} from './dto';
 import { ResponseService } from './response.service';
 import { MinRole } from '../common/roles';
 import { OrganizationRole } from '../database/entities/organization-user.entity';
@@ -80,6 +85,26 @@ export class ResponseController {
   ) {
     await this.assertResponse(responseId, user);
     return this.responseService.addComment(responseId, dto);
+  }
+
+  /**
+   * تأیید/ردِ یک درخواست در گردش‌کارِ HR (فاز E).
+   *
+   * بررسی‌کننده باید به فرمِ همان درخواست دسترسی داشته باشد (عضوِ بخش یا مدیر)
+   * و دستِ‌کم «ویرایشگر» باشد؛ بیننده/تحلیل‌گر فقط می‌خواند، تأیید نمی‌کند.
+   */
+  @MinRole(OrganizationRole.EDITOR)
+  @Patch(':responseId/review')
+  async review(
+    @Param('responseId') responseId: string,
+    @Body() dto: ReviewResponseDto,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.assertResponse(responseId, user);
+    return this.responseService.review(responseId, dto.decision, dto.note, {
+      userId: user.sub,
+      email: user.email,
+    });
   }
 
   /**

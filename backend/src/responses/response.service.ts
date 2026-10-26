@@ -125,4 +125,47 @@ export class ResponseService {
       }),
     );
   }
+
+  /**
+   * بررسیِ یک درخواست (تأیید/رد) در گردش‌کارِ HR — فاز E.
+   *
+   * وضعیتِ بررسی در `meta.review` می‌نشیند (JSON است، پس نه ستونِ تازه می‌خواهد
+   * نه مهاجرت). پاسخ‌دهنده بعدا همین وضعیت را در پورتالِ خودش می‌بیند.
+   */
+  async review(
+    responseId: string,
+    decision: 'approved' | 'rejected',
+    note: string | undefined,
+    reviewer: { userId: string; email: string },
+  ) {
+    const response = await this.responseRepo.findOne({
+      where: { id: responseId },
+    });
+    if (!response) {
+      throw new NotFoundException('پاسخ مورد نظر یافت نشد');
+    }
+
+    const previous = (response.meta?.review ?? {}) as Record<string, unknown>;
+    const review: ResponseReview = {
+      ...previous,
+      status: decision,
+      byUserId: reviewer.userId,
+      byEmail: reviewer.email,
+      at: new Date().toISOString(),
+      note: note ?? '',
+    };
+    response.meta = { ...(response.meta ?? {}), review };
+    return this.responseRepo.save(response);
+  }
+}
+
+/** وضعیتِ بررسیِ یک درخواست، ذخیره‌شده داخلِ `response.meta.review`. */
+export interface ResponseReview {
+  status: 'pending' | 'approved' | 'rejected';
+  byUserId?: string;
+  byEmail?: string;
+  at?: string;
+  note?: string;
+  /** زمانِ ثبتِ درخواست توسطِ پرسنل (هنگامِ ارسالِ فرم تنظیم می‌شود). */
+  requestedAt?: string;
 }

@@ -458,6 +458,17 @@ export const reportsApi = {
       .then((r) => r.data),
 };
 
+/** گردش‌کارِ تأیید روی پاسخ‌نامه‌ها (درخواست‌های HR؛ فاز E). */
+export const responsesApi = {
+  review: (
+    responseId: string,
+    body: { decision: "approved" | "rejected"; note?: string },
+  ) =>
+    api
+      .patch<ResponseRow>(`/responses/${responseId}/review`, body)
+      .then((r) => r.data),
+};
+
 export const contactsApi = {
   lists: () => api.get<ContactList[]>("/contacts/lists").then((r) => r.data),
 

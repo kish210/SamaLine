@@ -30,6 +30,8 @@ import {
   ResponseEntity,
   ResponseStatus,
 } from '../database/entities/response.entity';
+import { ResponseCommentEntity } from '../database/entities/response-comment.entity';
+import { ResponseService } from '../responses/response.service';
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
 import { UsageCounterEntity } from '../database/entities/usage-counter.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
@@ -456,6 +458,72 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         answers: { rate: 2 },
       });
       expect(shown.page?.questions.map((q) => q.id)).toEqual(['why']);
+    });
+  });
+
+  // گردش‌کارِ تأیید (فاز E): فرمِ درخواست با requiresApproval پاسخ را «در
+  // انتظارِ تأیید» ثبت می‌کند و مدیر آن را تأیید/رد می‌کند.
+  describe('گردش‌کارِ تأیید', () => {
+    const reviewSvc = () =>
+      new ResponseService(
+        ds.getRepository(ResponseEntity),
+        ds.getRepository(FormEntity),
+        ds.getRepository(ResponseCommentEntity),
+      );
+
+    it('فرمِ نیازمندِ تأیید، پاسخ را «در انتظار» ثبت می‌کند', async () => {
+      await seed({ requiresApproval: true });
+      await service.submitByToken(publicationToken, {
+        answers: { q1: 'بله', rate: 4 },
+      });
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+      const review = stored.meta.review as Record<string, unknown>;
+      expect(review?.status).toBe('pending');
+      expect(review?.requestedAt).toBeTruthy();
+    });
+
+    it('فرمِ عادی وضعیتِ بررسی نمی‌گذارد', async () => {
+      await seed();
+      await service.submitByToken(publicationToken, {
+        answers: { q1: 'بله', rate: 4 },
+      });
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+      expect(stored.meta.review).toBeUndefined();
+    });
+
+    it('تأیید، وضعیت و هویتِ بررسی‌کننده را ثبت می‌کند', async () => {
+      await seed({ requiresApproval: true });
+      await service.submitByToken(publicationToken, {
+        answers: { q1: 'بله', rate: 4 },
+      });
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+
+      const updated = await reviewSvc().review(stored.id, 'approved', 'موافقم', {
+        userId: 'mgr-1',
+        email: 'mgr@hotel.ir',
+      });
+      const review = updated.meta.review as Record<string, unknown>;
+      expect(review.status).toBe('approved');
+      expect(review.byEmail).toBe('mgr@hotel.ir');
+      expect(review.note).toBe('موافقم');
+      expect(review.at).toBeTruthy();
+      // زمانِ درخواستِ اولیه حفظ می‌شود.
+      expect(review.requestedAt).toBeTruthy();
+    });
+
+    it('ردِ درخواست هم ثبت می‌شود', async () => {
+      await seed({ requiresApproval: true });
+      await service.submitByToken(publicationToken, {
+        answers: { q1: 'بله', rate: 4 },
+      });
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+      const updated = await reviewSvc().review(stored.id, 'rejected', undefined, {
+        userId: 'mgr-1',
+        email: 'mgr@hotel.ir',
+      });
+      expect((updated.meta.review as Record<string, unknown>).status).toBe(
+        'rejected',
+      );
     });
   });
 });

@@ -2258,6 +2258,56 @@ input[type='color'] {
   white-space: nowrap;
 }
 
+/* ── گردش‌کارِ تأیید (درخواست‌های HR؛ فاز E) ─────────── */
+.review-badge {
+  display: inline-block;
+  margin-inline-start: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.review-badge.pending {
+  background: var(--warning-50, #fdf1dc);
+  color: var(--warning-700, #9a6207);
+}
+.review-badge.approved {
+  background: var(--success-50, #e7f6ec);
+  color: var(--success-700, #1a7f3c);
+}
+.review-badge.rejected {
+  background: var(--danger-50, #fde7e7);
+  color: var(--danger-700, #a11a1a);
+}
+
+.review-box {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-sunken);
+}
+.review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-2);
+}
+.review-by {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: var(--space-1) 0;
+}
+.review-note {
+  width: 100%;
+  margin: var(--space-2) 0;
+}
+.review-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .pager {
   display: flex;
   align-items: center;
