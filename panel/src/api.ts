@@ -252,6 +252,39 @@ export const roomsApi = {
       .then((r) => r.data),
 };
 
+export interface PersonnelDocument {
+  name: string;
+  url?: string;
+  note?: string;
+}
+
+export interface Personnel {
+  id: string;
+  fullName: string;
+  mobile: string;
+  employeeNo: string;
+  position: string;
+  departmentId: string | null;
+  hireDate: string;
+  documents: PersonnelDocument[];
+  notes: string;
+  isActive: boolean;
+}
+
+/** پروندهٔ پرسنل به‌عنوان داده‌ی پایهٔ HR. */
+export const hrApi = {
+  list: () => api.get<Personnel[]>('/hr/personnel').then((r) => r.data),
+
+  create: (body: Partial<Personnel>) =>
+    api.post<Personnel>('/hr/personnel', body).then((r) => r.data),
+
+  update: (id: string, body: Partial<Personnel>) =>
+    api.patch<Personnel>(`/hr/personnel/${id}`, body).then((r) => r.data),
+
+  remove: (id: string) =>
+    api.delete<{ ok: boolean }>(`/hr/personnel/${id}`).then((r) => r.data),
+};
+
 export const departmentsApi = {
   list: () => api.get<Department[]>('/departments').then((r) => r.data),
 

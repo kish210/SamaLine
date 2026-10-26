@@ -27,6 +27,7 @@ import { MenuModule } from './menus/menu.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { ChecklistsModule } from './checklists/checklists.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { HrModule } from './hr/hr.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { buildDataSourceOptions } from './database/data-source';
 
@@ -62,6 +63,7 @@ import { buildDataSourceOptions } from './database/data-source';
     DepartmentsModule,
     ChecklistsModule,
     RoomsModule,
+    HrModule,
   ],
 })
 export class AppModule {}
