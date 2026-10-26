@@ -58,14 +58,30 @@ export class FormService {
    * فرم بایگانی‌شده پیش‌فرض نمی‌آید؛ بایگانی برای این است که از جلوی چشم
    * برداشته شود، ولی با `includeArchived` باز هم قابل دیدن است.
    */
-  async list(workspaceId: string, includeArchived = false) {
+  async list(
+    workspaceId: string,
+    includeArchived = false,
+    scope?: { departmentIds: string[]; isManager: boolean },
+  ) {
     const all = await this.formRepo.find({
       where: { workspaceId },
       order: { createdAt: 'DESC' },
     });
+    const visible =
+      !scope || scope.isManager
+        ? all
+        : /*
+           * کارمندِ غیرمدیر فقط فرم‌های عمومی و فرم‌های بخش‌های خودش را
+           * می‌بیند؛ وگرنه فهرست فرم‌ها کلِ عملیات هتل را لو می‌داد.
+           */
+          all.filter(
+            (form) =>
+              !form.departmentId ||
+              scope.departmentIds.includes(form.departmentId),
+          );
     const forms = includeArchived
-      ? all
-      : all.filter((form) => form.status !== FormStatus.ARCHIVED);
+      ? visible
+      : visible.filter((form) => form.status !== FormStatus.ARCHIVED);
     if (!forms.length) return [];
 
     /*
@@ -204,6 +220,7 @@ export class FormService {
         workspaceId: dto.workspaceId,
         title: dto.title,
         slug: dto.slug,
+        departmentId: dto.departmentId ?? null,
         status: FormStatus.DRAFT,
         settings: trimmed.settings ?? {
           theme: 'default',
@@ -285,6 +302,10 @@ export class FormService {
     form.title = dto.title ?? form.title;
     form.status = dto.status ?? form.status;
     form.settings = dto.settings ?? form.settings;
+    // `undefined` یعنی دست نزن؛ `null` یعنی فرم را عمومی کن.
+    if (dto.departmentId !== undefined) {
+      form.departmentId = dto.departmentId || null;
+    }
     await this.formRepo.save(form);
 
     if (dto.questions || dto.pages || dto.logic || dto.scoreConfig) {

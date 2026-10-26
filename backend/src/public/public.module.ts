@@ -4,6 +4,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
+import { DepartmentMemberEntity } from '../database/entities/department-member.entity';
+import { OrganizationUserEntity } from '../database/entities/organization-user.entity';
 import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
@@ -38,6 +40,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
       PortalEntity,
       FormEntity,
       WorkspaceEntity,
+      OrganizationUserEntity,
+      DepartmentMemberEntity,
     ]),
     PlanModule,
     FormModule,

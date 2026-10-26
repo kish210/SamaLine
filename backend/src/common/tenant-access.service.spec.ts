@@ -4,6 +4,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import { TenantAccessService } from './tenant-access.service';
 import type { JwtUser } from './current-user.decorator';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 
 const USER: JwtUser = {
   sub: 'u1',
@@ -14,15 +15,25 @@ const USER: JwtUser = {
 
 function build(options: {
   workspace?: { id: string; organizationId: string } | null;
-  form?: { id: string; workspace?: { organizationId: string } } | null;
+  form?: {
+    id: string;
+    departmentId?: string | null;
+    workspace?: { organizationId: string };
+  } | null;
   publication?: { id: string; formId: string } | null;
   superAdmin?: boolean;
+  /** بخش‌هایی که کاربرِ آزمون عضوشان است. */
+  memberOf?: string[];
 }) {
   return new TenantAccessService(
     { findOne: async () => options.workspace ?? null } as never,
     { findOne: async () => options.form ?? null } as never,
     { findOne: async () => options.publication ?? null } as never,
     { isSuperAdmin: async () => options.superAdmin ?? false } as never,
+    {
+      find: async () =>
+        (options.memberOf ?? []).map((departmentId) => ({ departmentId })),
+    } as never,
   );
 }
 
@@ -84,6 +95,66 @@ describe('TenantAccessService', () => {
       await expect(service.assertForm('f9', USER)).rejects.toThrow(
         'به این فرم دسترسی ندارید',
       );
+    });
+
+    /*
+     * فرمِ بخشی: هر دو کاربر در یک سازمان‌اند، پس بررسی سازمانی ردشان
+     * نمی‌کند. چیزی که باید جلویشان را بگیرد، عضو نبودن در آن بخش است.
+     */
+    it('فرمِ بخشی برای عضوِ همان بخش باز است', async () => {
+      const service = build({
+        form: {
+          id: 'f1',
+          departmentId: 'dept-fani',
+          workspace: { organizationId: 'org-1' },
+        },
+        memberOf: ['dept-fani'],
+      });
+      const form = await service.assertForm('f1', USER);
+      expect(form.id).toBe('f1');
+    });
+
+    it('فرمِ بخشی برای کسی که عضو آن بخش نیست رد می‌شود', async () => {
+      const service = build({
+        form: {
+          id: 'f1',
+          departmentId: 'dept-fani',
+          workspace: { organizationId: 'org-1' },
+        },
+        memberOf: ['dept-housekeeping'],
+      });
+      await expect(service.assertForm('f1', USER)).rejects.toThrow(
+        'عضو آن نیستید',
+      );
+    });
+
+    it('مدیر سازمان به فرمِ هر بخشی دسترسی دارد', async () => {
+      const service = build({
+        form: {
+          id: 'f1',
+          departmentId: 'dept-fani',
+          workspace: { organizationId: 'org-1' },
+        },
+        memberOf: [],
+      });
+      const form = await service.assertForm('f1', {
+        ...USER,
+        role: OrganizationRole.ADMIN,
+      });
+      expect(form.id).toBe('f1');
+    });
+
+    it('فرم بدون بخش (نظرسنجی عمومی) برای همه‌ی اعضای سازمان باز است', async () => {
+      const service = build({
+        form: {
+          id: 'f1',
+          departmentId: null,
+          workspace: { organizationId: 'org-1' },
+        },
+        memberOf: [],
+      });
+      const form = await service.assertForm('f1', USER);
+      expect(form.id).toBe('f1');
     });
 
     it('فرم ناموجود «یافت نشد» می‌دهد نه «دسترسی ندارید»', async () => {

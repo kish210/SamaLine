@@ -8,6 +8,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'node:crypto';
 import { LessThan, Repository } from 'typeorm';
+import { DepartmentMemberEntity } from '../database/entities/department-member.entity';
+import {
+  OrganizationRole,
+  OrganizationUserEntity,
+} from '../database/entities/organization-user.entity';
 import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import {
   PublicationAuthMode,
@@ -40,6 +45,10 @@ export class RespondentAuthService {
   constructor(
     @InjectRepository(OtpChallengeEntity)
     private readonly otpRepo: Repository<OtpChallengeEntity>,
+    @InjectRepository(OrganizationUserEntity)
+    private readonly orgUsers: Repository<OrganizationUserEntity>,
+    @InjectRepository(DepartmentMemberEntity)
+    private readonly deptMembers: Repository<DepartmentMemberEntity>,
     private readonly messaging: MessagingService,
     private readonly jwt: JwtService,
   ) {}
@@ -48,8 +57,76 @@ export class RespondentAuthService {
   requiresAuth(publication: PublicationEntity): boolean {
     return (
       publication.authMode === PublicationAuthMode.PASSWORD ||
-      publication.authMode === PublicationAuthMode.OTP
+      publication.authMode === PublicationAuthMode.OTP ||
+      publication.authMode === PublicationAuthMode.STAFF
     );
+  }
+
+  /**
+   * فرمِ عملیاتی: فقط کارمندِ واردشده‌ی همین سازمان، و اگر فرم بخش دارد فقط
+   * عضوِ همان بخش (یا مدیر/مالک).
+   *
+   * برخلاف password/otp اینجا توکنِ ورودِ پنل سنجیده می‌شود، نه یک اعتبارِ
+   * مهمان؛ به همین دلیل کلیدِ پاسخ‌دهنده ایمیلِ کارمند می‌شود تا معلوم باشد
+   * هر گزارش را چه کسی ثبت کرده.
+   */
+  async verifyStaff(
+    publication: PublicationEntity,
+    accessToken?: string,
+  ): Promise<RespondentTokenPayload> {
+    const unauthorized = (message: string) =>
+      new UnauthorizedException({
+        message,
+        authMode: PublicationAuthMode.STAFF,
+      });
+
+    if (!accessToken) {
+      throw unauthorized('برای پر کردن این فرم باید با حساب کارمندی وارد شوید');
+    }
+
+    let payload: { sub?: string; email?: string; organizationId?: string };
+    try {
+      payload = this.jwt.verify(accessToken);
+    } catch {
+      throw unauthorized('اعتبار ورود شما تمام شده است؛ دوباره وارد شوید');
+    }
+
+    const userId = payload.sub;
+    const organizationId = publication.form?.workspace?.organizationId;
+    if (!userId || !organizationId) {
+      throw unauthorized('اعتبار ورود معتبر نیست');
+    }
+
+    /*
+     * عضویتِ سازمان از دیتابیس خوانده می‌شود نه از توکن: اگر کارمند از تیم
+     * حذف شد، توکنِ قبلی‌اش نباید تا انقضا همچنان کار کند.
+     */
+    const membership = await this.orgUsers.findOne({
+      where: { organizationId, userId },
+      select: { id: true, role: true },
+    });
+    if (!membership) {
+      throw unauthorized('این حساب عضو سازمانِ این فرم نیست');
+    }
+
+    const isManager =
+      membership.role === OrganizationRole.OWNER ||
+      membership.role === OrganizationRole.ADMIN;
+    const departmentId = publication.form?.departmentId;
+    if (departmentId && !isManager) {
+      const inDept = await this.deptMembers.findOne({
+        where: { departmentId, userId },
+      });
+      if (!inDept) {
+        throw unauthorized('این فرم متعلق به بخشی است که عضو آن نیستید');
+      }
+    }
+
+    return {
+      publicationId: publication.id,
+      respondentKey: payload.email ?? userId,
+      mode: PublicationAuthMode.STAFF,
+    };
   }
 
   /**

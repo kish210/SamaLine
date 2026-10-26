@@ -24,6 +24,7 @@ import { RemindersModule } from './reminders/reminders.module';
 import { OpsModule } from './ops/ops.module';
 import { TeamModule } from './team/team.module';
 import { MenuModule } from './menus/menu.module';
+import { DepartmentsModule } from './departments/departments.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { buildDataSourceOptions } from './database/data-source';
 
@@ -56,6 +57,7 @@ import { buildDataSourceOptions } from './database/data-source';
     OpsModule,
     TeamModule,
     MenuModule,
+    DepartmentsModule,
   ],
 })
 export class AppModule {}

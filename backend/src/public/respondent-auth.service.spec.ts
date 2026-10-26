@@ -14,6 +14,13 @@ jest.mock('@nestjs/jwt', () =>
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import type { DataSource } from 'typeorm';
+import { DepartmentMemberEntity } from '../database/entities/department-member.entity';
+import { OrganizationEntity } from '../database/entities/organization.entity';
+import {
+  OrganizationRole,
+  OrganizationUserEntity,
+} from '../database/entities/organization-user.entity';
+import { UserEntity } from '../database/entities/user.entity';
 import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import {
   PublicationAuthMode,
@@ -53,6 +60,8 @@ describe('RespondentAuthService — احراز هویت پاسخ‌دهنده', 
 
     service = new RespondentAuthService(
       ds.getRepository(OtpChallengeEntity),
+      ds.getRepository(OrganizationUserEntity),
+      ds.getRepository(DepartmentMemberEntity),
       { send: sendMock } as unknown as MessagingService,
       new JwtService({ secret: 'test-secret' }),
     );
@@ -267,6 +276,118 @@ describe('RespondentAuthService — احراز هویت پاسخ‌دهنده', 
       await expect(
         service.requestOtp(publication(PublicationAuthMode.NONE), '0912'),
       ).rejects.toThrow('این فرم کد تایید نمی‌خواهد');
+    });
+  });
+
+  /*
+   * فرمِ عملیاتی (staff): اینجا توکنِ ورودِ پنل سنجیده می‌شود، پس آزمون‌ها
+   * باید عضویت سازمان و عضویت بخش را واقعا در دیتابیس بسازند؛ وگرنه فقط
+   * امضای JWT آزموده می‌شود که نقطه‌ی ضعفِ اصلی نیست.
+   */
+  describe('فرم عملیاتی (staff)', () => {
+    const ORG = 'org-1';
+    const DEPT = 'dept-fani';
+
+    const staffPub = (departmentId: string | null = null) =>
+      ({
+        id: 'pub-staff',
+        authMode: PublicationAuthMode.STAFF,
+        config: {},
+        type: PublicationType.LINK,
+        form: {
+          departmentId,
+          workspace: { organizationId: ORG },
+        },
+      }) as unknown as PublicationEntity;
+
+    const tokenFor = (userId: string, email = 'u@test.local') =>
+      new JwtService({ secret: 'test-secret' }).sign({
+        sub: userId,
+        email,
+        organizationId: ORG,
+      });
+
+    /*
+     * سازمان و کاربر واقعی ساخته می‌شوند چون جدول عضویت کلید خارجی دارد؛
+     * با شناسه‌ی ساختگی، آزمون روی قیدِ دیتابیس می‌شکند نه روی منطقِ دسترسی.
+     */
+    beforeEach(async () => {
+      await ds
+        .getRepository(OrganizationEntity)
+        .save({ id: ORG, name: 'هتل کوروش' });
+    });
+
+    const joinOrg = async (userId: string, role: OrganizationRole) => {
+      await ds.getRepository(UserEntity).save({
+        id: userId,
+        fullName: userId,
+        email: `${userId}@hotel.local`,
+        passwordHash: 'x',
+      });
+      await ds
+        .getRepository(OrganizationUserEntity)
+        .save({ organizationId: ORG, userId, role });
+    };
+
+    it('بدون توکن رد می‌شود', async () => {
+      await expect(service.verifyStaff(staffPub())).rejects.toThrow(
+        'با حساب کارمندی وارد شوید',
+      );
+    });
+
+    it('توکن نامعتبر رد می‌شود', async () => {
+      await expect(
+        service.verifyStaff(staffPub(), 'not-a-jwt'),
+      ).rejects.toThrow('اعتبار ورود شما تمام شده است؛ دوباره وارد شوید');
+    });
+
+    it('کاربری که عضو سازمان نیست رد می‌شود، حتی با توکنِ درست‌امضا', async () => {
+      await expect(
+        service.verifyStaff(staffPub(), tokenFor('ghost')),
+      ).rejects.toThrow('عضو سازمانِ این فرم نیست');
+    });
+
+    it('کارمندِ سازمان روی فرمِ بدون بخش پذیرفته می‌شود', async () => {
+      await joinOrg('u1', OrganizationRole.EDITOR);
+      const result = await service.verifyStaff(
+        staffPub(),
+        tokenFor('u1', 'ali@hotel.local'),
+      );
+      // کلیدِ پاسخ‌دهنده ایمیلِ کارمند است تا معلوم باشد چه کسی ثبت کرده.
+      expect(result.respondentKey).toBe('ali@hotel.local');
+      expect(result.mode).toBe(PublicationAuthMode.STAFF);
+    });
+
+    it('کارمندی که عضو بخشِ فرم نیست رد می‌شود', async () => {
+      await joinOrg('u2', OrganizationRole.EDITOR);
+      await expect(
+        service.verifyStaff(staffPub(DEPT), tokenFor('u2')),
+      ).rejects.toThrow('عضو آن نیستید');
+    });
+
+    it('کارمندِ عضوِ همان بخش پذیرفته می‌شود', async () => {
+      await joinOrg('u3', OrganizationRole.EDITOR);
+      await ds
+        .getRepository(DepartmentMemberEntity)
+        .save({ departmentId: DEPT, userId: 'u3' });
+      const result = await service.verifyStaff(
+        staffPub(DEPT),
+        tokenFor('u3', 'reza@hotel.local'),
+      );
+      expect(result.respondentKey).toBe('reza@hotel.local');
+    });
+
+    it('مدیر سازمان بدون عضویت بخش هم پذیرفته می‌شود', async () => {
+      await joinOrg('boss', OrganizationRole.ADMIN);
+      const result = await service.verifyStaff(
+        staffPub(DEPT),
+        tokenFor('boss', 'boss@hotel.local'),
+      );
+      expect(result.respondentKey).toBe('boss@hotel.local');
+    });
+
+    it('requiresAuth برای فرم عملیاتی true است', () => {
+      expect(service.requiresAuth(staffPub())).toBe(true);
     });
   });
 });

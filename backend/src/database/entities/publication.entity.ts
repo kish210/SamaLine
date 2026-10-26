@@ -38,6 +38,13 @@ export enum PublicationAuthMode {
   OTP = 'otp',
   OAUTH = 'oauth',
   LDAP = 'ldap',
+  /**
+   * فرمِ عملیاتی: فقط با ورودِ حسابِ کارمندِ همین سازمان پر می‌شود.
+   *
+   * برخلاف password/otp که هویتِ مهمان را می‌سنجند، اینجا همان توکنِ ورودِ
+   * پنل سنجیده می‌شود تا معلوم باشد کدام کارمند فرم را پر کرده.
+   */
+  STAFF = 'staff',
 }
 
 @Entity('publications')

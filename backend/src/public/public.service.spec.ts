@@ -39,6 +39,8 @@ import { ScoreEngineService } from '../forms/score-engine.service';
 import { PlanService } from '../plans/plan.service';
 import { createTestDataSource } from '../testing/test-database';
 import { JwtService } from '@nestjs/jwt';
+import { DepartmentMemberEntity } from '../database/entities/department-member.entity';
+import { OrganizationUserEntity } from '../database/entities/organization-user.entity';
 import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import type { MessagingService } from '../messaging/messaging.service';
 import { PublicService } from './public.service';
@@ -163,6 +165,8 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
 
     respondentAuth = new RespondentAuthService(
       ds.getRepository(OtpChallengeEntity),
+      ds.getRepository(OrganizationUserEntity),
+      ds.getRepository(DepartmentMemberEntity),
       messaging,
       jwt,
     );

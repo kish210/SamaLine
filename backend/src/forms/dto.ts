@@ -101,6 +101,11 @@ export class CreateFormDto {
   @IsString()
   templateKey?: string;
 
+  /** بخشِ مالکِ فرم؛ خالی یعنی فرمِ نظرسنجیِ عمومی. */
+  @IsOptional()
+  @IsString()
+  departmentId?: string | null;
+
   @IsOptional()
   @IsObject()
   settings?: Record<string, unknown>;
@@ -127,6 +132,11 @@ export class CreateFormDto {
 }
 
 export class UpdateFormDto {
+  /** بخشِ مالکِ فرم؛ null یعنی عمومی شود. */
+  @IsOptional()
+  @IsString()
+  departmentId?: string | null;
+
   @IsOptional()
   @IsString()
   title?: string;

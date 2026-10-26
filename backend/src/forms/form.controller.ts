@@ -43,7 +43,10 @@ export class FormController {
     @Query('includeArchived') includeArchived?: string,
   ) {
     await this.tenant.assertWorkspace(workspaceId, user);
-    return this.formService.list(workspaceId, includeArchived === 'true');
+    return this.formService.list(workspaceId, includeArchived === 'true', {
+      isManager: this.tenant.isManager(user),
+      departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+    });
   }
 
   /**

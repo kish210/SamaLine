@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DepartmentMemberEntity } from '../database/entities/department-member.entity';
 import { FormEntity } from '../database/entities/form.entity';
+import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
@@ -33,7 +35,26 @@ export class TenantAccessService {
     @InjectRepository(PublicationEntity)
     private readonly publicationRepo: Repository<PublicationEntity>,
     private readonly platformSettings: PlatformSettingsService,
+    @InjectRepository(DepartmentMemberEntity)
+    private readonly deptMembers: Repository<DepartmentMemberEntity>,
   ) {}
+
+  /** مالک/مدیر سازمان به همه‌ی بخش‌ها دسترسی دارد. */
+  isManager(user: JwtUser): boolean {
+    return (
+      user.role === OrganizationRole.OWNER ||
+      user.role === OrganizationRole.ADMIN
+    );
+  }
+
+  /** شناسه‌ی بخش‌هایی که کاربر عضوشان است. */
+  async memberDepartmentIds(userId: string): Promise<string[]> {
+    const rows = await this.deptMembers.find({
+      where: { userId },
+      select: { departmentId: true },
+    });
+    return rows.map((row) => row.departmentId);
+  }
 
   /** فضای کاری باید متعلق به سازمان کاربر باشد. */
   async assertWorkspace(workspaceId: string, user: JwtUser): Promise<void> {
@@ -69,6 +90,20 @@ export class TenantAccessService {
 
     if (form.workspace?.organizationId !== user.organizationId) {
       throw new ForbiddenException('به این فرم دسترسی ندارید');
+    }
+
+    /*
+     * فرمِ بخشی (عملیاتی) فقط برای اعضای همان بخش و مدیرانِ سازمان است.
+     * بدون این، کارمندِ خانه‌داری می‌توانست با داشتن شناسه‌ی فرم، گزارش‌های
+     * واحد فنی را بخواند — هر دو در یک سازمان‌اند و بررسی سازمانی ردشان نمی‌کند.
+     */
+    if (form.departmentId && !this.isManager(user)) {
+      const ids = await this.memberDepartmentIds(user.sub);
+      if (!ids.includes(form.departmentId)) {
+        throw new ForbiddenException(
+          'این فرم متعلق به بخشی است که عضو آن نیستید',
+        );
+      }
     }
     return form;
   }

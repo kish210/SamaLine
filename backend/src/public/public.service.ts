@@ -7,7 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
-import { PublicationEntity } from '../database/entities/publication.entity';
+import {
+  PublicationAuthMode,
+  PublicationEntity,
+} from '../database/entities/publication.entity';
 import {
   ResponseEntity,
   ResponseStatus,
@@ -191,8 +194,11 @@ export class PublicService {
       throw new BadRequestException('مهلت پاسخگویی این لینک تمام شده است');
     }
 
-    // فرم‌های رمزدار یا OTP‌دار بدون اعتبار معتبر باز نمی‌شوند.
-    const auth = this.respondentAuth.verifyAccess(publication, accessToken);
+    // فرم‌های رمزدار/OTP‌دار و فرم‌های عملیاتی بدون اعتبار معتبر باز نمی‌شوند.
+    const auth =
+      publication.authMode === PublicationAuthMode.STAFF
+        ? await this.respondentAuth.verifyStaff(publication, accessToken)
+        : this.respondentAuth.verifyAccess(publication, accessToken);
 
     const latestVersion = await this.versionRepo.findOne({
       where: { formId: publication.formId },
