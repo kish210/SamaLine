@@ -179,4 +179,28 @@ export const formApi = {
     token: string,
     body: { respondentKey?: string; answers: Answers; meta?: unknown },
   ) => client.post(`/public/forms/${token}/submit`, body),
+
+  /** «درخواست‌های من»: پاسخ‌های همین کارمند با وضعیتِ تأیید (سلف‌سرویس). */
+  myResponses: (token: string) =>
+    client
+      .get<MyRequestsPayload>(`/public/forms/${token}/my-responses`)
+      .then((r) => r.data),
 };
+
+export interface MyRequestReview {
+  status?: 'pending' | 'approved' | 'rejected';
+  note?: string;
+  at?: string;
+}
+
+export interface MyRequest {
+  id: string;
+  submittedAt: string | null;
+  answers: Answers;
+  review: MyRequestReview | null;
+}
+
+export interface MyRequestsPayload {
+  formTitle: string;
+  requests: MyRequest[];
+}

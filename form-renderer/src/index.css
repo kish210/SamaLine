@@ -247,6 +247,58 @@ button {
   margin-bottom: 8px;
 }
 
+/* ── درخواست‌های من (پورتالِ سلف‌سرویس؛ فاز E) ─────────── */
+.my-requests {
+  margin-top: 28px;
+  text-align: start;
+}
+.my-requests h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.my-requests ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.my-requests li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.my-req-date {
+  font-size: 13px;
+  color: #6b7280;
+}
+.my-req-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.my-req-badge.pending {
+  background: #fdf1dc;
+  color: #9a6207;
+}
+.my-req-badge.approved,
+.my-req-badge.done {
+  background: #e7f6ec;
+  color: #1a7f3c;
+}
+.my-req-badge.rejected {
+  background: #fde7e7;
+  color: #a11a1a;
+}
+.my-req-note {
+  font-size: 13px;
+  color: #a11a1a;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: default;

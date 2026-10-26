@@ -23,6 +23,7 @@ import {
   PlanPolicyEntity,
 } from '../database/entities/plan-policy.entity';
 import {
+  PublicationAuthMode,
   PublicationEntity,
   PublicationType,
 } from '../database/entities/publication.entity';
@@ -524,6 +525,65 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       expect((updated.meta.review as Record<string, unknown>).status).toBe(
         'rejected',
       );
+    });
+  });
+
+  // پورتالِ سلف‌سرویس (فاز E): کارمندِ احراز‌شده، فقط درخواست‌های خودش را
+  // با وضعیتِ تأیید می‌بیند، و کلیدِ پاسخ‌دهنده از توکن می‌آید نه کلاینت.
+  describe('درخواست‌های من (سلف‌سرویس)', () => {
+    const staffToken = (publicationId: string, email: string) =>
+      new JwtService({ secret: 'test-secret' }).sign({
+        publicationId,
+        respondentKey: email,
+        mode: PublicationAuthMode.OTP,
+      });
+
+    const makeOtp = async () => {
+      const { publication } = await seed({ requiresApproval: true });
+      publication.authMode = PublicationAuthMode.OTP;
+      await ds.getRepository(PublicationEntity).save(publication);
+      return publication;
+    };
+
+    it('کلیدِ پاسخ‌دهنده را از توکنِ تاییدشده می‌گیرد، نه از کلاینت', async () => {
+      const publication = await makeOtp();
+      const token = staffToken(publication.id, 'staff@hotel.ir');
+      await service.submitByToken(
+        publicationToken,
+        // کلاینت کلیدِ جعلی می‌فرستد؛ باید نادیده گرفته شود.
+        { respondentKey: 'someone-else', answers: { q1: 'بله', rate: 4 } },
+        token,
+      );
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+      expect(stored.respondentKey).toBe('staff@hotel.ir');
+    });
+
+    it('فقط درخواست‌های همین کارمند را با وضعیتِ تأیید برمی‌گرداند', async () => {
+      const publication = await makeOtp();
+      const mine = staffToken(publication.id, 'me@hotel.ir');
+      const other = staffToken(publication.id, 'other@hotel.ir');
+      await service.submitByToken(
+        publicationToken,
+        { answers: { q1: 'بله', rate: 4 } },
+        mine,
+      );
+      await service.submitByToken(
+        publicationToken,
+        { answers: { q1: 'خیر', rate: 2 } },
+        other,
+      );
+
+      const result = await service.listMyResponses(publicationToken, mine);
+      expect(result.requests).toHaveLength(1);
+      expect(
+        (result.requests[0].review as Record<string, unknown>).status,
+      ).toBe('pending');
+    });
+
+    it('فرمِ بی‌نام فهرستِ خالی می‌دهد', async () => {
+      await seed();
+      const result = await service.listMyResponses(publicationToken);
+      expect(result.requests).toEqual([]);
     });
   });
 });

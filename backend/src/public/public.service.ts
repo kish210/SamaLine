@@ -317,6 +317,40 @@ export class PublicService {
     };
   }
 
+  /**
+   * «درخواست‌های من»: پاسخ‌های کاملِ همین پاسخ‌دهنده به همین فرم، با وضعیتِ
+   * تأیید — پشتوانه‌ی پورتالِ سلف‌سرویسِ کارمند (فاز E).
+   *
+   * هویت از توکنِ تاییدشده می‌آید (getByToken احراز را اعمال می‌کند)، نه از
+   * کلاینت؛ پس هر کارمند فقط درخواست‌های خودش را می‌بیند. فرمِ بی‌نام
+   * verifiedRespondentKey ندارد و فهرست خالی می‌شود.
+   */
+  async listMyResponses(token: string, accessToken?: string) {
+    const formData = await this.getByToken(token, accessToken);
+    const key = formData.verifiedRespondentKey;
+    if (!key) return { formTitle: formData.formTitle, requests: [] };
+
+    const rows = await this.responseRepo.find({
+      where: {
+        publicationId: formData.publicationId,
+        respondentKey: key,
+        status: ResponseStatus.COMPLETED,
+      },
+      order: { submittedAt: 'DESC' },
+      take: 100,
+    });
+
+    return {
+      formTitle: formData.formTitle,
+      requests: rows.map((row) => ({
+        id: row.id,
+        submittedAt: row.submittedAt,
+        answers: row.answers,
+        review: (row.meta?.review as Record<string, unknown>) ?? null,
+      })),
+    };
+  }
+
   async saveProgressByToken(
     token: string,
     dto: SaveProgressDto,
@@ -411,10 +445,15 @@ export class PublicService {
           }
         : {}),
     });
-    const respondentKey = this.resolveRespondentKey(
-      dto.respondentKey,
-      dto.meta,
-    );
+    /*
+     * فرم‌های احراز‌شده (staff/OTP) کلیدِ پاسخ‌دهنده را از توکنِ تاییدشده
+     * می‌گیرند، نه از بدنه‌ی کلاینت؛ وگرنه کارمند می‌توانست پاسخ را به‌نامِ
+     * دیگری ثبت کند و «درخواست‌های من» قابل‌اتکا نبود. فرم‌های بی‌نام
+     * verifiedRespondentKey ندارند و مثل قبل به کلیدِ کلاینت برمی‌گردند.
+     */
+    const respondentKey =
+      formData.verifiedRespondentKey ??
+      this.resolveRespondentKey(dto.respondentKey, dto.meta);
 
     await this.ensureNotDuplicate(
       formData.publicationId,

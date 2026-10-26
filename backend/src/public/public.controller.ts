@@ -114,4 +114,13 @@ export class PublicController {
       accessToken,
     );
   }
+
+  /** «درخواست‌های من»: پاسخ‌های همین کارمند به همین فرم با وضعیتِ تأیید. */
+  @Get(':token/my-responses')
+  myResponses(
+    @Param('token') token: string,
+    @Headers(RESPONDENT_HEADER) accessToken?: string,
+  ) {
+    return this.publicService.listMyResponses(token, accessToken);
+  }
 }
