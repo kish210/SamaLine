@@ -20,6 +20,7 @@ import { TelegramService } from './telegram.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramDigestService } from './telegram-digest.service';
 import { StaffBotService } from './staff-bot.service';
+import { StaffNotifyService } from './staff-notify.service';
 import { HrModule } from '../hr/hr.module';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
@@ -60,10 +61,11 @@ import { EmailReportService } from './email-report.service';
     TelegramBotService,
     TelegramDigestService,
     StaffBotService,
+    StaffNotifyService,
     EmailReportService,
     WebhookDeliveryService,
   ],
   // مسیر ثبت پاسخ عمومی هم به این سرویس نیاز دارد.
-  exports: [TelegramService, WebhookDeliveryService],
+  exports: [TelegramService, WebhookDeliveryService, StaffNotifyService],
 })
 export class IntegrationsModule {}

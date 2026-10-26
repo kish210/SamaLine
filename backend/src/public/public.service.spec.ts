@@ -470,6 +470,8 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         ds.getRepository(ResponseEntity),
         ds.getRepository(FormEntity),
         ds.getRepository(ResponseCommentEntity),
+        // اعلانِ پرسنل در این تست‌ها بی‌اثر است.
+        { notifyReviewDecision: async () => {} } as never,
       );
 
     it('فرمِ نیازمندِ تأیید، پاسخ را «در انتظار» ثبت می‌کند', async () => {

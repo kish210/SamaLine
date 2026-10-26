@@ -7,6 +7,7 @@ import { ResponseCommentEntity } from '../database/entities/response-comment.ent
 import { ResponseEntity } from '../database/entities/response.entity';
 import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
 import { LIKE_OPERATOR } from '../database/column-types';
+import { StaffNotifyService } from '../integrations/staff-notify.service';
 
 @Injectable()
 export class ResponseService {
@@ -17,6 +18,7 @@ export class ResponseService {
     private readonly formRepo: Repository<FormEntity>,
     @InjectRepository(ResponseCommentEntity)
     private readonly commentRepo: Repository<ResponseCommentEntity>,
+    private readonly staffNotify: StaffNotifyService,
   ) {}
 
   /** شناسه‌ی فرمِ یک پاسخ؛ برای بررسی مالکیت. */
@@ -140,6 +142,8 @@ export class ResponseService {
   ) {
     const response = await this.responseRepo.findOne({
       where: { id: responseId },
+      // برای اعلانِ پرسنل، سازمان/فضا و عنوانِ فرم را هم لازم داریم.
+      relations: { formVersion: { form: { workspace: true } } },
     });
     if (!response) {
       throw new NotFoundException('پاسخ مورد نظر یافت نشد');
@@ -155,7 +159,22 @@ export class ResponseService {
       note: note ?? '',
     };
     response.meta = { ...(response.meta ?? {}), review };
-    return this.responseRepo.save(response);
+    const saved = await this.responseRepo.save(response);
+
+    // اعلان به رباتِ پرسنل؛ خودش هرگز خطا نمی‌دهد و مسیرِ تأیید را نگه نمی‌دارد.
+    const form = response.formVersion?.form;
+    if (form) {
+      await this.staffNotify.notifyReviewDecision({
+        organizationId: form.workspace.organizationId,
+        workspaceId: form.workspaceId,
+        respondentKey: response.respondentKey,
+        formTitle: form.title,
+        decision,
+        note,
+      });
+    }
+
+    return saved;
   }
 }
 
