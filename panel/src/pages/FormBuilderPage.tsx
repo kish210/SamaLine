@@ -11,9 +11,11 @@ import { AddQuestionMenu } from './builder/AddQuestionMenu';
 import { QuestionBankMenu } from './builder/QuestionBankMenu';
 import type { BankQuestion } from '../question-bank';
 import { AiReviewCard } from './builder/AiReviewCard';
+import { DepartmentCard } from './builder/DepartmentCard';
 import { EdgePagesEditor } from './builder/EdgePagesEditor';
 import { ReminderEditor } from './builder/ReminderEditor';
 import { LivePreview } from './builder/LivePreview';
+import { AccessModeCard } from './builder/AccessModeCard';
 import { PublishCard } from './builder/PublishCard';
 import { QuestionEditor } from './builder/QuestionEditor';
 import { ThemeEditor } from './builder/ThemeEditor';
@@ -364,6 +366,11 @@ export function FormBuilderPage() {
             )}
             title={form.data.title}
           />
+          <AccessModeCard
+            formId={formId}
+            authMode={form.data.publication.authMode ?? 'none'}
+            hasDepartment={Boolean(form.data.departmentId)}
+          />
           <CustomLinkCard
             formId={formId}
             token={form.data.publication.token}
@@ -544,6 +551,10 @@ export function FormBuilderPage() {
 
       {tab === 'design' && (
         <div className="design-tab">
+          <DepartmentCard
+            formId={formId}
+            departmentId={form.data.departmentId ?? null}
+          />
           <ThemeEditor formId={formId} settings={form.data.settings} />
           <EdgePagesEditor formId={formId} settings={form.data.settings} />
           <ReminderEditor formId={formId} settings={form.data.settings} />

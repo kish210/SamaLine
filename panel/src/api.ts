@@ -4,6 +4,8 @@ import type {
   ApiKey,
   AuthPayload,
   ContactList,
+  Department,
+  DepartmentMember,
   FlowGraph,
   FormAnalytics,
   FormDetail,
@@ -209,6 +211,38 @@ export const workspaceApi = {
     api.post<Workspace>("/workspaces", { name }).then((r) => r.data),
 };
 
+/** بخش‌ها و عضویتشان؛ پایه‌ی دسترسیِ فرم‌های عملیاتی. */
+export const departmentsApi = {
+  list: () => api.get<Department[]>('/departments').then((r) => r.data),
+
+  /** بخش‌هایی که کاربرِ جاری عضوشان است. */
+  mine: () => api.get<Department[]>('/departments/mine').then((r) => r.data),
+
+  create: (body: { name: string; key?: string }) =>
+    api.post<Department>('/departments', body).then((r) => r.data),
+
+  rename: (id: string, body: { name?: string; key?: string }) =>
+    api.patch<Department>(`/departments/${id}`, body).then((r) => r.data),
+
+  remove: (id: string) =>
+    api.delete<{ ok: boolean }>(`/departments/${id}`).then((r) => r.data),
+
+  members: (id: string) =>
+    api
+      .get<DepartmentMember[]>(`/departments/${id}/members`)
+      .then((r) => r.data),
+
+  addMember: (id: string, userId: string) =>
+    api
+      .post<DepartmentMember>(`/departments/${id}/members`, { userId })
+      .then((r) => r.data),
+
+  removeMember: (id: string, userId: string) =>
+    api
+      .delete<{ ok: boolean }>(`/departments/${id}/members/${userId}`)
+      .then((r) => r.data),
+};
+
 export const formsApi = {
   list: (workspaceId: string, includeArchived = false) =>
     api
@@ -259,6 +293,15 @@ export const formsApi = {
 
   publishLink: (id: string) =>
     api.post<Publication>(`/forms/${id}/publish-link`).then((r) => r.data),
+
+  /** چه کسی اجازه‌ی پر کردن فرم را دارد (باز / رمزدار / کارمند). */
+  setAuthMode: (id: string, authMode: string, password?: string) =>
+    api
+      .patch<Publication>(`/forms/${id}/auth-mode`, {
+        authMode,
+        ...(password ? { password } : {}),
+      })
+      .then((r) => r.data),
 
   logicAnalysis: (id: string) =>
     api

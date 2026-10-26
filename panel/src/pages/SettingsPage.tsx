@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { messagingApi, plansApi, workspaceApi } from "../api";
 import { ApiKeysCard } from "./ApiKeysCard";
+import { DepartmentsCard } from "./DepartmentsCard";
 import { TeamCard } from "./TeamCard";
 import { TelegramCard } from "./TelegramCard";
 import { EmailReportCard } from "./EmailReportCard";
@@ -119,6 +120,8 @@ export function SettingsPage() {
       </section>
 
       {isAdmin && <TeamCard />}
+
+      {isAdmin && <DepartmentsCard />}
 
       {isAdmin && workspaceId && <TelegramCard workspaceId={workspaceId} />}
       {isAdmin && workspaceId && <EmailReportCard workspaceId={workspaceId} />}

@@ -86,6 +86,21 @@ export const dashboardApi = {
 };
 
 export const formApi = {
+  /**
+   * ورودِ کارمند برای فرم‌های عملیاتی.
+   *
+   * همان اندپوینتِ ورودِ پنل است؛ توکنی که برمی‌گرداند به‌عنوان اعتبارِ
+   * پاسخ‌دهنده فرستاده می‌شود و سرور از رویش می‌فهمد کدام کارمند و عضوِ کدام
+   * بخش است.
+   */
+  staffLogin: (email: string, password: string, totpCode?: string) =>
+    client
+      .post<{ accessToken?: string; twoFactorRequired?: boolean }>(
+        '/auth/login',
+        { email, password, ...(totpCode ? { totpCode } : {}) },
+      )
+      .then((r) => r.data),
+
   authInfo: (token: string) =>
     client
       .get<{

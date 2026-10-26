@@ -85,11 +85,28 @@ export interface FormPage {
   questions: Question[];
 }
 
+/** بخش/واحد سازمانی هتل (فنی، خانه‌داری، HR، IT، پیمانکاران …). */
+export interface Department {
+  id: string;
+  name: string;
+  key: string;
+  memberCount?: number;
+}
+
+export interface DepartmentMember {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string;
+}
+
 export interface FormSummary {
   id: string;
   workspaceId: string;
   title: string;
   slug: string;
+  /** بخشِ مالکِ فرم؛ null یعنی نظرسنجیِ عمومی. */
+  departmentId?: string | null;
   status: "draft" | "active" | "closed" | "archived";
   createdAt: string;
   /** تعداد پاسخ‌های کامل (فقط در فهرست فرم‌ها). */
@@ -105,6 +122,8 @@ export interface Publication {
   token: string;
   /** نشانی اختصاصی و ثابت فرم؛ null یعنی تعیین نشده. */
   slug: string | null;
+  /** حالت احراز پاسخ‌دهنده: none/password/otp/staff/… */
+  authMode?: string;
   tags: string[];
   isActive: boolean;
 }

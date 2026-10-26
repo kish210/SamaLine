@@ -15,6 +15,9 @@ const describe = (error: unknown) =>
 /** صفحه‌ی ورود پاسخ‌دهنده برای فرم‌های رمزدار یا کددار. */
 export function RespondentAuth({ token, authMode, onAuthenticated }: Props) {
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [destination, setDestination] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -30,6 +33,41 @@ export function RespondentAuth({ token, authMode, onAuthenticated }: Props) {
       const { accessToken } = await formApi.loginWithPassword(token, password);
       setRespondentToken(accessToken);
       onAuthenticated(null);
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /*
+   * ورودِ کارمند: همان حسابِ پنل.
+   *
+   * اگر حسابِ کارمند ورودِ دومرحله‌ای داشته باشد، سرور به‌جای توکن
+   * `twoFactorRequired` می‌دهد؛ آن‌وقت فیلد کد نشان داده می‌شود و همان
+   * ایمیل/رمز دوباره با کد فرستاده می‌شود.
+   */
+  const submitStaff = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await formApi.staffLogin(
+        email.trim(),
+        password,
+        needsTotp ? totpCode.trim() : undefined,
+      );
+      if (result.twoFactorRequired) {
+        setNeedsTotp(true);
+        setInfo('این حساب ورود دومرحله‌ای دارد؛ کد برنامه‌ی احراز را بزنید.');
+        return;
+      }
+      if (!result.accessToken) {
+        setError('ورود ناموفق بود');
+        return;
+      }
+      setRespondentToken(result.accessToken);
+      onAuthenticated(email.trim());
     } catch (err) {
       setError(describe(err));
     } finally {
@@ -71,7 +109,48 @@ export function RespondentAuth({ token, authMode, onAuthenticated }: Props) {
 
   return (
     <div className="container">
-      <h2>ورود به نظرسنجی</h2>
+      <h2>{authMode === 'staff' ? 'ورود کارمند' : 'ورود به نظرسنجی'}</h2>
+
+      {authMode === 'staff' && (
+        <form onSubmit={submitStaff}>
+          <p>این فرم عملیاتی است؛ با حساب کاربری خود وارد شوید.</p>
+          <label htmlFor="staff-email">ایمیل</label>
+          <input
+            id="staff-email"
+            type="email"
+            required
+            dir="ltr"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <label htmlFor="staff-password">رمز عبور</label>
+          <input
+            id="staff-password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {needsTotp && (
+            <>
+              <label htmlFor="staff-totp">کد ورود دومرحله‌ای</label>
+              <input
+                id="staff-totp"
+                required
+                inputMode="numeric"
+                maxLength={6}
+                dir="ltr"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+            </>
+          )}
+          {info && <p className="hint">{info}</p>}
+          <button type="submit" disabled={busy}>
+            {busy ? '...' : 'ورود'}
+          </button>
+        </form>
+      )}
 
       {authMode === 'password' && (
         <form onSubmit={submitPassword}>
