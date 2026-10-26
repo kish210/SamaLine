@@ -13,6 +13,7 @@ import type { BankQuestion } from '../question-bank';
 import { AiReviewCard } from './builder/AiReviewCard';
 import { DepartmentCard } from './builder/DepartmentCard';
 import { EdgePagesEditor } from './builder/EdgePagesEditor';
+import { ChecklistEditor } from './builder/ChecklistEditor';
 import { ReminderEditor } from './builder/ReminderEditor';
 import { LivePreview } from './builder/LivePreview';
 import { AccessModeCard } from './builder/AccessModeCard';
@@ -558,6 +559,11 @@ export function FormBuilderPage() {
           <ThemeEditor formId={formId} settings={form.data.settings} />
           <EdgePagesEditor formId={formId} settings={form.data.settings} />
           <ReminderEditor formId={formId} settings={form.data.settings} />
+          <ChecklistEditor
+            formId={formId}
+            settings={form.data.settings}
+            hasDepartment={Boolean(form.data.departmentId)}
+          />
           <IndicatorEditor
             pages={pages}
             indexes={indexes}
