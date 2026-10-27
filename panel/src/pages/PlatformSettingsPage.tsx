@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { describeError, platformApi } from '../api';
+import { aiAdminApi, describeError, platformApi } from '../api';
 import type { PlatformSettings } from '../api';
 import { TelegramCard } from './TelegramCard';
 import { EmailReportCard } from './EmailReportCard';
@@ -74,6 +74,57 @@ export function PlatformSettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
     },
     onError: (err) => setError(describeError(err)),
+  });
+
+  /*
+   * فهرستِ مدل‌ها و آزمونِ اتصال روی تنظیماتِ «ذخیره‌شده» کار می‌کنند، نه
+   * آنچه الان در فرم است؛ کلید هم هرگز به مرورگر برنمی‌گردد. پس اگر فرم
+   * تغییرِ ذخیره‌نشده دارد، پیش از این دو، ذخیره می‌کنیم.
+   */
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsNote, setModelsNote] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
+  const saveIfDirty = async () => {
+    const stored = settings.data;
+    const dirty =
+      !!apiKey ||
+      !stored ||
+      stored.aiProvider !== value.aiProvider ||
+      stored.aiBaseUrl !== value.aiBaseUrl ||
+      stored.aiModel !== value.aiModel;
+    if (dirty) {
+      await save.mutateAsync();
+      setApiKey('');
+    }
+  };
+
+  const loadModels = useMutation({
+    mutationFn: async () => {
+      await saveIfDirty();
+      return aiAdminApi.models();
+    },
+    onSuccess: (result) => {
+      setModels(result.models);
+      setModelsNote(
+        result.models.length
+          ? `${result.models.length.toLocaleString('fa-IR')} مدل پیدا شد؛ از فهرستِ فیلدِ «نام مدل» انتخاب کنید.`
+          : (result.error ?? 'سرویس‌دهنده مدلی برنگرداند؛ نامِ مدل را دستی بنویسید.'),
+      );
+    },
+    onError: (err) => setModelsNote(describeError(err)),
+  });
+
+  const testConnection = useMutation({
+    mutationFn: async () => {
+      await saveIfDirty();
+      return aiAdminApi.test();
+    },
+    onSuccess: (result) => setTestResult(result),
+    onError: (err) => setTestResult({ ok: false, message: describeError(err) }),
   });
 
   const set = <K extends keyof PlatformSettings>(
@@ -228,11 +279,46 @@ export function PlatformSettingsPage() {
               <input
                 dir="ltr"
                 maxLength={120}
-                placeholder="qwen2.5:3b"
+                placeholder="openai/gpt-4o-mini"
+                list="ai-model-options"
                 value={value.aiModel}
                 onChange={(e) => set('aiModel', e.target.value)}
               />
+              <datalist id="ai-model-options">
+                {models.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
             </label>
+
+            <div className="ai-admin-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={loadModels.isPending || save.isPending}
+                onClick={() => loadModels.mutate()}
+              >
+                {loadModels.isPending ? 'در حال دریافت…' : 'دریافت فهرست مدل‌ها'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={testConnection.isPending || save.isPending}
+                onClick={() => {
+                  setTestResult(null);
+                  testConnection.mutate();
+                }}
+              >
+                {testConnection.isPending ? 'در حال آزمون…' : 'آزمونِ اتصال'}
+              </button>
+            </div>
+            {modelsNote && <p className="hint">{modelsNote}</p>}
+            {testResult && (
+              <p className={testResult.ok ? 'ai-test ok' : 'ai-test fail'}>
+                {testResult.ok ? '✓ ' : '✗ '}
+                {testResult.message}
+              </p>
+            )}
 
             <label>
               کلید API
@@ -261,6 +347,14 @@ export function PlatformSettingsPage() {
               بالاتر <code>qwen2.5:7b</code>. برای API آنلاین، نشانی و کلید همان
               سرویس (مثلا OpenAI) را بگذارید. کلید رمزشده ذخیره می‌شود و دیگر
               نمایش داده نمی‌شود.
+            </p>
+            <p className="hint">
+              <b>چابکان:</b> نشانی پایه{' '}
+              <code dir="ltr">https://ai.chabokan.net/v1</code>، کلید همان
+              <code dir="ltr"> sk-chbk-…</code> و مدل مثلا{' '}
+              <code dir="ltr">openai/gpt-4o-mini</code> (فهرستِ کامل با «دریافت
+              فهرست مدل‌ها»). «دریافت فهرست» و «آزمون» اول تغییراتِ این بخش را
+              ذخیره می‌کنند.
             </p>
           </>
         )}

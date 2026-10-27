@@ -784,6 +784,23 @@ export interface PublicConfig {
   registrationEnabled: boolean;
 }
 
+/** ابزارِ تنظیمِ هوش مصنوعی برای سوپرادمین (روی تنظیماتِ ذخیره‌شده کار می‌کند). */
+export const aiAdminApi = {
+  models: () =>
+    api
+      .get<{ provider: string; models: string[]; error?: string }>(
+        "/ai/admin/models",
+      )
+      .then((r) => r.data),
+
+  test: () =>
+    api
+      .post<{ ok: boolean; provider: string; model?: string; message: string }>(
+        "/ai/admin/test",
+      )
+      .then((r) => r.data),
+};
+
 export const platformApi = {
   me: () =>
     api.get<{ isSuperAdmin: boolean }>("/platform/me").then((r) => r.data),

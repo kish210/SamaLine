@@ -5,6 +5,9 @@ import { validateGeneratedForm } from './form-schema.validator';
 import { MockAiProvider } from './mock-ai.provider';
 import { OpenAiCompatibleProvider } from './openai-compatible.provider';
 
+/** فهرستِ مدل‌ها باید سریع باشد؛ پنل منتظرش می‌ماند. */
+const MODEL_LIST_TIMEOUT_MS = 15000;
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -67,6 +70,108 @@ export class AiService {
   ) {
     const { provider } = await this.resolveProvider();
     return provider.translateForm({ structure, targetLanguage });
+  }
+
+  /**
+   * مدل‌های موجودِ سرویس‌دهنده (برای فهرستِ انتخاب در پنلِ سوپرادمین).
+   *
+   * از `GET {baseUrl}/models` می‌خواند؛ سرویس‌های سازگار با OpenAI این مسیر
+   * را دارند. اگر سرویس‌دهنده ماک باشد، مسیر پشتیبانی نشود یا کلید رد شود،
+   * به‌جای خطا فهرستِ خالی با علت برمی‌گردد تا پنل مدل را دستی بگیرد.
+   */
+  async listModels(): Promise<{
+    provider: string;
+    models: string[];
+    error?: string;
+  }> {
+    const config = await this.platform.getAiConfig();
+    if ((config.provider || 'mock').toLowerCase() !== 'openai') {
+      return {
+        provider: 'mock',
+        models: [],
+        error: 'سرویس‌دهنده روی «ماک» است.',
+      };
+    }
+
+    const baseUrl = (config.baseUrl || 'https://api.openai.com/v1').replace(
+      /\/+$/,
+      '',
+    );
+    try {
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: { authorization: `Bearer ${config.apiKey || 'local'}` },
+        signal: AbortSignal.timeout(MODEL_LIST_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        return {
+          provider: 'openai',
+          models: [],
+          error: `سرویس‌دهنده فهرستِ مدل‌ها را نداد (${response.status}).`,
+        };
+      }
+      const payload = (await response.json()) as {
+        data?: Array<{ id?: unknown }>;
+      };
+      const models = (payload.data ?? [])
+        .map((item) => item.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        .sort((a, b) => a.localeCompare(b));
+      return { provider: 'openai', models };
+    } catch (error) {
+      return {
+        provider: 'openai',
+        models: [],
+        error: `دسترسی به سرویس‌دهنده ممکن نشد: ${(error as Error).message}`,
+      };
+    }
+  }
+
+  /**
+   * آزمونِ اتصال: یک درخواستِ کوچکِ واقعی به همان مدلِ تنظیم‌شده.
+   *
+   * پیش از این درست بودنِ کلید/نشانی/مدل فقط وقتی معلوم می‌شد که کسی فرم
+   * می‌ساخت و خطای مبهم می‌گرفت. هرگز throw نمی‌کند؛ نتیجه ok/خطا است.
+   */
+  async testConnection(): Promise<{
+    ok: boolean;
+    provider: string;
+    model?: string;
+    message: string;
+  }> {
+    const config = await this.platform.getAiConfig();
+    const { provider, name } = await this.resolveProvider();
+    if (name !== 'openai') {
+      return {
+        ok: true,
+        provider: 'mock',
+        message:
+          'سرویس‌دهنده روی «ماک» است؛ پاسخ‌ها نمونه‌اند و به اینترنت نیازی نیست.',
+      };
+    }
+
+    try {
+      const result = await provider.chatWithData({
+        question: 'فقط برای آزمونِ اتصال، کوتاه سلام کن.',
+        context: { ping: true },
+      });
+      const answer = (result as { answer?: unknown }).answer;
+      return {
+        ok: true,
+        provider: 'openai',
+        model: config.model || undefined,
+        message:
+          typeof answer === 'string' && answer.trim()
+            ? `اتصال برقرار است. پاسخِ مدل: ${answer.trim().slice(0, 120)}`
+            : 'اتصال برقرار است و مدل پاسخِ معتبر داد.',
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        provider: 'openai',
+        model: config.model || undefined,
+        message: (error as Error).message.slice(0, 300),
+      };
+    }
   }
 
   /**
