@@ -69,26 +69,35 @@ export class OpenAiCompatibleProvider implements AiProvider {
     system: string,
     user: string,
   ): Promise<Record<string, unknown>> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const messages = [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ];
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-          response_format: { type: 'json_object' },
-        }),
-        signal: controller.signal,
+      let response = await this.post({
+        model: this.model,
+        messages,
+        response_format: { type: 'json_object' },
       });
+
+      /*
+       * همه‌ی مدل‌ها/دروازه‌ها حالتِ JSON را نمی‌پذیرند (مثلا برخی مدل‌های
+       * DeepSeek پشتِ دروازه‌های سازگار با OpenAI). رد شدنش با ۴۰۰ نباید کل
+       * قابلیت را بشکند: یک بار بدونِ آن تکرار می‌کنیم؛ دستورِ «فقط JSON»
+       * در پیامِ سیستم هست و پاسخ در extractJson پاک‌سازی می‌شود.
+       */
+      if (response.status === 400) {
+        const text = await response.text();
+        if (/response_format|json_object|json mode/i.test(text)) {
+          this.logger.warn('مدل response_format را نپذیرفت؛ تکرار بدونِ آن');
+          response = await this.post({ model: this.model, messages });
+        } else {
+          throw new Error(
+            `خطای سرویس هوش مصنوعی (400): ${text.slice(0, 300)}`,
+          );
+        }
+      }
 
       if (!response.ok) {
         const text = await response.text();
@@ -100,15 +109,70 @@ export class OpenAiCompatibleProvider implements AiProvider {
       const payload = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
-      const content = payload.choices?.[0]?.message?.content ?? '{}';
-      return JSON.parse(content) as Record<string, unknown>;
+      return extractJson(payload.choices?.[0]?.message?.content ?? '{}');
     } catch (error) {
       this.logger.error(
         error instanceof Error ? error.message : 'خطای نامشخص هوش مصنوعی',
       );
       throw error;
+    }
+  }
+
+  private async post(body: Record<string, unknown>): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      // اسلشِ انتهاییِ نشانیِ پایه (رایج در تنظیمِ دستی) دو تا نشود.
+      return await fetch(`${this.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
     } finally {
       clearTimeout(timer);
     }
   }
+}
+
+/**
+ * JSON را از پاسخِ مدل بیرون می‌کشد.
+ *
+ * مدل‌ها همیشه JSONِ خالص برنمی‌گردانند: مدل‌های استدلالی (مثل DeepSeek R1)
+ * پیش از جواب ‎<think>…</think>‎ می‌نویسند، بعضی جواب را در حصارِ ‎```json‎
+ * می‌پیچند و بعضی یک جمله پیش یا پس از آن می‌گذارند. به‌ترتیب: پارسِ مستقیم،
+ * حذفِ بلوکِ think و حصار، و در آخر برشِ اولین «{» تا آخرین «}».
+ */
+export function extractJson(content: string): Record<string, unknown> {
+  const tryParse = (text: string): Record<string, unknown> | null => {
+    try {
+      const value: unknown = JSON.parse(text);
+      return value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(content.trim());
+  if (direct) return direct;
+
+  const cleaned = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/```(?:json)?/gi, '')
+    .trim();
+  const fromCleaned = tryParse(cleaned);
+  if (fromCleaned) return fromCleaned;
+
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    const sliced = tryParse(cleaned.slice(first, last + 1));
+    if (sliced) return sliced;
+  }
+  throw new Error('خروجیِ مدل JSONِ معتبر نبود؛ مدلِ دیگری را امتحان کنید.');
 }
