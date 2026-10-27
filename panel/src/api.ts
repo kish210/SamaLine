@@ -784,6 +784,26 @@ export interface PublicConfig {
   registrationEnabled: boolean;
 }
 
+export interface ManagerOverview {
+  days: number;
+  totals: { current: number; previous: number; changePct: number | null };
+  review: { pending: number; approved: number; rejected: number };
+  activeForms: number;
+  series: Array<{ date: string; count: number }>;
+  byUnit: Array<{ departmentId: string | null; name: string; count: number }>;
+  topForms: Array<{ formId: string; title: string; count: number }>;
+}
+
+/** نمای کلیِ مدیریتی (داشبوردِ مدیر). */
+export const overviewApi = {
+  get: (workspaceId: string, days: number) =>
+    api
+      .get<ManagerOverview>("/reports/overview", {
+        params: { workspaceId, days },
+      })
+      .then((r) => r.data),
+};
+
 /** ابزارِ تنظیمِ هوش مصنوعی برای سوپرادمین (روی تنظیماتِ ذخیره‌شده کار می‌کند). */
 export const aiAdminApi = {
   models: () =>

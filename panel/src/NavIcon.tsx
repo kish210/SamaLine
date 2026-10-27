@@ -22,6 +22,7 @@ const PATHS: Record<string, string> = {
   personnel: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8 M22 21v-2a4 4 0 00-3-3.9 M16 3.1a4 4 0 010 7.8",
   approvals: "M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",
   units: "M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z",
+  overview: "M3 3v18h18 M7 15l4-4 3 3 6-7",
 };
 
 export function NavIcon({ name }: { name: string }) {

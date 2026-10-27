@@ -19,6 +19,9 @@ import { DashboardService } from './dashboard.service';
 import { ExportService } from './export.service';
 import { ReportService } from './report.service';
 import { AnalyticsService } from './analytics.service';
+import { OverviewController } from './overview.controller';
+import { OverviewService } from './overview.service';
+import { DepartmentEntity } from '../database/entities/department.entity';
 
 @Module({
   imports: [
@@ -32,6 +35,7 @@ import { AnalyticsService } from './analytics.service';
       FormEntity,
       WorkspaceEntity,
       PublicationEntity,
+      DepartmentEntity,
     ]),
     PlanModule,
   ],
@@ -39,8 +43,15 @@ import { AnalyticsService } from './analytics.service';
     ReportController,
     DashboardController,
     PublicDashboardController,
+    OverviewController,
   ],
-  providers: [ReportService, ExportService, DashboardService, AnalyticsService],
+  providers: [
+    ReportService,
+    ExportService,
+    DashboardService,
+    AnalyticsService,
+    OverviewService,
+  ],
   // گزارش دوره‌ای تلگرام از همین تجمیع استفاده می‌کند.
   exports: [AnalyticsService, DashboardService],
 })

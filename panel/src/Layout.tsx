@@ -17,6 +17,7 @@ const SIDEBAR_KEY = "samaline.sidebar.collapsed";
  * فقط آیکون دیده می‌شود، پس هر آیتم آیکون اختصاصی دارد.
  */
 const NAV = [
+  { to: "/overview", label: "داشبوردِ مدیریت", icon: "overview" },
   { to: "/forms", label: "فرم‌ها", icon: "forms" },
   { to: "/dashboards", label: "داشبوردها", icon: "dashboards" },
   { to: "/portals", label: "پرتال", icon: "portal" },
