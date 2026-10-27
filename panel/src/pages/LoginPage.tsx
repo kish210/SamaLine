@@ -21,7 +21,13 @@ export function LoginPage() {
     queryFn: platformApi.publicConfig,
     retry: false,
   });
-  const registrationEnabled = publicConfig.data?.registrationEnabled ?? true;
+  /*
+   * پیش‌فرض «بسته» است، نه «باز»: تا پاسخِ سرور نیامده (یا اگر درخواست
+   * شکست بخورد) زبانه‌ی ثبت‌نام نشان داده نمی‌شود. پیش‌تر `?? true` بود و
+   * روی سامانه‌ای که سوپرادمین ثبت‌نام را بسته بود هم زبانه دیده می‌شد. نصبِ
+   * تازه‌ی بی‌کاربر مشکلی ندارد: سرور آنجا خودش true برمی‌گرداند.
+   */
+  const registrationEnabled = publicConfig.data?.registrationEnabled === true;
 
   // اگر ثبت‌نام بسته شد در حالی که روی زبانه‌ی ثبت‌نام بودیم, به ورود برگرد.
   useEffect(() => {
