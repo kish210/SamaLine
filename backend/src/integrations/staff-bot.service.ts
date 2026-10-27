@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
 import { HrService } from '../hr/hr.service';
 import { AnnouncementService } from './announcement.service';
 import { isoToJalaliText } from '../common/jalali';
@@ -29,6 +33,8 @@ export class StaffBotService {
     private readonly workspaces: Repository<WorkspaceEntity>,
     private readonly hr: HrService,
     private readonly announcements: AnnouncementService,
+    @InjectRepository(ResponseEntity)
+    private readonly responses: Repository<ResponseEntity>,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -61,10 +67,72 @@ export class StaffBotService {
     if (command === '/اطلاعیه' || command === '/news') {
       return this.recentAnnouncements(bot, chatId);
     }
+    if (command === '/درخواست‌ها' || command === '/درخواستها' || command === '/requests') {
+      return this.myRequests(bot, chatId);
+    }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
     return null;
+  }
+
+  /**
+   * «درخواست‌های من» در بله: پنج درخواستِ اخیرِ همین پرسنل با وضعیتِ تأیید.
+   *
+   * تطبیق با موبایل است، همان کلیدی که اعلانِ نتیجهٔ تأیید هم با آن کار می‌کند:
+   * درخواست‌هایی که با OTPِ موبایلی ثبت شده‌اند کلیدِ پاسخ‌دهنده‌شان همین موبایل
+   * است. فقط پاسخ‌های فرم‌های همان سازمانِ پرسنل خوانده می‌شوند.
+   */
+  private async myRequests(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<string> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+    if (!person.mobile) return 'شماره موبایلی برای پروندهٔ شما ثبت نشده است.';
+
+    const rows = await this.responses
+      .createQueryBuilder('response')
+      .innerJoinAndSelect('response.formVersion', 'formVersion')
+      .innerJoinAndSelect('formVersion.form', 'form')
+      .innerJoin('form.workspace', 'workspace')
+      .where('response.respondentKey = :key', { key: person.mobile })
+      .andWhere('workspace.organizationId = :org', {
+        org: person.organizationId,
+      })
+      .andWhere('response.status = :status', {
+        status: ResponseStatus.COMPLETED,
+      })
+      .orderBy('response.createdAt', 'DESC')
+      .take(5)
+      .getMany();
+
+    if (rows.length === 0) return 'درخواستی از شما ثبت نشده است.';
+
+    const labels: Record<string, string> = {
+      pending: '⏳ در انتظار تأیید',
+      approved: '✅ تأییدشده',
+      rejected: '❌ ردشده',
+    };
+    const lines = ['📋 <b>درخواست‌های اخیرِ شما</b>', ''];
+    for (const row of rows) {
+      const review = row.meta?.review as
+        | { status?: string; note?: string }
+        | undefined;
+      const when = row.submittedAt ?? row.createdAt;
+      const date = when ? isoToJalaliText(new Date(when).toISOString()) : '';
+      const state = review?.status ? (labels[review.status] ?? review.status) : 'ثبت‌شده';
+      lines.push(
+        `• <b>${escapeHtml(row.formVersion?.form?.title ?? 'فرم')}</b>${date ? ` — ${date}` : ''}`,
+      );
+      lines.push(`  ${state}`);
+      if (review?.status === 'rejected' && review.note) {
+        lines.push(`  یادداشت: ${escapeHtml(review.note)}`);
+      }
+    }
+    return lines.join('\n');
   }
 
   /**
@@ -124,8 +192,10 @@ export class StaffBotService {
       person.position ? `سمت: ${escapeHtml(person.position)}` : '',
       '',
       'از این پس وضعیتِ درخواست‌هایتان را اینجا دنبال می‌کنید.',
-      'برای دیدنِ پروندهٔ خود: /me',
-      'برای قطعِ اتصال: /خروج',
+      'درخواست‌های شما: /درخواست‌ها',
+      'اطلاعیه‌ها: /اطلاعیه',
+      'پروندهٔ شما: /me',
+      'قطعِ اتصال: /خروج',
     ]
       .filter((line) => line !== '')
       .join('\n');

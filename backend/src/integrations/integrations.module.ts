@@ -24,6 +24,7 @@ import { StaffNotifyService } from './staff-notify.service';
 import { AnnouncementsController } from './announcements.controller';
 import { AnnouncementService } from './announcement.service';
 import { AnnouncementEntity } from '../database/entities/announcement.entity';
+import { ResponseEntity } from '../database/entities/response.entity';
 import { HrModule } from '../hr/hr.module';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
@@ -50,6 +51,8 @@ import { EmailReportService } from './email-report.service';
       WorkspaceEntity,
       FormEntity,
       AnnouncementEntity,
+      // «/درخواست‌ها»ِ رباتِ پرسنل پاسخ‌های خودِ پرسنل را می‌خواند.
+      ResponseEntity,
     ]),
   ],
   controllers: [

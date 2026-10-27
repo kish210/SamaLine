@@ -8,6 +8,18 @@ import type { TelegramIntegrationEntity } from '../database/entities/telegram-in
 import { createTestDataSource } from '../testing/test-database';
 import { HrService } from '../hr/hr.service';
 import { StaffBotService, looksLikeMobile } from './staff-bot.service';
+import { FormEntity, FormStatus } from '../database/entities/form.entity';
+import { FormVersionEntity } from '../database/entities/form-version.entity';
+import {
+  PublicationEntity,
+  PublicationType,
+} from '../database/entities/publication.entity';
+import {
+  ResponseEntity,
+  ResponseStatus,
+} from '../database/entities/response.entity';
+import { OrganizationEntity } from '../database/entities/organization.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
 
 const ORG = 'org-1';
 const BOT = {
@@ -45,7 +57,12 @@ describe('StaffBotService', () => {
         },
       ],
     } as never;
-    service = new StaffBotService(workspaces, hr, announcements);
+    service = new StaffBotService(
+      workspaces,
+      hr,
+      announcements,
+      ds.getRepository(ResponseEntity),
+    );
   });
 
   it('تشخیصِ موبایل: رقم‌های ۱۰ تا ۱۳، نه فرمان و نه کد', () => {
@@ -133,5 +150,98 @@ describe('StaffBotService', () => {
   it('/اطلاعیه برای کاربرِ وصل‌نشده راهنمایی می‌کند', async () => {
     const reply = await service.tryHandle(BOT, 'chat-21', '/اطلاعیه');
     expect(reply).toContain('وصل نشده');
+  });
+
+  describe('/درخواست‌ها', () => {
+    let n = 0;
+    /** سازمانِ واقعی + فرم + یک درخواست با کلیدِ موبایل و وضعیتِ دلخواه. */
+    const seedRequest = async (opts: {
+      orgId: string;
+      mobile: string;
+      title: string;
+      review?: { status: string; note?: string };
+    }) => {
+      n += 1;
+      const ws = await ds
+        .getRepository(WorkspaceEntity)
+        .save({ organizationId: opts.orgId, name: `فضا ${n}` });
+      const form = await ds.getRepository(FormEntity).save({
+        workspaceId: ws.id,
+        title: opts.title,
+        slug: `req-${n}-${Date.now()}`,
+        status: FormStatus.ACTIVE,
+        settings: { requiresApproval: true },
+      });
+      const version = await ds
+        .getRepository(FormVersionEntity)
+        .save({ formId: form.id, version: 1, structure: { pages: [] } });
+      const pub = await ds.getRepository(PublicationEntity).save({
+        formId: form.id,
+        type: PublicationType.LINK,
+        token: `rt-${n}-${Date.now()}`,
+        isActive: true,
+      });
+      await ds.getRepository(ResponseEntity).save({
+        formVersionId: version.id,
+        publicationId: pub.id,
+        respondentKey: opts.mobile,
+        status: ResponseStatus.COMPLETED,
+        startedAt: new Date(),
+        submittedAt: new Date(),
+        answers: {},
+        scores: {},
+        meta: opts.review ? { review: opts.review } : {},
+      });
+    };
+
+    const linkedStaff = async () => {
+      const org = await ds
+        .getRepository(OrganizationEntity)
+        .save({ name: 'هتل' });
+      await hr.create(org.id, { fullName: 'سمیرا', mobile: '09120000030' });
+      // رباتِ تست سازمانِ ثابتِ ORG را برمی‌گرداند؛ اتصال را مستقیم با سازمانِ واقعی می‌سازیم.
+      await hr.linkBotChat(org.id, '09120000030', 'chat-30', 'bale', 'ws-1');
+      return org.id;
+    };
+
+    it('درخواست‌های خودِ پرسنل را با وضعیتِ تأیید نشان می‌دهد', async () => {
+      const orgId = await linkedStaff();
+      await seedRequest({
+        orgId,
+        mobile: '09120000030',
+        title: 'مرخصیِ استحقاقی',
+        review: { status: 'pending' },
+      });
+      await seedRequest({
+        orgId,
+        mobile: '09120000030',
+        title: 'تغییرِ شیفت',
+        review: { status: 'rejected', note: 'نیرو کم است' },
+      });
+      const reply = await service.tryHandle(BOT, 'chat-30', '/درخواست‌ها');
+      expect(reply).toContain('مرخصیِ استحقاقی');
+      expect(reply).toContain('در انتظار تأیید');
+      expect(reply).toContain('تغییرِ شیفت');
+      expect(reply).toContain('ردشده');
+      expect(reply).toContain('نیرو کم است');
+    });
+
+    it('درخواستِ سازمانِ دیگر یا موبایلِ دیگر را نشان نمی‌دهد', async () => {
+      const orgId = await linkedStaff();
+      const other = await ds
+        .getRepository(OrganizationEntity)
+        .save({ name: 'هتلِ دیگر' });
+      // همان موبایل در سازمانِ دیگر.
+      await seedRequest({ orgId: other.id, mobile: '09120000030', title: 'غریبه' });
+      // موبایلِ دیگر در همین سازمان.
+      await seedRequest({ orgId, mobile: '09129999999', title: 'همکار' });
+      const reply = await service.tryHandle(BOT, 'chat-30', '/requests');
+      expect(reply).toContain('درخواستی از شما ثبت نشده');
+    });
+
+    it('برای کاربرِ وصل‌نشده راهنماییِ اتصال می‌دهد', async () => {
+      const reply = await service.tryHandle(BOT, 'chat-99', '/درخواست‌ها');
+      expect(reply).toContain('وصل نشده');
+    });
   });
 });
