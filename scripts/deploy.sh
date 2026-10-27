@@ -148,6 +148,20 @@ VITE_API_URL="/api/v1" npm --prefix form-renderer run build
 VITE_API_URL="/api/v1" npm --prefix panel run build
 npm --prefix backend run build
 
+log "بررسی خروجی ساخت"
+# پیش از دست زدن به سرویسِ در حال اجرا، مطمئن می‌شویم هر سه خروجی واقعا ساخته
+# شده‌اند. یک build که بی‌سر و صدا خروجی ندهد (مثلا دیسکِ پر یا خطای خاموش)
+# وگرنه باعث می‌شد سرویس با پنلِ غایب ری‌استارت شود و «/panel» ۴۰۴ بدهد —
+# اینجا به‌جایش با خطا می‌ایستیم و نسخه‌ی در حال اجرا دست‌نخورده می‌ماند.
+for artifact in \
+  "backend/dist/main.js" \
+  "panel/dist/index.html" \
+  "form-renderer/dist/index.html"; do
+  [ -s "$APP_DIR/$artifact" ] ||
+    fail "خروجی ساخت ناقص است: $artifact نیست یا خالی است. سرویس دست‌نخورده ماند."
+done
+echo "هر سه خروجی ساخته شد."
+
 log "پاک‌سازی وابستگی‌های توسعه"
 # فقط بک‌اند در زمان اجرا به node_modules نیاز دارد؛ خروجی build دو اپ
 # دیگر فایل استاتیک است و node_modules‌شان دیگر لازم نیست.
@@ -278,6 +292,14 @@ EOF
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME" >/dev/null
 systemctl restart "$SERVICE_NAME"
+
+log "گواهیِ Let's Encrypt"
+# پس از هر استقرار/به‌روزرسانی (update.sh هم به همین‌جا می‌رسد): اگر دامنه‌ی
+# عمومی و acme.sh هست، گواهیِ معتبر در صورتِ موعد تمدید و دوباره نصب می‌شود؛
+# وگرنه بی‌صدا رد می‌شود. این جلوی جایگزین شدنِ گواهیِ معتبر با self-signed را
+# می‌گیرد. شکستش استقرار را نمی‌شکند؛ گواهیِ فعلی دست‌نخورده می‌ماند.
+bash "$APP_DIR/scripts/tls-letsencrypt.sh" ||
+  echo "به‌روزرسانیِ گواهی ناموفق بود؛ گواهیِ فعلی دست‌نخورده ماند."
 
 log "نصب دستور کوتاه samaline"
 # پیوند، نه کپی: با هر به‌روزرسانی همان نسخه‌ی تازه‌ی مخزن اجرا می‌شود.

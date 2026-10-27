@@ -146,9 +146,17 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 ## استقرار و عملیات (`scripts/`)
 
 - `deploy.sh` — استقرار/به‌روزرسانی روی خود سرور: نصب وابستگی (`npm ci`)،
-  build سه اپ، ساخت `.env` با کلیدهای تصادفی، سرویس systemd، گواهی TLS
-  (self-signed پیش‌فرض)، باز کردن پورت فایروال، بررسی سلامت. نصب دوباره پورت
-  قبلی را از `.env` حفظ می‌کند.
+  build سه اپ، **بررسیِ خروجیِ ساخت** (اگر `backend/dist/main.js` یا
+  `index.html`ِ پنل/رندرر نباشد، پیش از دست زدن به سرویس با خطا می‌ایستد)،
+  ساخت `.env` با کلیدهای تصادفی، سرویس systemd، گواهی TLS (self-signed پیش‌فرض)،
+  **سپس `tls-letsencrypt.sh`** (اگر دامنه و acme.sh باشد، گواهیِ معتبر تمدید/نصب
+  می‌شود)، باز کردن پورت فایروال، بررسی سلامت. نصب دوباره پورت قبلی را از `.env`
+  حفظ می‌کند.
+- `tls-letsencrypt.sh` — صدور/تمدید/نصبِ گواهیِ Let's Encrypt با acme.sh برای
+  میزبانِ `PUBLIC_URL`. چون برنامه ۴۴۳ را نگه داشته، چالشِ ALPN با هوکِ
+  stop/start سرویس اجرا می‌شود و همین هوک‌ها در تنظیماتِ acme ذخیره می‌شوند تا
+  cronِ تمدیدِ خودکار هم کار کند. گواهی در `backend/certs/server.{crt,key}`
+  نصب می‌شود. اجرای دوباره بی‌خطر است.
 - `install.sh` — راه‌انداز سرور تازه: پیش‌نیازها + deploy با `ALLOW_NODE_INSTALL`.
 - `update.sh` — `git pull --ff-only` سپس deploy.
 - `manage.sh` — منوی مدیریت: وضعیت/ری‌استارت، به‌روزرسانی، پورت‌ها، نشانی شبکه،
@@ -157,7 +165,9 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 - متغیرهای کلیدی `.env`: `PORT`/`HTTPS_PORT`، `TLS_CERT`/`TLS_KEY`، `PUBLIC_URL`،
   `DB_DRIVER`، `JWT_SECRET`، `SECRET_ENCRYPTION_KEY`، `EMAIL_PROVIDER`/`SMS_PROVIDER`.
 - **گواهی واقعی:** چون فقط ۴۴۳ ممکن است باز باشد، با `acme.sh --alpn` (TLS-ALPN-01
-  روی ۴۴۳) گواهی Let's Encrypt گرفته می‌شود؛ مسیر پایدار `/etc/samaline/tls/`.
+  روی ۴۴۳) گواهی Let's Encrypt گرفته می‌شود — از راهِ `scripts/tls-letsencrypt.sh`
+  یا گزینه‌ی ۴ِ منوی TLS. گزینه‌ی self-signedِ منو وقتی گواهیِ معتبر نصب است، بدونِ
+  تأییدِ صریح جایگزینش نمی‌کند (self-signed در مرورگر خطای SSL می‌دهد).
 - پشتیبان روزانه‌ی خودکار SQLite در `backend/data/backups/`.
 
 ## افزودن قابلیت — دستور آشپزی کوتاه

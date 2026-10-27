@@ -141,10 +141,22 @@ do_tls() {
   echo "۱) ساخت دوباره‌ی گواهی self-signed"
   echo "۲) معرفی گواهی واقعی (مسیر فایل‌های خودتان)"
   echo "۳) خاموش‌کردن TLS (فقط HTTP)"
+  echo "۴) گواهیِ معتبرِ Let's Encrypt (صدور/تمدید/نصب برای دامنه‌ی عمومی)"
   echo "۰) بازگشت"
   read -rp "انتخاب: " t
   case "$t" in
+    4)
+      bash "$APP_DIR/scripts/tls-letsencrypt.sh" || true
+      ;;
     1)
+      # گواهیِ self-signed در مرورگر خطای امنیتی می‌دهد؛ اگر الان گواهیِ معتبر
+      # Let's Encrypt نصب است، بدونِ تأییدِ صریح جایگزینش نمی‌کنیم.
+      if [ -f "$cert" ] && openssl x509 -noout -issuer -in "$cert" 2>/dev/null |
+        grep -q "Let's Encrypt"; then
+        warn "الان گواهیِ معتبرِ Let's Encrypt نصب است؛ self-signed در مرورگر خطای SSL می‌دهد."
+        read -rp "واقعا جایگزین شود؟ (yes/no): " sure
+        [ "$sure" = "yes" ] || { echo "تغییری داده نشد."; return; }
+      fi
       local dir ip; dir="$APP_DIR/backend/certs"
       ip="${SERVER_ADDR:-$(hostname -I | awk '{print $1}')}"; [ -n "$ip" ] || ip="127.0.0.1"
       mkdir -p "$dir"
