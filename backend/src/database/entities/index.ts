@@ -37,6 +37,7 @@ import { EmailReportRecipientEntity } from './email-report-recipient.entity';
 import { DepartmentEntity } from './department.entity';
 import { HotelRoomEntity } from './hotel-room.entity';
 import { PersonnelEntity } from './personnel.entity';
+import { AnnouncementEntity } from './announcement.entity';
 import { DepartmentMemberEntity } from './department-member.entity';
 import { PortalEntity } from './portal.entity';
 import { WorkspaceEntity } from './workspace.entity';
@@ -85,4 +86,5 @@ export const ALL_ENTITIES = [
   DepartmentMemberEntity,
   HotelRoomEntity,
   PersonnelEntity,
+  AnnouncementEntity,
 ];

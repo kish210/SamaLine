@@ -2274,6 +2274,28 @@ input[type='color'] {
   align-items: center;
   flex-wrap: wrap;
 }
+.announce-history {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  border-top: 1px solid var(--border);
+}
+.announce-history li {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.announce-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.announce-body {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
 
 /* ── گردش‌کارِ تأیید (درخواست‌های HR؛ فاز E) ─────────── */
 .review-badge {

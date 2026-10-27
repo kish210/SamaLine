@@ -42,6 +42,8 @@ import { AddPersonnelBotLink1800000000004 } from './migrations/1800000000004-Add
 import { PgAddPersonnelBotLink1800000000005 } from './migrations/1800000000005-PgAddPersonnelBotLink';
 import { AddPersonnelBotWorkspace1800000000006 } from './migrations/1800000000006-AddPersonnelBotWorkspace';
 import { PgAddPersonnelBotWorkspace1800000000007 } from './migrations/1800000000007-PgAddPersonnelBotWorkspace';
+import { AddAnnouncements1800000000008 } from './migrations/1800000000008-AddAnnouncements';
+import { PgAddAnnouncements1800000000009 } from './migrations/1800000000009-PgAddAnnouncements';
 
 /**
  * مهاجرت‌ها به‌صورت کلاس وارد می‌شوند نه با الگوی مسیر.
@@ -74,6 +76,7 @@ export const SQLITE_MIGRATIONS = [
   AddPersonnel1800000000002,
   AddPersonnelBotLink1800000000004,
   AddPersonnelBotWorkspace1800000000006,
+  AddAnnouncements1800000000008,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -95,6 +98,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddPersonnel1800000000003,
   PgAddPersonnelBotLink1800000000005,
   PgAddPersonnelBotWorkspace1800000000007,
+  PgAddAnnouncements1800000000009,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

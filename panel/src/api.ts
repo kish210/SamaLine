@@ -292,7 +292,21 @@ export const hrApi = {
     api
       .post<{ sent: number; skipped: number }>("/hr/announcements", body)
       .then((r) => r.data),
+
+  /** تاریخچهٔ اطلاعیه‌های سازمان (فاز G). */
+  announcements: () =>
+    api.get<Announcement[]>("/hr/announcements").then((r) => r.data),
 };
+
+export interface Announcement {
+  id: string;
+  departmentId: string | null;
+  title: string;
+  body: string;
+  sentByEmail: string;
+  recipientCount: number;
+  createdAt: string;
+}
 
 export const departmentsApi = {
   list: () => api.get<Department[]>('/departments').then((r) => r.data),

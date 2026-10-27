@@ -36,6 +36,10 @@ export function PersonnelPage() {
     queryKey: ["departments"],
     queryFn: departmentsApi.list,
   });
+  const announcements = useQuery({
+    queryKey: ["announcements"],
+    queryFn: hrApi.announcements,
+  });
 
   const deptName = useMemo(() => {
     const map = new Map<string, string>();
@@ -88,12 +92,13 @@ export function PersonnelPage() {
         body: annBody.trim(),
         departmentId: annDept || null,
       }),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       setAnnResult(
         `به ${res.sent} پرسنل ارسال شد${res.skipped ? ` (${res.skipped} ناموفق)` : ""}.`,
       );
       setAnnTitle("");
       setAnnBody("");
+      await queryClient.invalidateQueries({ queryKey: ["announcements"] });
     },
     onError: (err) => setAnnResult(describeError(err)),
   });
@@ -223,6 +228,26 @@ export function PersonnelPage() {
             </div>
           </form>
           {annResult && <p className="hint">{annResult}</p>}
+
+          {(announcements.data?.length ?? 0) > 0 && (
+            <ul className="announce-history">
+              {(announcements.data ?? []).map((a) => (
+                <li key={a.id}>
+                  <div className="announce-row">
+                    <strong>{a.title}</strong>
+                    <span className="hint">
+                      {new Date(a.createdAt).toLocaleDateString("fa-IR")} ·{" "}
+                      {a.recipientCount} گیرنده
+                      {a.departmentId
+                        ? ` · ${deptName.get(a.departmentId) ?? "بخش"}`
+                        : ""}
+                    </span>
+                  </div>
+                  <p className="announce-body">{a.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 

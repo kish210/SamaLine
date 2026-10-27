@@ -22,6 +22,8 @@ import { TelegramDigestService } from './telegram-digest.service';
 import { StaffBotService } from './staff-bot.service';
 import { StaffNotifyService } from './staff-notify.service';
 import { AnnouncementsController } from './announcements.controller';
+import { AnnouncementService } from './announcement.service';
+import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { HrModule } from '../hr/hr.module';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
@@ -47,6 +49,7 @@ import { EmailReportService } from './email-report.service';
       EmailReportRecipientEntity,
       WorkspaceEntity,
       FormEntity,
+      AnnouncementEntity,
     ]),
   ],
   controllers: [
@@ -64,6 +67,7 @@ import { EmailReportService } from './email-report.service';
     TelegramDigestService,
     StaffBotService,
     StaffNotifyService,
+    AnnouncementService,
     EmailReportService,
     WebhookDeliveryService,
   ],
