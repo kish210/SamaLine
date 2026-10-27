@@ -159,7 +159,13 @@ body {
   display: flex;
   flex-direction: column;
   padding: var(--space-2) 0;
-  overflow: hidden;
+  /*
+   * افقی بریده می‌ماند (انیمیشنِ جمع‌شدن)، ولی عمودی باید اسکرول شود: با
+   * چهارده آیتم، روی صفحه‌ی کم‌ارتفاع یا صفحه‌ای با محتوای کوتاه، آیتم‌های
+   * پایین — از جمله «تنظیمات سامانه»ِ سوپرادمین — بریده و دست‌نیافتنی می‌شدند.
+   */
+  overflow-x: hidden;
+  overflow-y: auto;
   white-space: nowrap;
 }
 
