@@ -26,6 +26,11 @@ export function PersonnelPage() {
   const [filter, setFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [annTitle, setAnnTitle] = useState("");
+  const [annBody, setAnnBody] = useState("");
+  const [annDept, setAnnDept] = useState("");
+  const [annResult, setAnnResult] = useState<string | null>(null);
+
   const people = useQuery({ queryKey: ["personnel"], queryFn: hrApi.list });
   const departments = useQuery({
     queryKey: ["departments"],
@@ -75,6 +80,29 @@ export function PersonnelPage() {
     onSuccess: refresh,
     onError: (err) => setError(describeError(err)),
   });
+
+  const announce = useMutation({
+    mutationFn: () =>
+      hrApi.announce({
+        title: annTitle.trim(),
+        body: annBody.trim(),
+        departmentId: annDept || null,
+      }),
+    onSuccess: (res) => {
+      setAnnResult(
+        `به ${res.sent} پرسنل ارسال شد${res.skipped ? ` (${res.skipped} ناموفق)` : ""}.`,
+      );
+      setAnnTitle("");
+      setAnnBody("");
+    },
+    onError: (err) => setAnnResult(describeError(err)),
+  });
+
+  const sendAnnouncement = (event: FormEvent) => {
+    event.preventDefault();
+    setAnnResult(null);
+    if (annTitle.trim() && annBody.trim()) announce.mutate();
+  };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -150,6 +178,51 @@ export function PersonnelPage() {
               افزودن پرسنل
             </button>
           </form>
+        </section>
+      )}
+
+      {canEdit && (
+        <section className="card">
+          <h3>اطلاعیه به ربات پرسنل</h3>
+          <p className="hint">
+            به گفتگوی بله/تلگرامِ پرسنلی می‌رود که با شماره موبایل به ربات وصل
+            شده‌اند.
+          </p>
+          <form className="announce-form" onSubmit={sendAnnouncement}>
+            <input
+              placeholder="عنوان اطلاعیه"
+              value={annTitle}
+              onChange={(e) => setAnnTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="متن اطلاعیه…"
+              rows={3}
+              value={annBody}
+              onChange={(e) => setAnnBody(e.target.value)}
+            />
+            <div className="announce-actions">
+              <select
+                value={annDept}
+                onChange={(e) => setAnnDept(e.target.value)}
+              >
+                <option value="">همهٔ پرسنل</option>
+                {(departments.data ?? []).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    فقط {d.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                disabled={
+                  announce.isPending || !annTitle.trim() || !annBody.trim()
+                }
+              >
+                ارسال اطلاعیه
+              </button>
+            </div>
+          </form>
+          {annResult && <p className="hint">{annResult}</p>}
         </section>
       )}
 

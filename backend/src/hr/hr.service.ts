@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import {
   PersonnelEntity,
   type PersonnelDocument,
@@ -130,6 +130,7 @@ export class HrService {
     mobile: string,
     botChatId: string,
     botPlatform: string,
+    botWorkspaceId?: string,
   ): Promise<PersonnelEntity | null> {
     const person = await this.findByMobile(organizationId, mobile);
     if (!person || !person.isActive) return null;
@@ -137,11 +138,12 @@ export class HrService {
     // گفتگو را از هر پرسنلِ دیگری که قبلا به آن وصل بوده جدا کن.
     await this.people.update(
       { botChatId, botPlatform },
-      { botChatId: null, botPlatform: '' },
+      { botChatId: null, botPlatform: '', botWorkspaceId: null },
     );
 
     person.botChatId = botChatId;
     person.botPlatform = botPlatform;
+    person.botWorkspaceId = botWorkspaceId ?? null;
     return this.people.save(person);
   }
 
@@ -149,9 +151,23 @@ export class HrService {
   async unlinkBotChat(botChatId: string, botPlatform: string) {
     const { affected } = await this.people.update(
       { botChatId, botPlatform },
-      { botChatId: null, botPlatform: '' },
+      { botChatId: null, botPlatform: '', botWorkspaceId: null },
     );
     return { unlinked: Boolean(affected) };
+  }
+
+  /**
+   * پرسنلِ فعالِ وصل‌به‌ربات — مقصدِ اطلاعیه‌های سازمانی (فاز F).
+   * با بخش فیلتر می‌شود تا اطلاعیه فقط به یک بخش برود.
+   */
+  linkedPersonnel(organizationId: string, departmentId?: string | null) {
+    const where: Record<string, unknown> = {
+      organizationId,
+      isActive: true,
+      botChatId: Not(IsNull()),
+    };
+    if (departmentId) where.departmentId = departmentId;
+    return this.people.find({ where });
   }
 
   private async assertMobileFree(organizationId: string, mobile: string) {

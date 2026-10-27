@@ -74,6 +74,7 @@ export class StaffBotService {
       mobile,
       chatId,
       bot.platform,
+      bot.workspaceId,
     );
     if (!person) {
       return [

@@ -28,9 +28,17 @@ describe('StaffNotifyService', () => {
     return new StaffNotifyService(botRepo, hr, api);
   };
 
-  const linkedPerson = async (mobile: string, chatId: string) => {
-    await hr.create(ORG, { fullName: 'کارمند', mobile });
-    await hr.linkBotChat(ORG, mobile, chatId, 'bale');
+  const linkedPerson = async (
+    mobile: string,
+    chatId: string,
+    opts: { name?: string; departmentId?: string } = {},
+  ) => {
+    await hr.create(ORG, {
+      fullName: opts.name ?? 'کارمند',
+      mobile,
+      departmentId: opts.departmentId,
+    });
+    await hr.linkBotChat(ORG, mobile, chatId, 'bale', WS);
   };
 
   beforeEach(async () => {
@@ -113,5 +121,54 @@ describe('StaffNotifyService', () => {
       decision: 'approved',
     });
     expect(sends).toHaveLength(0);
+  });
+
+  describe('اطلاعیهٔ سازمانی', () => {
+    it('به همهٔ پرسنلِ وصل‌به‌ربات می‌رود', async () => {
+      await linkedPerson('09120000010', 'chat-a', { name: 'الف' });
+      await linkedPerson('09120000011', 'chat-b', { name: 'ب' });
+      // پرسنلِ وصل‌نشده نباید گیرنده باشد.
+      await hr.create(ORG, { fullName: 'ج', mobile: '09120000012' });
+
+      const res = await make().broadcastAnnouncement({
+        organizationId: ORG,
+        title: 'جلسهٔ فردا',
+        body: 'ساعت ۹ در لابی.',
+      });
+      expect(res.sent).toBe(2);
+      expect(sends.map((s) => s.chatId).sort()).toEqual(['chat-a', 'chat-b']);
+      expect(sends[0].text).toContain('جلسهٔ فردا');
+      expect(sends[0].text).toContain('لابی');
+    });
+
+    it('با بخش فیلتر می‌شود', async () => {
+      await linkedPerson('09120000013', 'chat-c', {
+        name: 'فنی',
+        departmentId: 'dept-1',
+      });
+      await linkedPerson('09120000014', 'chat-d', {
+        name: 'خانه‌داری',
+        departmentId: 'dept-2',
+      });
+
+      const res = await make().broadcastAnnouncement({
+        organizationId: ORG,
+        title: 'فقط فنی',
+        body: 'تعمیرات',
+        departmentId: 'dept-1',
+      });
+      expect(res.sent).toBe(1);
+      expect(sends[0].chatId).toBe('chat-c');
+    });
+
+    it('بدونِ گیرنده، صفر می‌دهد', async () => {
+      const res = await make().broadcastAnnouncement({
+        organizationId: ORG,
+        title: 'x',
+        body: 'y',
+      });
+      expect(res).toEqual({ sent: 0, skipped: 0 });
+      expect(sends).toHaveLength(0);
+    });
   });
 });

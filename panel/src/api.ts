@@ -286,6 +286,12 @@ export const hrApi = {
 
   remove: (id: string) =>
     api.delete<{ ok: boolean }>(`/hr/personnel/${id}`).then((r) => r.data),
+
+  /** اطلاعیهٔ سازمانی به رباتِ پرسنلِ وصل‌شده (فاز F). */
+  announce: (body: { title: string; body: string; departmentId?: string | null }) =>
+    api
+      .post<{ sent: number; skipped: number }>("/hr/announcements", body)
+      .then((r) => r.data),
 };
 
 export const departmentsApi = {

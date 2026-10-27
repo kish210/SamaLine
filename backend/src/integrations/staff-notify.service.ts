@@ -36,6 +36,67 @@ export class StaffNotifyService {
     private readonly api: TelegramApi,
   ) {}
 
+  /**
+   * ارسالِ اطلاعیهٔ سازمانی به گفتگوی بله/تلگرامِ پرسنلِ وصل‌به‌ربات (فاز F).
+   *
+   * هر پرسنل فقط از همان رباتی پیام می‌گیرد که از طریقش وصل شده، پس گیرنده‌ها
+   * بر اساسِ `botWorkspaceId` گروه می‌شوند و هر گروه با توکنِ رباتِ خودش پیام
+   * می‌گیرد. اطلاعیه می‌تواند به یک بخش محدود شود. نتیجه: شمارِ ارسال‌شده/ردشده.
+   */
+  async broadcastAnnouncement(input: {
+    organizationId: string;
+    title: string;
+    body: string;
+    departmentId?: string | null;
+  }): Promise<{ sent: number; skipped: number }> {
+    const people = await this.hr.linkedPersonnel(
+      input.organizationId,
+      input.departmentId,
+    );
+    if (people.length === 0) return { sent: 0, skipped: 0 };
+
+    const text = [
+      `📢 <b>${escapeHtml(input.title)}</b>`,
+      '',
+      escapeHtml(input.body),
+    ].join('\n');
+
+    let sent = 0;
+    let skipped = 0;
+    // توکنِ هر فضای کاری یک‌بار خوانده می‌شود، نه به‌ازای هر پرسنل.
+    const botCache = new Map<string, TelegramIntegrationEntity | null>();
+
+    for (const person of people) {
+      const wsId = person.botWorkspaceId;
+      if (!wsId || !person.botChatId) {
+        skipped += 1;
+        continue;
+      }
+      if (!botCache.has(wsId)) {
+        botCache.set(
+          wsId,
+          await this.botRepo.findOne({ where: { workspaceId: wsId } }),
+        );
+      }
+      const bot = botCache.get(wsId) ?? null;
+      if (!bot || !bot.isActive) {
+        skipped += 1;
+        continue;
+      }
+
+      const result = await this.api.send(
+        bot.botToken,
+        person.botChatId,
+        text,
+        platformApiBase(person.botPlatform || bot.platform),
+      );
+      if (result.ok) sent += 1;
+      else skipped += 1;
+    }
+
+    return { sent, skipped };
+  }
+
   async notifyReviewDecision(input: ReviewNotification): Promise<void> {
     try {
       if (!input.respondentKey) return;

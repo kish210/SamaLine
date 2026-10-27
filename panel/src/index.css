@@ -2258,6 +2258,23 @@ input[type='color'] {
   white-space: nowrap;
 }
 
+/* ── اطلاعیه به ربات پرسنل (فاز F) ─────────────────── */
+.announce-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.announce-form input,
+.announce-form textarea {
+  width: 100%;
+}
+.announce-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 /* ── گردش‌کارِ تأیید (درخواست‌های HR؛ فاز E) ─────────── */
 .review-badge {
   display: inline-block;

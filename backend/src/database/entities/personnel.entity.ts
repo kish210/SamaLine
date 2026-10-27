@@ -75,6 +75,16 @@ export class PersonnelEntity {
   @Column({ type: 'varchar', length: 16, default: '' })
   botPlatform: string;
 
+  /**
+   * فضای کاریِ رباتی که پرسنل از طریقش وصل شده — فاز F.
+   *
+   * یک گفتگو فقط از همان رباتی که کاربر شروعش کرده پیام می‌گیرد؛ پس برای ارسالِ
+   * اطلاعیه باید بدانیم کدام ربات به این پرسنل می‌رسد. به `telegram_integrations
+   * .workspaceId` (یکتا) اشاره دارد.
+   */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  botWorkspaceId: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
