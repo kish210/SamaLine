@@ -54,6 +54,18 @@ export class ResponseController {
     });
   }
 
+  /** فقط شمارِ درخواست‌های معلق — برای نشانِ منوی «کارتابلِ تأیید». */
+  @Get('pending/count')
+  async pendingCount(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.responseService.pendingReviewCount(workspaceId, {
+      isManager: this.tenant.isManager(user),
+      departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+    });
+  }
+
   @Get('form/:formId')
   async list(
     @Param('formId') formId: string,

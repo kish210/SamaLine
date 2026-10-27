@@ -187,6 +187,23 @@ body {
   color: var(--white);
 }
 
+/* نشانِ تعداد (مثلا درخواست‌های معلقِ کارتابلِ تأیید). */
+.nav-badge {
+  margin-inline-start: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger-500, #dc2626);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+.app-shell.collapsed .sidebar:not(:hover) .nav-badge {
+  display: none;
+}
+
 .nav-item.active {
   background: var(--bg-sidebar-hover);
   color: var(--white);

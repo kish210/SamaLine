@@ -131,4 +131,13 @@ describe('ResponseService — کارتابلِ تأیید (فاز H)', () => {
     await seedResponse({ requiresApproval: true, reviewStatus: 'approved' });
     expect(await service.pendingReviews(workspaceId, managerScope)).toEqual([]);
   });
+
+  it('شمارِ معلق‌ها را برای نشانِ منو می‌دهد', async () => {
+    await seedResponse({ requiresApproval: true, reviewStatus: 'pending' });
+    await seedResponse({ requiresApproval: true, reviewStatus: 'pending' });
+    await seedResponse({ requiresApproval: true, reviewStatus: 'approved' });
+    expect(await service.pendingReviewCount(workspaceId, managerScope)).toEqual({
+      count: 2,
+    });
+  });
 });

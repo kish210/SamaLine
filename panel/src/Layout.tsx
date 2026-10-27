@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { authApi, platformApi } from "./api";
+import { authApi, platformApi, responsesApi, workspaceApi } from "./api";
 import { NavIcon } from "./NavIcon";
 import { useAuth } from "./auth";
 import { ROLE_LABELS } from "./types";
@@ -84,6 +84,27 @@ export function Layout() {
     queryFn: platformApi.me,
     retry: false,
   });
+
+  /*
+   * نشانِ تعدادِ درخواست‌های معلق روی «کارتابلِ تأیید» (فاز H).
+   *
+   * هر دقیقه تازه می‌شود تا مدیر بدونِ باز کردنِ صفحه هم ببیند چیزی منتظرِ
+   * اوست. خطا بی‌صدا نادیده گرفته می‌شود؛ نشان فقط یک کمک است، نه داده‌ی حیاتی.
+   */
+  const workspaces = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: workspaceApi.list,
+    retry: false,
+  });
+  const workspaceId = workspaces.data?.[0]?.id ?? "";
+  const pendingCount = useQuery({
+    queryKey: ["pending-count", workspaceId],
+    queryFn: () => responsesApi.pendingCount(workspaceId),
+    enabled: Boolean(workspaceId),
+    retry: false,
+    refetchInterval: 60_000,
+  });
+  const pendingBadge = pendingCount.data?.count ?? 0;
 
   /*
    * دو رفتار متفاوت، با یک دکمه.
@@ -214,6 +235,9 @@ export function Layout() {
                 <NavIcon name={item.icon} />
               </span>
               <span className="nav-label">{item.label}</span>
+              {item.to === "/approvals" && pendingBadge > 0 && (
+                <span className="nav-badge">{pendingBadge}</span>
+              )}
             </NavLink>
           ))}
         </nav>

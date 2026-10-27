@@ -85,6 +85,36 @@ export class ResponseService {
     workspaceId: string,
     scope: { isManager: boolean; departmentIds: string[] },
   ) {
+    const { rows, titleById } = await this.findPending(workspaceId, scope);
+    return rows.map((row) => {
+      const review = row.meta?.review as Record<string, unknown>;
+      const formId = row.formVersion?.formId ?? '';
+      return {
+        responseId: row.id,
+        formId,
+        formTitle: titleById.get(formId) ?? 'فرم',
+        respondentKey: row.respondentKey,
+        submittedAt: row.submittedAt,
+        requestedAt: (review?.requestedAt as string) ?? null,
+        answers: row.answers,
+      };
+    });
+  }
+
+  /** فقط شمارِ درخواست‌های معلق — برای نشانِ منو (فاز H). */
+  async pendingReviewCount(
+    workspaceId: string,
+    scope: { isManager: boolean; departmentIds: string[] },
+  ) {
+    const { rows } = await this.findPending(workspaceId, scope);
+    return { count: rows.length };
+  }
+
+  /** فرم‌های نیازمندِ تأییدِ قابل‌دسترسِ مدیر و پاسخ‌های معلقِ آن‌ها. */
+  private async findPending(
+    workspaceId: string,
+    scope: { isManager: boolean; departmentIds: string[] },
+  ) {
     const forms = (await this.formRepo.find({ where: { workspaceId } })).filter(
       (form) =>
         Boolean(
@@ -95,10 +125,12 @@ export class ResponseService {
           !form.departmentId ||
           scope.departmentIds.includes(form.departmentId)),
     );
-    if (forms.length === 0) return [];
+    if (forms.length === 0) {
+      return { rows: [] as ResponseEntity[], titleById: new Map<string, string>() };
+    }
 
     const titleById = new Map(forms.map((form) => [form.id, form.title]));
-    const rows = await this.responseRepo
+    const all = await this.responseRepo
       .createQueryBuilder('response')
       .leftJoinAndSelect('response.formVersion', 'formVersion')
       .where('formVersion.formId IN (:...ids)', {
@@ -109,25 +141,12 @@ export class ResponseService {
       .take(1000)
       .getMany();
 
-    return rows
-      .filter(
-        (row) =>
-          (row.meta?.review as Record<string, unknown> | undefined)?.status ===
-          'pending',
-      )
-      .map((row) => {
-        const review = row.meta?.review as Record<string, unknown>;
-        const formId = row.formVersion?.formId ?? '';
-        return {
-          responseId: row.id,
-          formId,
-          formTitle: titleById.get(formId) ?? 'فرم',
-          respondentKey: row.respondentKey,
-          submittedAt: row.submittedAt,
-          requestedAt: (review?.requestedAt as string) ?? null,
-          answers: row.answers,
-        };
-      });
+    const rows = all.filter(
+      (row) =>
+        (row.meta?.review as Record<string, unknown> | undefined)?.status ===
+        'pending',
+    );
+    return { rows, titleById };
   }
 
   async exportByForm(formId: string) {

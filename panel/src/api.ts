@@ -506,6 +506,14 @@ export const responsesApi = {
     api
       .get<PendingReview[]>("/responses/pending", { params: { workspaceId } })
       .then((r) => r.data),
+
+  /** فقط شمارِ معلق‌ها — برای نشانِ منو (فاز H). */
+  pendingCount: (workspaceId: string) =>
+    api
+      .get<{ count: number }>("/responses/pending/count", {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
 };
 
 export const contactsApi = {
