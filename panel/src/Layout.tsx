@@ -27,6 +27,7 @@ const NAV = [
   { to: "/ai", label: "هوش مصنوعی", icon: "ai" },
   { to: "/rooms", label: "اتاق‌های هتل", icon: "rooms" },
   { to: "/personnel", label: "پرسنل", icon: "personnel" },
+  { to: "/approvals", label: "کارتابلِ تأیید", icon: "approvals" },
   { to: "/settings", label: "تنظیمات", icon: "settings" },
 ];
 

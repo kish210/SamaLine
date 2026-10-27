@@ -73,6 +73,63 @@ export class ResponseService {
     return qb.orderBy('response.createdAt', 'DESC').take(500).getMany();
   }
 
+  /**
+   * درخواست‌های در انتظارِ تأیید در یک فضای کاری — کارتابلِ مدیر (فاز H).
+   *
+   * فقط فرم‌های `requiresApproval` که مدیر به بخششان دسترسی دارد بررسی می‌شوند.
+   * وضعیتِ بررسی داخلِ `meta.review` (JSON) است و فیلترِ آن بین SQLite/Postgres
+   * فرق دارد، پس پاسخ‌های کاملِ همان فرم‌ها خوانده و در حافظه فیلتر می‌شوند؛ چون
+   * فقط فرم‌های نیازمندِ تأیید را می‌خوانیم، دامنه کوچک می‌ماند.
+   */
+  async pendingReviews(
+    workspaceId: string,
+    scope: { isManager: boolean; departmentIds: string[] },
+  ) {
+    const forms = (await this.formRepo.find({ where: { workspaceId } })).filter(
+      (form) =>
+        Boolean(
+          (form.settings as Record<string, unknown> | undefined)
+            ?.requiresApproval,
+        ) &&
+        (scope.isManager ||
+          !form.departmentId ||
+          scope.departmentIds.includes(form.departmentId)),
+    );
+    if (forms.length === 0) return [];
+
+    const titleById = new Map(forms.map((form) => [form.id, form.title]));
+    const rows = await this.responseRepo
+      .createQueryBuilder('response')
+      .leftJoinAndSelect('response.formVersion', 'formVersion')
+      .where('formVersion.formId IN (:...ids)', {
+        ids: forms.map((form) => form.id),
+      })
+      .andWhere('response.status = :status', { status: 'completed' })
+      .orderBy('response.createdAt', 'DESC')
+      .take(1000)
+      .getMany();
+
+    return rows
+      .filter(
+        (row) =>
+          (row.meta?.review as Record<string, unknown> | undefined)?.status ===
+          'pending',
+      )
+      .map((row) => {
+        const review = row.meta?.review as Record<string, unknown>;
+        const formId = row.formVersion?.formId ?? '';
+        return {
+          responseId: row.id,
+          formId,
+          formTitle: titleById.get(formId) ?? 'فرم',
+          respondentKey: row.respondentKey,
+          submittedAt: row.submittedAt,
+          requestedAt: (review?.requestedAt as string) ?? null,
+          answers: row.answers,
+        };
+      });
+  }
+
   async exportByForm(formId: string) {
     const form = await this.formRepo.findOne({ where: { id: formId } });
     const responses = await this.listByForm(formId);

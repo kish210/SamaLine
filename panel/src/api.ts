@@ -481,7 +481,17 @@ export const reportsApi = {
       .then((r) => r.data),
 };
 
-/** گردش‌کارِ تأیید روی پاسخ‌نامه‌ها (درخواست‌های HR؛ فاز E). */
+export interface PendingReview {
+  responseId: string;
+  formId: string;
+  formTitle: string;
+  respondentKey: string | null;
+  submittedAt: string | null;
+  requestedAt: string | null;
+  answers: Record<string, unknown>;
+}
+
+/** گردش‌کارِ تأیید روی پاسخ‌نامه‌ها (درخواست‌های HR؛ فاز E/H). */
 export const responsesApi = {
   review: (
     responseId: string,
@@ -489,6 +499,12 @@ export const responsesApi = {
   ) =>
     api
       .patch<ResponseRow>(`/responses/${responseId}/review`, body)
+      .then((r) => r.data),
+
+  /** کارتابلِ درخواست‌های در انتظارِ تأیید در یک فضای کاری (فاز H). */
+  pending: (workspaceId: string) =>
+    api
+      .get<PendingReview[]>("/responses/pending", { params: { workspaceId } })
       .then((r) => r.data),
 };
 

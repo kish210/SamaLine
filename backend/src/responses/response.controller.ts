@@ -37,6 +37,23 @@ export class ResponseController {
     private readonly tenant: TenantAccessService,
   ) {}
 
+  /**
+   * کارتابلِ درخواست‌های در انتظارِ تأیید (فاز H).
+   *
+   * همهٔ درخواست‌های معلقِ فرم‌های نیازمندِ تأیید را که مدیر به بخششان دسترسی
+   * دارد، یک‌جا می‌دهد تا لازم نباشد تک‌تکِ فرم‌ها باز شوند.
+   */
+  @Get('pending')
+  async pending(
+    @Query('workspaceId') workspaceId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    return this.responseService.pendingReviews(workspaceId, {
+      isManager: this.tenant.isManager(user),
+      departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+    });
+  }
+
   @Get('form/:formId')
   async list(
     @Param('formId') formId: string,
