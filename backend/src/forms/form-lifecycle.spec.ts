@@ -14,6 +14,7 @@ import {
   PlanPolicyEntity,
 } from '../database/entities/plan-policy.entity';
 import {
+  PublicationAuthMode,
   PublicationEntity,
   PublicationType,
 } from '../database/entities/publication.entity';
@@ -226,6 +227,34 @@ describe('FormService — بایگانی و حذف', () => {
 
     it('فرم ناموجود «یافت نشد» می‌دهد', async () => {
       await expect(service.remove('نیست', 0)).rejects.toThrow('فرم یافت نشد');
+    });
+  });
+
+  // دکمه‌ی «فعال‌سازی برای کارکنان» در صفحه‌ی «واحدهای هتل» همین دو گام است.
+  describe('فعال‌سازیِ فرمِ واحد برای کارکنان', () => {
+    it('فرمِ پیش‌نویسِ قالبیِ یک بخش فعال و فقط-کارمندی می‌شود', async () => {
+      const { workspace } = await seed();
+      const form = await service.create({
+        workspaceId: workspace.id,
+        title: 'گزارش فنی',
+        slug: `tech-${Date.now()}`,
+        templateKey: 'ops-technical-daily',
+        departmentId: 'dept-technical',
+      } as Parameters<FormService['create']>[0]);
+      expect(form.status).toBe(FormStatus.DRAFT);
+
+      const pub = await service.publishLink(form.id);
+      const staff = await service.setAuthMode(form.id, PublicationAuthMode.STAFF);
+      expect(staff.authMode).toBe(PublicationAuthMode.STAFF);
+
+      const saved = await ds.getRepository(FormEntity).findOneByOrFail({ id: form.id });
+      expect(saved.status).toBe(FormStatus.ACTIVE);
+      expect(saved.departmentId).toBe('dept-technical');
+
+      // تکرار، همان لینک را برمی‌گرداند و حالتِ احراز را عوض نمی‌کند.
+      const again = await service.publishLink(form.id);
+      expect(again.token).toBe(pub.token);
+      expect(again.authMode).toBe(PublicationAuthMode.STAFF);
     });
   });
 });

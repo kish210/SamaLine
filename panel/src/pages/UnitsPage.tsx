@@ -11,6 +11,8 @@ import {
 } from "../api";
 import { useAuth } from "../auth";
 import { hasRole } from "../types";
+import type { FormSummary } from "../types";
+import { formUrl } from "../renderer-url";
 
 const FORM_STATUS: Record<string, string> = {
   draft: "پیش‌نویس",
@@ -81,6 +83,41 @@ export function UnitsPage() {
     onError: (err) => setError(describeError(err)),
   });
 
+  /** لینکِ کارکنانِ هر فرم، پس از فعال‌سازی یا درخواستِ نمایش. */
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const canPublish = hasRole(me?.role ?? null, "editor");
+
+  /*
+   * فعال‌سازیِ فرمِ واحد برای کارکنان: فرم فعال و لینکش ساخته می‌شود و احرازِ
+   * «کارمند» روی آن می‌نشیند (فقط کارمندِ واردشده‌ی همین بخش یا مدیر پر می‌کند).
+   * برای فرمِ از قبل فعال فقط لینک گرفته می‌شود و حالتِ احرازش دست نمی‌خورد —
+   * publishLink تکرارپذیر است و همان انتشارِ موجود را برمی‌گرداند.
+   */
+  const activate = useMutation({
+    mutationFn: async (form: FormSummary) => {
+      const publication = await formsApi.publishLink(form.id);
+      if (form.status !== "active") {
+        await formsApi.setAuthMode(form.id, "staff");
+      }
+      return { formId: form.id, url: formUrl(publication.slug ?? publication.token) };
+    },
+    onSuccess: async ({ formId, url }) => {
+      setError(null);
+      setLinks((current) => ({ ...current, [formId]: url }));
+      await queryClient.invalidateQueries({ queryKey: ["forms", workspaceId] });
+    },
+    onError: (err) => setError(describeError(err)),
+  });
+
+  const copy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage("لینک کپی شد.");
+    } catch {
+      window.prompt("لینک را کپی کنید:", url);
+    }
+  };
+
   const units = useMemo(
     () =>
       (departments.data ?? []).map((dept) => ({
@@ -149,6 +186,12 @@ export function UnitsPage() {
             )}
 
             <h4>فرم‌ها</h4>
+            {(dept.memberCount ?? 0) === 0 && unitForms.length > 0 && (
+              <p className="hint">
+                این واحد هنوز عضوی ندارد؛ فرمِ «کارمند» را فعلا فقط مدیران پر
+                می‌کنند. عضوها را از «تنظیمات ← بخش‌ها» اضافه کنید.
+              </p>
+            )}
             {unitForms.length === 0 ? (
               <p className="hint">فرمی ندارد.</p>
             ) : (
@@ -157,8 +200,40 @@ export function UnitsPage() {
                   <li key={f.id}>
                     <Link to={`/forms/${f.id}`}>📝 {f.title}</Link>{" "}
                     <span className="hint">
-                      ({FORM_STATUS[f.status] ?? f.status})
+                      ({FORM_STATUS[f.status] ?? f.status}
+                      {f.responseCount
+                        ? ` · ${f.responseCount.toLocaleString("fa-IR")} گزارش`
+                        : ""}
+                      )
                     </span>
+                    {canPublish && f.status !== "archived" && (
+                      <div className="unit-actions">
+                        <button
+                          type="button"
+                          className={f.status === "active" ? "secondary" : ""}
+                          disabled={activate.isPending}
+                          onClick={() => activate.mutate(f)}
+                        >
+                          {f.status === "active"
+                            ? "لینکِ کارکنان"
+                            : "فعال‌سازی برای کارکنان"}
+                        </button>
+                        {links[f.id] && (
+                          <>
+                            <code dir="ltr" className="unit-link">
+                              {links[f.id]}
+                            </code>
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => void copy(links[f.id])}
+                            >
+                              کپی
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
