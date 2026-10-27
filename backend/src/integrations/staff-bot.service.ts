@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { HrService } from '../hr/hr.service';
+import { AnnouncementService } from './announcement.service';
+import { isoToJalaliText } from '../common/jalali';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 
 /** موبایلِ ایرانی: ۱۰ تا ۱۳ رقم (با/بی ۰ یا ۹۸). فقط رقم و نشانه‌های رایج. */
@@ -26,6 +28,7 @@ export class StaffBotService {
     @InjectRepository(WorkspaceEntity)
     private readonly workspaces: Repository<WorkspaceEntity>,
     private readonly hr: HrService,
+    private readonly announcements: AnnouncementService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -55,10 +58,43 @@ export class StaffBotService {
     if (command === '/خروج' || command === '/leave') {
       return this.unlink(bot, chatId);
     }
+    if (command === '/اطلاعیه' || command === '/news') {
+      return this.recentAnnouncements(bot, chatId);
+    }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
     return null;
+  }
+
+  /**
+   * آخرین اطلاعیه‌های مربوط به این پرسنل (فاز G): اطلاعیهٔ عمومیِ سازمان و
+   * اطلاعیهٔ بخشِ خودش. فقط برای پرسنلِ وصل‌شده.
+   */
+  private async recentAnnouncements(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<string> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+
+    const all = await this.announcements.list(person.organizationId);
+    const relevant = all
+      .filter((a) => !a.departmentId || a.departmentId === person.departmentId)
+      .slice(0, 5);
+
+    if (relevant.length === 0) return 'اطلاعیه‌ای برای شما نیست.';
+
+    const lines = ['📢 <b>آخرین اطلاعیه‌ها</b>', ''];
+    for (const a of relevant) {
+      const date = isoToJalaliText(new Date(a.createdAt).toISOString());
+      lines.push(`<b>${escapeHtml(a.title)}</b>${date ? ` — ${date}` : ''}`);
+      lines.push(escapeHtml(a.body));
+      lines.push('');
+    }
+    return lines.join('\n').trim();
   }
 
   private async link(
