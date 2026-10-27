@@ -15,6 +15,7 @@ import type {
   Menu,
   MenuSection,
   MenuTemplateSummary,
+  MenuTheme,
   OrganizationRole,
   Portal,
   Publication,
@@ -293,6 +294,20 @@ export const hrApi = {
       .post<{ sent: number; skipped: number }>("/hr/announcements", body)
       .then((r) => r.data),
 
+  /** گزارش: خلاصهٔ درخواست‌های هر پرسنل. */
+  requestStats: () =>
+    api
+      .get<
+        Array<{
+          personnelId: string;
+          total: number;
+          pending: number;
+          approved: number;
+          rejected: number;
+        }>
+      >("/hr/personnel/request-stats")
+      .then((r) => r.data),
+
   /** تاریخچهٔ اطلاعیه‌های سازمان (فاز G). */
   announcements: () =>
     api.get<Announcement[]>("/hr/announcements").then((r) => r.data),
@@ -307,6 +322,26 @@ export interface Announcement {
   recipientCount: number;
   createdAt: string;
 }
+
+export interface UnitSetupResult {
+  key: string;
+  name: string;
+  departmentId: string;
+  department: "created" | "existing";
+  form: "created" | "existing" | "skipped";
+  dashboard: "created" | "existing";
+  note?: string;
+}
+
+/** راه‌اندازیِ یک‌کلیکیِ واحدهای استانداردِ هتل. */
+export const hotelSetupApi = {
+  standardUnits: (workspaceId: string) =>
+    api
+      .post<UnitSetupResult[]>("/hotel-setup/standard-units", null, {
+        params: { workspaceId },
+      })
+      .then((r) => r.data),
+};
 
 export const departmentsApi = {
   list: () => api.get<Department[]>('/departments').then((r) => r.data),
@@ -1025,6 +1060,9 @@ export const menusApi = {
   templates: () =>
     api.get<MenuTemplateSummary[]>("/menus/templates").then((r) => r.data),
 
+  /** ظاهرهای آماده‌ی صفحه‌ی منو. */
+  themes: () => api.get<MenuTheme[]>("/menus/themes").then((r) => r.data),
+
   list: (workspaceId: string) =>
     api.get<Menu[]>("/menus", { params: { workspaceId } }).then((r) => r.data),
 
@@ -1040,6 +1078,7 @@ export const menusApi = {
       sections: MenuSection[];
       isActive: boolean;
       templateKey: string;
+      theme: string;
     }>,
   ) =>
     api

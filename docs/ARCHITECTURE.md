@@ -64,9 +64,19 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 | `plans` | `/plans` | سیاست پلن و اعمال سقف‌ها (`PlanService`) | PlanPolicy، Subscription، UsageCounter |
 | `billing` | `/billing` | فاکتور و پرداخت (زرین‌پال) | Invoice، Payment |
 | `channels` | `/channels` | تنظیم سرویس‌دهنده‌های پیام (SMTP/پیامک) | — |
-| `menus` | `/menus`, `/public/menu` | منوی دیجیتال (قابلیت افزوده) | Menu |
-| `maintenance` | `/maintenance` | نگهداری/تعمیرات هتل: درخواست‌ها، داشبورد، ردپای ممیزی، آماده‌بودن اتاق (مستقل از وضعیت تیکت) | MaintenanceRequest، MaintenanceEvent، RoomReadiness |
-| `sensors` | `/sensors` | پایش دمای سردخانه: سنسور، قرائت‌ها، هشدار حد/کهنگی، تأیید هشدار؛ connector ماژولار (manual/http/simulated) + poll زمان‌بند | ColdRoomSensor، SensorReading، SensorAlert |
+| `menus` | `/menus`, `/public/menu` | منوی QR: محتوا (قالب‌های آماده، قابل تعویض روی منوی موجود) + ظاهر (`theme`، شش ظاهرِ آماده در `templates/menu-themes.ts`) | Menu |
+| `departments` | `/departments` | بخش‌های هتل و عضویت؛ پایه‌ی دسترسی per-بخش (فاز A) | Department، DepartmentMember |
+| `checklists` | (زمان‌بند) | چک‌لیستِ موعددار و هشدارِ انجام‌نشده (فاز C) | — |
+| `rooms` | `/rooms` | اتاق‌های هتل به‌عنوان داده‌ی پایه + ساخت گروهی (فاز D) | HotelRoom |
+| `hr` | `/hr/personnel` | پروندهٔ پرسنل، اتصالِ ربات با موبایل، گزارشِ درخواست‌های هر پرسنل (`HrStatsService`) | Personnel |
+| `hotel-setup` | `/hotel-setup` | راه‌اندازیِ یک‌کلیکیِ واحدهای استاندارد (بخش + فرمِ عملیاتی + داشبورد)؛ CLI: `npm run setup-hotel` | — |
+
+`integrations` علاوه بر بالا رباتِ پرسنل (`StaffBotService`: اتصال با موبایل،
+`/me`، `/درخواست‌ها`، `/اطلاعیه`)، اعلانِ نتیجهٔ تأیید (`StaffNotifyService`) و
+اطلاعیه‌ی سازمانی (`/hr/announcements`، موجودیت Announcement) را دارد. گردش‌کارِ
+تأییدِ درخواست‌ها (`requiresApproval` در تنظیماتِ فرم، `meta.review` روی پاسخ) و
+کارتابلِ تأیید (`/responses/pending`) در `responses` است. ماژول‌های تعمیرات و
+سردخانه در ۱.۶.۸ حذف شدند (فرم‌محور).
 | `platform` | `/platform` | تنظیمات سکو، سوپرادمین، AI، نوار پایین، ثبت‌نام | PlatformSettings |
 | `admin` | `/admin` | ابزار مدیر کل روی سازمان‌ها/پلن‌ها | — |
 | `ops` | `/ops` | پایش و کنترل سرویس systemd از پنل سوپرادمین | — |
@@ -161,7 +171,7 @@ REMAINING.md      امکانات هنوز پیاده‌نشده
 - `update.sh` — `git pull --ff-only` سپس deploy.
 - `manage.sh` — منوی مدیریت: وضعیت/ری‌استارت، به‌روزرسانی، پورت‌ها، نشانی شبکه،
   گواهی TLS، سوپرادمین، کاربر (reset رمز/۲FA)، هوش مصنوعی.
-- CLIهای بک‌اند: `npm run superadmin|set-ai|reset-password|reset-2fa|smoke`.
+- CLIهای بک‌اند: `npm run superadmin|set-ai|reset-password|reset-2fa|smoke|setup-hotel`.
 - متغیرهای کلیدی `.env`: `PORT`/`HTTPS_PORT`، `TLS_CERT`/`TLS_KEY`، `PUBLIC_URL`،
   `DB_DRIVER`، `JWT_SECRET`، `SECRET_ENCRYPTION_KEY`، `EMAIL_PROVIDER`/`SMS_PROVIDER`.
 - **گواهی واقعی:** چون فقط ۴۴۳ ممکن است باز باشد، با `acme.sh --alpn` (TLS-ALPN-01

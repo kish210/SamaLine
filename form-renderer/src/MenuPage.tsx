@@ -52,8 +52,11 @@ export function MenuPage() {
   }
 
   const empty = menu.images.length === 0 && menu.sections.length === 0;
+  // ظاهرِ انتخاب‌شده در پنل؛ کلاسِ ناشناخته همان ظاهرِ پیش‌فرض را می‌دهد.
+  const themeKey = /^[a-z-]+$/.test(menu.theme ?? "") ? menu.theme : "classic";
 
   return (
+    <div className={`menu-shell menu-theme-${themeKey}`}>
     <main className="menu-page">
       <header className="menu-header">
         {menu.logoUrl && (
@@ -96,5 +99,6 @@ export function MenuPage() {
 
       <PlatformFooter footer={menu.footer} />
     </main>
+    </div>
   );
 }

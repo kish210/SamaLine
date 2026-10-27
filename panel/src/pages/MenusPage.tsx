@@ -72,6 +72,13 @@ export function MenusPage() {
     onError: (err) => setError(describeError(err)),
   });
 
+  const themes = useQuery({
+    queryKey: ["menu-themes"],
+    queryFn: menusApi.themes,
+  });
+  /** قالبِ محتوایی که کاربر برای جایگزینیِ بخش‌های منوی فعلی انتخاب کرده. */
+  const [applyKey, setApplyKey] = useState("");
+
   const save = useMutation({
     mutationFn: (menu: Menu) =>
       menusApi.save(workspaceId, menu.id, {
@@ -81,10 +88,30 @@ export function MenusPage() {
         logoUrl: menu.logoUrl,
         images: menu.images,
         sections: menu.sections,
+        theme: menu.theme,
         isActive: menu.isActive,
       }),
     onSuccess: async (menu) => {
       setEditing(menu);
+      setError(null);
+      await refresh();
+    },
+    onError: (err) => setError(describeError(err)),
+  });
+
+  /*
+   * تعویضِ محتوا با یک قالبِ آماده روی منوی موجود. بخش‌های فعلی جایگزین
+   * می‌شوند ولی عنوان، لوگو، عکس‌ها و ظاهر می‌مانند.
+   */
+  const applyTemplate = useMutation({
+    mutationFn: (menu: Menu) =>
+      menusApi.save(workspaceId, menu.id, {
+        slug: menu.slug,
+        templateKey: applyKey,
+      }),
+    onSuccess: async (menu) => {
+      setEditing(menu);
+      setApplyKey("");
       setError(null);
       await refresh();
     },
@@ -273,6 +300,74 @@ export function MenusPage() {
               />{" "}
               فعال باشد (خاموش کردن، QRهای چاپ‌شده را موقتا بی‌اثر می‌کند)
             </label>
+          </div>
+
+          <h4>ظاهرِ منو</h4>
+          <p className="hint">
+            رنگ‌بندیِ صفحه‌ای که مهمان با اسکن QR می‌بیند. هر وقت بخواهید قابل
+            تغییر است؛ QRِ چاپ‌شده عوض نمی‌شود.
+          </p>
+          <div className="theme-picker">
+            {(themes.data ?? []).map((t) => (
+              <button
+                type="button"
+                key={t.key}
+                className={
+                  (editing.theme || "classic") === t.key
+                    ? "theme-swatch active"
+                    : "theme-swatch"
+                }
+                style={{ background: t.bg, color: t.ink, borderColor: t.accent }}
+                onClick={() => patch({ theme: t.key })}
+                aria-pressed={(editing.theme || "classic") === t.key}
+              >
+                <span
+                  className="theme-dot"
+                  style={{ background: t.accent }}
+                  aria-hidden="true"
+                />
+                {t.title}
+              </button>
+            ))}
+          </div>
+
+          <h4>تعویضِ محتوا با قالبِ آماده</h4>
+          <p className="hint">
+            بخش‌ها و اقلامِ فعلی با محتوای قالب جایگزین می‌شوند؛ عنوان، لوگو،
+            عکس‌ها و ظاهر می‌مانند. تغییراتِ ذخیره‌نشده را پیش از آن ذخیره کنید.
+          </p>
+          <div className="inline-form">
+            <select
+              value={applyKey}
+              onChange={(e) => setApplyKey(e.target.value)}
+            >
+              <option value="">— یک قالب انتخاب کنید —</option>
+              {Object.entries(grouped).map(([category, items]) => (
+                <optgroup key={category} label={category}>
+                  {items.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.icon} {t.title}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="secondary"
+              disabled={!applyKey || applyTemplate.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "بخش‌ها و اقلامِ فعلیِ این منو با محتوای قالب جایگزین شود؟",
+                  )
+                ) {
+                  applyTemplate.mutate(editing);
+                }
+              }}
+            >
+              اعمالِ قالب
+            </button>
           </div>
 
           <h4>لوگو</h4>

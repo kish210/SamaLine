@@ -164,4 +164,39 @@ describe('MenuService — منوی QR', () => {
       }),
     ).rejects.toThrow('عکس');
   });
+
+  describe('ظاهر و تعویضِ قالب', () => {
+    it('ظاهرِ پیش‌فرض کلاسیک است و قابل تغییر', async () => {
+      const menu = await service.save(workspaceId, null, { slug: 'lobby' });
+      expect(menu.theme).toBe('classic');
+      const updated = await service.save(workspaceId, menu.id, {
+        theme: 'gold',
+      });
+      expect(updated.theme).toBe('gold');
+      const pub = await service.publicBySlug('lobby');
+      expect(pub.theme).toBe('gold');
+    });
+
+    it('ظاهرِ ناشناخته رد می‌شود', async () => {
+      const menu = await service.save(workspaceId, null, { slug: 'cafe1' });
+      await expect(
+        service.save(workspaceId, menu.id, { theme: 'neon-pink' }),
+      ).rejects.toThrow('ظاهر');
+    });
+
+    it('قالبِ محتوا روی منوی موجود بخش‌ها را جایگزین می‌کند و عنوان می‌ماند', async () => {
+      const menu = await service.save(workspaceId, null, {
+        slug: 'room',
+        title: 'منوی اتاقِ کوروش',
+      });
+      const template = MENU_TEMPLATES.find((t) =>
+        t.sections.some((s) => s.items.length > 0),
+      )!;
+      const updated = await service.save(workspaceId, menu.id, {
+        templateKey: template.key,
+      });
+      expect(updated.title).toBe('منوی اتاقِ کوروش');
+      expect(updated.sections.length).toBe(template.sections.length);
+    });
+  });
 });

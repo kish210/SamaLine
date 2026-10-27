@@ -25,6 +25,7 @@ const NAV = [
   { to: "/sources", label: "اتصال به CRM", icon: "crm" },
   { to: "/campaigns", label: "ارسال گروهی", icon: "campaigns" },
   { to: "/ai", label: "هوش مصنوعی", icon: "ai" },
+  { to: "/units", label: "واحدهای هتل", icon: "units" },
   { to: "/rooms", label: "اتاق‌های هتل", icon: "rooms" },
   { to: "/personnel", label: "پرسنل", icon: "personnel" },
   { to: "/approvals", label: "کارتابلِ تأیید", icon: "approvals" },

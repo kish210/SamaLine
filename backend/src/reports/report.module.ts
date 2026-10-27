@@ -42,6 +42,6 @@ import { AnalyticsService } from './analytics.service';
   ],
   providers: [ReportService, ExportService, DashboardService, AnalyticsService],
   // گزارش دوره‌ای تلگرام از همین تجمیع استفاده می‌کند.
-  exports: [AnalyticsService],
+  exports: [AnalyticsService, DashboardService],
 })
 export class ReportModule {}

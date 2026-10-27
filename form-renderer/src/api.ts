@@ -44,6 +44,8 @@ export interface PublicMenu {
   title: string;
   description: string;
   logoUrl: string;
+  /** ظاهرِ صفحه؛ کلاسِ `.menu-theme-<key>` رنگ‌ها را تعیین می‌کند. */
+  theme?: string;
   images: string[];
   sections: Array<{
     id: string;

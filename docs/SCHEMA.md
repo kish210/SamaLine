@@ -154,7 +154,24 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **audit_logs** — `organizationId`, `action`, `actorType`, `actorId*`,
   `payload`(JSON). (جدول هست؛ نوشتن رویداد هنوز کامل نیست.)
 - **menus** — `workspaceId`, `slug`(یکتا), `title`, `description`, `logoUrl`,
-  `images`, `sections`(JSON)، `isActive`. منوی دیجیتال (قابلیت افزوده).
+  `images`, `sections`(JSON)، `theme` (کلیدِ ظاهر، پیش‌فرض `classic`)، `isActive`.
+  منوی QR.
+
+### عملیاتِ هتل (فازهای A–H)
+- **departments** — `organizationId`, `name`, `key` (technical/housekeeping/hr/
+  it/contractors یا خالی). **department_members** — `departmentId`, `userId`.
+  فرم/پرتال/داشبورد `departmentId*` دارند (null = عمومی).
+- **hotel_rooms** — `organizationId`, `number` (یکتا در سازمان), `floor`, `kind`,
+  `assets`(JSON), `isActive`.
+- **personnel** — `organizationId`, `fullName`, `mobile` (کلیدِ ربات؛ یکتاییِ
+  غیرخالی در سرویس)، `employeeNo`, `position`, `departmentId*`, `hireDate`
+  ('YYYY-MM-DD'), `documents`(JSON), `notes`, `botChatId*`, `botPlatform`,
+  `botWorkspaceId*`, `isActive`.
+- **announcements** — `organizationId`, `departmentId*`, `title`, `body`,
+  `sentByEmail`, `recipientCount`, `createdAt`.
+- گردش‌کارِ تأیید بدونِ جدول است: `forms.settings.requiresApproval` و
+  `responses.meta.review` (`status` pending/approved/rejected، `byEmail`، `at`،
+  `note`، `requestedAt`).
 - **api_keys** — `organizationId`, `name`, `keyPrefix`(یکتا), `keyHash`,
   `isActive`, `role` (OrganizationRole), `lastUsedAt*`, `expiresAt*`,
   `scopes`(JSON). احراز با `X-API-Key` یا `Authorization: Bearer sl_…`.
@@ -168,15 +185,8 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **PublicationAuthMode**: none / param / link / password / otp / oauth / ldap
 - **InvoiceStatus**, **PaymentStatus**, **JobStatus**, **IdentityProviderType** —
   در فایل موجودیت همان‌ها.
-- **MaintenanceCategory**: electrical / plumbing / hvac / carpentry / painting /
-  furniture / network_phone_tv / locks_access / other
-- **MaintenancePriority**: normal / urgent / emergency
-- **MaintenanceStatus**: new / in_progress / waiting_part / contractor_required /
-  follow_up / done / cancelled
-- **RoomReadinessStatus**: ready / needs_inspection / not_ready
-- **SensorConnectorKind**: manual / http / simulated
-- **SensorHealth**: ok / low / high / stale / unknown
-- **SensorAlertKind**: low / high / stale
+- PublicationAuthMode علاوه بر بالا `staff` هم دارد (فرمِ عملیاتی، فاز A).
+- enumهای تعمیرات و سردخانه با حذفِ آن ماژول‌ها (۱.۶.۸) دیگر استفاده نمی‌شوند.
 
 ## مهاجرت‌ها
 
@@ -194,6 +204,16 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 10. `AddEmailReports` — جدول email_report_recipients.
 11. `AddMaintenance` — جدول‌های maintenance_requests، maintenance_events، room_readiness.
 12. `AddColdRoomSensors` — جدول‌های cold_room_sensors، sensor_readings، sensor_alerts.
+13. `DropHotelOpsModules` — حذفِ جدول‌های ۱۱ و ۱۲ (کدبیس فرم‌محور شد).
+14. `AddDepartments` — departments + department_members + `forms.departmentId`.
+15. `AddStaffAuthMode` — مقدارِ `staff` در authModeِ انتشار.
+16. `AddDepartmentScope` — `departmentId` روی portals و dashboards.
+17. `AddHotelRooms` — hotel_rooms.
+18. `AddPersonnel` — personnel.
+19. `AddPersonnelBotLink` — `botChatId`, `botPlatform` روی personnel.
+20. `AddPersonnelBotWorkspace` — `botWorkspaceId` روی personnel.
+21. `AddAnnouncements` — announcements.
+22. `AddMenuTheme` — `theme` روی menus.
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

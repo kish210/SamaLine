@@ -6,6 +6,7 @@ import { FormsPage } from "./pages/FormsPage";
 import { RoomsPage } from "./pages/RoomsPage";
 import { PersonnelPage } from "./pages/PersonnelPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
+import { UnitsPage } from "./pages/UnitsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -76,6 +77,7 @@ function App() {
         <Route path="/sources" element={page(<ContactSourcesPage />)} />
         <Route path="/campaigns" element={page(<CampaignsPage />)} />
         <Route path="/ai" element={page(<AiPage />)} />
+        <Route path="/units" element={page(<UnitsPage />)} />
         <Route path="/rooms" element={page(<RoomsPage />)} />
         <Route path="/personnel" element={page(<PersonnelPage />)} />
         <Route path="/approvals" element={page(<ApprovalsPage />)} />

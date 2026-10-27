@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   dashboardsApi,
   departmentsApi,
@@ -27,7 +28,9 @@ const rendererBase =
 /** داشبوردساز با ویجت‌های قابل تنظیم (بند ۸ سند). */
 export function DashboardsPage() {
   const queryClient = useQueryClient();
-  const [selectedId, setSelectedId] = useState('');
+  // ‎?id=‎ از صفحه‌ی «واحدهای هتل» مستقیم داشبوردِ یک واحد را باز می‌کند.
+  const [searchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState(searchParams.get('id') ?? '');
   const [newName, setNewName] = useState('');
   const [newDept, setNewDept] = useState('');
   const [widgetType, setWidgetType] = useState<WidgetType>('stat');

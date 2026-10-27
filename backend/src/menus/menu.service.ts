@@ -10,6 +10,7 @@ import { PlatformSettingsService } from '../platform/platform-settings.service';
 import type { MenuSection } from '../database/entities/menu.entity';
 import { validateSlug } from '../forms/slug';
 import { findMenuTemplate } from '../templates/menu-templates';
+import { DEFAULT_MENU_THEME, isMenuTheme } from '../templates/menu-themes';
 
 export interface MenuInput {
   slug?: string;
@@ -19,8 +20,13 @@ export interface MenuInput {
   images?: string[];
   sections?: MenuSection[];
   isActive?: boolean;
-  /** فقط هنگام ساخت: پر کردن بخش‌ها از یک قالب آماده. */
+  /**
+   * پر کردن بخش‌ها از یک قالبِ محتوای آماده — هم هنگام ساخت، هم روی منوی
+   * موجود (بخش‌های فعلی جایگزین می‌شوند؛ عنوان/لوگو/عکس‌ها می‌مانند).
+   */
   templateKey?: string;
+  /** ظاهرِ صفحه (کلیدِ menu-themes.ts). */
+  theme?: string;
 }
 
 /** حداکثر تعداد عکس و قلم؛ جلوی صفحه‌ای که روی موبایل باز نمی‌شود را می‌گیرد. */
@@ -85,6 +91,11 @@ export class MenuService {
     const images = input.images ?? existing?.images ?? [];
     this.assertSize(images, sections);
 
+    if (input.theme !== undefined && !isMenuTheme(input.theme)) {
+      throw new BadRequestException('ظاهرِ انتخاب‌شده وجود ندارد');
+    }
+    const theme = input.theme ?? existing?.theme ?? DEFAULT_MENU_THEME;
+
     const saved = await this.menus.save(
       this.menus.create({
         ...(existing ?? {}),
@@ -99,6 +110,7 @@ export class MenuService {
         logoUrl: input.logoUrl ?? existing?.logoUrl ?? '',
         images,
         sections,
+        theme,
         isActive: input.isActive ?? existing?.isActive ?? true,
       }),
     );
@@ -121,6 +133,7 @@ export class MenuService {
       title: menu.title,
       description: menu.description,
       logoUrl: menu.logoUrl,
+      theme: isMenuTheme(menu.theme) ? menu.theme : DEFAULT_MENU_THEME,
       images: menu.images ?? [],
       // بخش یا قلمِ بی‌نام روی صفحه‌ی مهمان جای خالی می‌شد.
       sections: (menu.sections ?? [])

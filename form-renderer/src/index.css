@@ -1412,6 +1412,55 @@ body {
 
 /* ── منوی QR ──
    موبایل‌اول: مهمان با گوشی و اغلب روی اینترنت ضعیف بازش می‌کند. */
+
+/* ظاهرهای آماده (همان کلیدهای backend/src/templates/menu-themes.ts).
+   کلاسیک همان ظاهرِ قبلی است؛ بقیه فقط متغیرها را عوض می‌کنند. */
+.menu-shell {
+  --mt-bg: #f8fafc;
+  --mt-ink: #111827;
+  --mt-muted: #6b7280;
+  --mt-accent: #111827;
+  --mt-line: #e5e7eb;
+  min-height: 100vh;
+  background: var(--mt-bg);
+  color: var(--mt-ink);
+}
+.menu-theme-night {
+  --mt-bg: #0f172a;
+  --mt-ink: #f1f5f9;
+  --mt-muted: #94a3b8;
+  --mt-accent: #38bdf8;
+  --mt-line: #1e293b;
+}
+.menu-theme-gold {
+  --mt-bg: #1a1410;
+  --mt-ink: #f5e9d0;
+  --mt-muted: #bfa982;
+  --mt-accent: #d4af37;
+  --mt-line: #3a2e22;
+}
+.menu-theme-cafe {
+  --mt-bg: #f3efe6;
+  --mt-ink: #3b2a1a;
+  --mt-muted: #7a6650;
+  --mt-accent: #8b5e34;
+  --mt-line: #e0d6c3;
+}
+.menu-theme-garden {
+  --mt-bg: #f0f7f1;
+  --mt-ink: #14361f;
+  --mt-muted: #4f6b57;
+  --mt-accent: #2f855a;
+  --mt-line: #d3e6d8;
+}
+.menu-theme-sea {
+  --mt-bg: #eef6fb;
+  --mt-ink: #0c2d48;
+  --mt-muted: #4a6a82;
+  --mt-accent: #0e7490;
+  --mt-line: #cfe3ee;
+}
+
 .menu-page {
   max-width: 680px;
   margin: 0 auto;
@@ -1440,7 +1489,7 @@ body {
 
 .menu-description {
   margin: 0;
-  color: #6b7280;
+  color: var(--mt-muted);
   font-size: 14px;
   line-height: 1.8;
 }
@@ -1453,7 +1502,8 @@ body {
   font-size: 17px;
   margin: 0 0 10px;
   padding-bottom: 6px;
-  border-bottom: 2px solid currentColor;
+  color: var(--mt-accent);
+  border-bottom: 2px solid var(--mt-accent);
 }
 
 .menu-items {
@@ -1467,7 +1517,7 @@ body {
   align-items: baseline;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px dashed var(--mt-line);
 }
 
 .menu-item:last-child {
@@ -1487,7 +1537,7 @@ body {
 .menu-item-text small {
   display: block;
   margin-top: 2px;
-  color: #6b7280;
+  color: var(--mt-muted);
   font-size: 12.5px;
   line-height: 1.7;
 }
@@ -1497,6 +1547,7 @@ body {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  color: var(--mt-accent);
 }
 
 .menu-images img {
@@ -1509,7 +1560,7 @@ body {
 
 .menu-note {
   text-align: center;
-  color: #6b7280;
+  color: var(--mt-muted);
   padding: 32px 12px;
   line-height: 1.9;
 }

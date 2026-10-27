@@ -40,6 +40,20 @@ export function PersonnelPage() {
     queryKey: ["announcements"],
     queryFn: hrApi.announcements,
   });
+  // گزارشِ درخواست‌ها فقط برای تحلیل‌گر به بالا؛ برای بقیه ستون خالی می‌ماند.
+  const requestStats = useQuery({
+    queryKey: ["personnel-request-stats"],
+    queryFn: hrApi.requestStats,
+    retry: false,
+  });
+  const statsById = useMemo(() => {
+    const map = new Map<
+      string,
+      { total: number; pending: number; approved: number; rejected: number }
+    >();
+    for (const s of requestStats.data ?? []) map.set(s.personnelId, s);
+    return map;
+  }, [requestStats.data]);
 
   const deptName = useMemo(() => {
     const map = new Map<string, string>();
@@ -276,6 +290,7 @@ export function PersonnelPage() {
                 <th>سمت</th>
                 <th>بخش</th>
                 <th>ربات</th>
+                <th title="کل / در انتظار / تأیید / رد">درخواست‌ها</th>
                 <th>وضعیت</th>
                 {canEdit && <th></th>}
               </tr>
@@ -297,6 +312,20 @@ export function PersonnelPage() {
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="nowrap">
+                    {(() => {
+                      const s = statsById.get(p.id);
+                      if (!s) return "—";
+                      return (
+                        <span title="کل / در انتظار / تأیید / رد">
+                          {s.total}
+                          {s.pending ? ` · ⏳${s.pending}` : ""}
+                          {s.approved ? ` · ✓${s.approved}` : ""}
+                          {s.rejected ? ` · ✗${s.rejected}` : ""}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td>
                     {canEdit ? (

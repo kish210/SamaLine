@@ -71,6 +71,10 @@ export class MenuEntity {
   @Column({ type: JSON_COLUMN, default: '[]' })
   sections: MenuSection[];
 
+  /** ظاهرِ صفحه‌ی منو (کلیدِ menu-themes.ts)؛ هر وقت قابل تغییر است. */
+  @Column({ type: 'varchar', length: 30, default: 'classic' })
+  theme: string;
+
   /** خاموش‌کردن موقت بدون حذف؛ QRهای چاپ‌شده نباید بی‌معنی شوند. */
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

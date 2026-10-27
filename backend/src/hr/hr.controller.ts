@@ -21,6 +21,7 @@ import { MinRole } from '../common/roles';
 import { OrganizationRole } from '../database/entities/organization-user.entity';
 import type { PersonnelDocument } from '../database/entities/personnel.entity';
 import { HrService } from './hr.service';
+import { HrStatsService } from './hr-stats.service';
 
 class PersonnelDto {
   @IsOptional() @IsString() @MaxLength(120) fullName?: string;
@@ -41,11 +42,21 @@ class PersonnelDto {
 @Controller('hr/personnel')
 @UseGuards(JwtAuthGuard)
 export class HrController {
-  constructor(private readonly service: HrService) {}
+  constructor(
+    private readonly service: HrService,
+    private readonly stats: HrStatsService,
+  ) {}
 
   @Get()
   list(@OrganizationId() organizationId: string) {
     return this.service.list(organizationId);
+  }
+
+  /** گزارش: خلاصهٔ درخواست‌های هر پرسنل (کلِ، در انتظار، تأیید، رد). */
+  @Get('request-stats')
+  @MinRole(OrganizationRole.ANALYST)
+  requestStats(@OrganizationId() organizationId: string) {
+    return this.stats.requestStats(organizationId);
   }
 
   @Post()

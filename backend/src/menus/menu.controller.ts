@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { TenantAccessService } from '../common/tenant-access.service';
 import type { MenuSection } from '../database/entities/menu.entity';
 import { menuTemplateSummaries } from '../templates/menu-templates';
+import { MENU_THEMES } from '../templates/menu-themes';
 import { MenuService } from './menu.service';
 
 export class MenuDto {
@@ -63,6 +64,11 @@ export class MenuDto {
   @IsString()
   @MaxLength(60)
   templateKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  theme?: string;
 }
 
 /**
@@ -83,6 +89,12 @@ export class MenuController {
   @Get('templates')
   templates() {
     return menuTemplateSummaries();
+  }
+
+  /** ظاهرهای آماده‌ی صفحه‌ی منو (برای پیش‌نمایشِ پنل). */
+  @Get('themes')
+  themes() {
+    return MENU_THEMES;
   }
 
   @Get()

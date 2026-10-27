@@ -237,9 +237,19 @@ export interface Menu {
   logoUrl: string;
   images: string[];
   sections: MenuSection[];
+  /** ظاهرِ صفحه‌ی منو (کلیدِ ظاهرهای آماده). */
+  theme: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MenuTheme {
+  key: string;
+  title: string;
+  bg: string;
+  ink: string;
+  accent: string;
 }
 
 export interface MenuTemplateSummary {
