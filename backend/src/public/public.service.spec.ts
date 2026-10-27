@@ -32,6 +32,7 @@ import {
   ResponseStatus,
 } from '../database/entities/response.entity';
 import { ResponseCommentEntity } from '../database/entities/response-comment.entity';
+import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { ResponseService } from '../responses/response.service';
 import { SubscriptionEntity } from '../database/entities/subscription.entity';
 import { UsageCounterEntity } from '../database/entities/usage-counter.entity';
@@ -196,6 +197,7 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         { assertWorkspace: async () => undefined } as never,
       ),
       { dispatch: webhookDispatch } as never,
+      ds.getRepository(AnnouncementEntity),
     );
   });
 
@@ -586,6 +588,38 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       await seed();
       const result = await service.listMyResponses(publicationToken);
       expect(result.requests).toEqual([]);
+    });
+
+    it('اطلاعیه‌های عمومیِ سازمان را به پاسخ‌دهنده‌ی احراز‌شده می‌دهد', async () => {
+      const publication = await makeOtp();
+      const token = staffToken(publication.id, 'me@hotel.ir');
+      // یک اطلاعیهٔ عمومی و یک اطلاعیهٔ بخشی برای همین سازمان.
+      await ds.getRepository(AnnouncementEntity).save([
+        {
+          organizationId,
+          departmentId: null,
+          title: 'اطلاعیهٔ عمومی',
+          body: 'برای همه',
+          recipientCount: 0,
+        },
+        {
+          organizationId,
+          departmentId: 'dept-x',
+          title: 'اطلاعیهٔ بخشی',
+          body: 'محرمانه',
+          recipientCount: 0,
+        },
+      ]);
+
+      const result = await service.listAnnouncements(publicationToken, token);
+      expect(result.announcements).toHaveLength(1);
+      expect(result.announcements[0].title).toBe('اطلاعیهٔ عمومی');
+    });
+
+    it('فرمِ بی‌نام اطلاعیه نمی‌بیند', async () => {
+      await seed();
+      const result = await service.listAnnouncements(publicationToken);
+      expect(result.announcements).toEqual([]);
     });
   });
 });

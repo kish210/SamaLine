@@ -123,4 +123,13 @@ export class PublicController {
   ) {
     return this.publicService.listMyResponses(token, accessToken);
   }
+
+  /** اطلاعیه‌های عمومیِ سازمان برای پورتالِ سلف‌سرویس (فاز G). */
+  @Get(':token/announcements')
+  announcements(
+    @Param('token') token: string,
+    @Headers(RESPONDENT_HEADER) accessToken?: string,
+  ) {
+    return this.publicService.listAnnouncements(token, accessToken);
+  }
 }

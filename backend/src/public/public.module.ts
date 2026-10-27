@@ -9,6 +9,7 @@ import { OrganizationUserEntity } from '../database/entities/organization-user.e
 import { OtpChallengeEntity } from '../database/entities/otp-challenge.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
+import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { FormModule } from '../forms/form.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { PlanModule } from '../plans/plan.module';
@@ -42,6 +43,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
       WorkspaceEntity,
       OrganizationUserEntity,
       DepartmentMemberEntity,
+      AnnouncementEntity,
     ]),
     PlanModule,
     FormModule,

@@ -7,6 +7,7 @@ import { PlatformFooter } from './PlatformFooter';
 import { QuestionField } from './QuestionField';
 import { RespondentAuth } from './RespondentAuth';
 import { MyRequests } from './MyRequests';
+import { PortalNotices } from './PortalNotices';
 import { useFormFlow } from './useFormFlow';
 import { firstInvalid, validateAnswer } from './validate';
 import { useTheme } from './useTheme';
@@ -235,8 +236,13 @@ function FormBody({ token, flow, endSlot }: FormBodyProps) {
             ))}
           </ul>
         )}
-        {/* فرمِ احراز‌شده: کارمند وضعیتِ تأییدِ درخواست‌های خودش را می‌بیند. */}
-        {flow.authMode && flow.authenticated && <MyRequests token={token} />}
+        {/* فرمِ احراز‌شده: کارمند وضعیتِ تأییدِ درخواست‌ها و اطلاعیه‌ها را می‌بیند. */}
+        {flow.authMode && flow.authenticated && (
+          <>
+            <MyRequests token={token} />
+            <PortalNotices token={token} />
+          </>
+        )}
         {endSlot}
       </div>
     );

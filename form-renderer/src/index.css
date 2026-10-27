@@ -299,6 +299,42 @@ button {
   color: #a11a1a;
 }
 
+/* ── اطلاعیه‌ها در پورتالِ سلف‌سرویس (فاز G) ─────────── */
+.portal-notices {
+  margin-top: 28px;
+  text-align: start;
+}
+.portal-notices h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.portal-notices ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.portal-notices li {
+  padding: 10px 12px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.notice-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.notice-date {
+  font-size: 13px;
+  color: #6b7280;
+}
+.notice-body {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: default;

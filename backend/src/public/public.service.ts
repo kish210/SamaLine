@@ -4,8 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { AnswerFlatEntity } from '../database/entities/answer-flat.entity';
+import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
 import {
   PublicationAuthMode,
@@ -69,6 +70,8 @@ export class PublicService {
     private readonly platformSettings: PlatformSettingsService,
     private readonly telegramService: TelegramService,
     private readonly webhookDelivery: WebhookDeliveryService,
+    @InjectRepository(AnnouncementEntity)
+    private readonly announcementRepo: Repository<AnnouncementEntity>,
   ) {}
 
   /**
@@ -347,6 +350,33 @@ export class PublicService {
         submittedAt: row.submittedAt,
         answers: row.answers,
         review: (row.meta?.review as Record<string, unknown>) ?? null,
+      })),
+    };
+  }
+
+  /**
+   * اطلاعیه‌های عمومیِ سازمان برای پورتالِ سلف‌سرویس (فاز G).
+   *
+   * فقط اطلاعیهٔ «همهٔ پرسنل» (بدونِ بخش) نمایش داده می‌شود؛ اطلاعیهٔ بخشی از راهِ
+   * بله به مخاطبِ تطبیق‌شده می‌رسد و در این نمای عمومی نشتی نمی‌کند. فقط برای
+   * پاسخ‌دهنده‌ی احراز‌شده (فرمِ بی‌نام فهرستِ خالی می‌دهد).
+   */
+  async listAnnouncements(token: string, accessToken?: string) {
+    const formData = await this.getByToken(token, accessToken);
+    if (!formData.verifiedRespondentKey) return { announcements: [] };
+
+    const rows = await this.announcementRepo.find({
+      where: { organizationId: formData.organizationId, departmentId: IsNull() },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+
+    return {
+      announcements: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        createdAt: row.createdAt,
       })),
     };
   }

@@ -185,7 +185,24 @@ export const formApi = {
     client
       .get<MyRequestsPayload>(`/public/forms/${token}/my-responses`)
       .then((r) => r.data),
+
+  /** اطلاعیه‌های عمومیِ سازمان برای پورتالِ سلف‌سرویس (فاز G). */
+  announcements: (token: string) =>
+    client
+      .get<AnnouncementsPayload>(`/public/forms/${token}/announcements`)
+      .then((r) => r.data),
 };
+
+export interface PortalAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string | null;
+}
+
+export interface AnnouncementsPayload {
+  announcements: PortalAnnouncement[];
+}
 
 export interface MyRequestReview {
   status?: 'pending' | 'approved' | 'rejected';
