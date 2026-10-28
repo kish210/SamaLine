@@ -313,6 +313,23 @@ export function PlatformSettingsPage() {
               </button>
             </div>
             {modelsNote && <p className="hint">{modelsNote}</p>}
+            {models.length > 0 && (
+              <label>
+                انتخاب از مدل‌های یافت‌شده
+                <select
+                  dir="ltr"
+                  value={models.includes(value.aiModel) ? value.aiModel : ''}
+                  onChange={(e) => set('aiModel', e.target.value)}
+                >
+                  <option value="">— یک مدل انتخاب کنید —</option>
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {testResult && (
               <p className={testResult.ok ? 'ai-test ok' : 'ai-test fail'}>
                 {testResult.ok ? '✓ ' : '✗ '}

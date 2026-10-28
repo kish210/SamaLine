@@ -109,11 +109,26 @@ export class AiService {
           error: `سرویس‌دهنده فهرستِ مدل‌ها را نداد (${response.status}).`,
         };
       }
-      const payload = (await response.json()) as {
-        data?: Array<{ id?: unknown }>;
-      };
-      const models = (payload.data ?? [])
-        .map((item) => item.id)
+      /*
+       * شکلِ پاسخ بین دروازه‌ها فرق دارد: OpenAI و سازگارها `{data:[{id}]}`،
+       * بعضی `{models:[...]}` (مثلِ Ollama با `{name}`) و بعضی آرایه‌ی ساده.
+       * هر سه را می‌پذیریم تا APIهای بیشتری فهرستِ مدل بدهند.
+       */
+      const payload = (await response.json()) as unknown;
+      const raw: unknown[] = Array.isArray(payload)
+        ? payload
+        : Array.isArray((payload as { data?: unknown[] })?.data)
+          ? (payload as { data: unknown[] }).data
+          : Array.isArray((payload as { models?: unknown[] })?.models)
+            ? (payload as { models: unknown[] }).models
+            : [];
+      const models = raw
+        .map((item) =>
+          typeof item === 'string'
+            ? item
+            : ((item as { id?: unknown; name?: unknown })?.id ??
+              (item as { name?: unknown })?.name),
+        )
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
         .sort((a, b) => a.localeCompare(b));
       return { provider: 'openai', models };

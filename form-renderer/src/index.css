@@ -1460,6 +1460,14 @@ body {
   --mt-accent: #0e7490;
   --mt-line: #cfe3ee;
 }
+/* مشکیِ خالص + طلایی؛ لوکس‌تر و پرکنتراست‌تر از «لوکس طلایی» که زمینه‌ی قهوه‌ای دارد. */
+.menu-theme-black-gold {
+  --mt-bg: #0a0a0b;
+  --mt-ink: #f6edd8;
+  --mt-muted: #9c8a5f;
+  --mt-accent: #e7c66b;
+  --mt-line: #2a2314;
+}
 
 .menu-page {
   max-width: 680px;

@@ -24,6 +24,7 @@ export const MENU_THEMES: MenuTheme[] = [
   { key: 'cafe', title: 'کافه', bg: '#f3efe6', ink: '#3b2a1a', accent: '#8b5e34' },
   { key: 'garden', title: 'باغ (سبز)', bg: '#f0f7f1', ink: '#14361f', accent: '#2f855a' },
   { key: 'sea', title: 'دریا (آبی)', bg: '#eef6fb', ink: '#0c2d48', accent: '#0e7490' },
+  { key: 'black-gold', title: 'مشکی طلایی', bg: '#0a0a0b', ink: '#f6edd8', accent: '#e7c66b' },
 ];
 
 export function isMenuTheme(key: string): boolean {
