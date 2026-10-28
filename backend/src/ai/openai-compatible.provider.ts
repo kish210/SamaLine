@@ -37,11 +37,16 @@ export class OpenAiCompatibleProvider implements AiProvider {
       ].join(' '),
       `هدفِ کاربر (متنِ خودش): «${input.goal}»\n` +
         `زبانِ خروجی: ${input.language ?? 'fa'} (همه‌ی متن‌ها به همین زبان).\n` +
-        'قالبِ خروجی دقیقاً: {"title":string,"language":string,"pages":[{"id":string,"title":string,' +
+        'قالبِ خروجی دقیقاً: {"title":string,"language":string,"kind":string,"pages":[{"id":string,"title":string,' +
         '"questions":[{"id":string,"type":string,"title":string,"required":boolean,"options":string[]}]}]}\n' +
         'type فقط یکی از: short_text, long_text, multiple_choice, dropdown, boolean, rating, nps, slider, number, date, email, mobile, phone.\n' +
         'برای multiple_choice/dropdown، options را با گزینه‌های واقعی و جامع پر کن (برای بقیه options را [] بگذار).\n' +
-        'id هر سوال و صفحه را کوتاه و یکتا و لاتین بگذار (مثل q1, q2, p1).',
+        'id هر سوال و صفحه را کوتاه و یکتا و لاتین بگذار (مثل q1, q2, p1).\n' +
+        'kind نوعِ فرم را مشخص کن تا سامانه درست پیکربندی‌اش کند:\n' +
+        '- "request": درخواستِ پرسنلی/اداری که باید تأیید شود (مرخصی، استعفا، مأموریت، خرید، پشتیبانی).\n' +
+        '- "checklist": فرمِ عملیاتیِ دوره‌ای که روزانه/هفتگی پر می‌شود (بازدیدِ تأسیسات، آماده‌سازیِ اتاق).\n' +
+        '- "operational": فرمِ کاریِ داخلیِ ثبت/گزارش (نه نظرسنجی، نه نیازمندِ تأیید).\n' +
+        '- "survey": نظرسنجی/بازخوردِ عمومی (پیش‌فرض اگر مطمئن نیستی).',
     );
   }
 

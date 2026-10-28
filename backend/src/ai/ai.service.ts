@@ -32,7 +32,40 @@ export class AiService {
       });
     }
 
-    return { ...validation.normalized, aiProvider: name };
+    /*
+     * فراتر از نظرسنجی: مدل نوعِ فرم (kind) را می‌گوید و سامانه از روی آن
+     * تنظیماتِ امن مشتق می‌کند — نه اینکه settingsِ خامِ مدل را کورکورانه بپذیرد.
+     * request → نیازمندِ تأیید؛ checklist → چک‌لیستِ روزانه؛ بقیه بدونِ تنظیمِ خاص.
+     * بخش و گردش‌کار را کاربر پس از ساخت در فرم‌ساز تعیین می‌کند (مدل شناسه‌ی
+     * واقعیِ بخش‌ها را ندارد)، پس فقط راهنمایی می‌دهیم.
+     */
+    const kind = normalizeKind((raw as { kind?: unknown }).kind);
+    const settings: Record<string, unknown> = {};
+    const hints: string[] = [];
+    if (kind === 'request') {
+      settings.requiresApproval = true;
+      hints.push(
+        'این فرم نیازمندِ تأیید شد. برای مسیرِ چندمرحله‌ای، در فرم‌ساز «گردش‌کارِ بین‌واحدی» را تنظیم کنید.',
+      );
+    } else if (kind === 'checklist') {
+      settings.checklist = { enabled: true, cadence: 'daily', dueHour: 20 };
+      hints.push(
+        'این فرم به‌صورت چک‌لیستِ روزانه تنظیم شد. برای هشدارِ انجام‌نشده، در فرم‌ساز بخشِ فرم را مشخص کنید.',
+      );
+    }
+    if (kind !== 'survey') {
+      hints.push(
+        'برای دسترسیِ واحدی، در فرم‌ساز بخشِ فرم و احرازِ «کارمند» را تنظیم کنید؛ سپس داشبورد/پرتالِ همان بخش گزارش‌ها را نشان می‌دهد.',
+      );
+    }
+
+    return {
+      ...validation.normalized,
+      kind,
+      settings,
+      hints,
+      aiProvider: name,
+    };
   }
 
   async reviewSurvey(structure: Record<string, unknown>) {
@@ -234,4 +267,11 @@ export class AiService {
 
     return { provider: new MockAiProvider(), name: 'mock' };
   }
+}
+
+/** نوعِ فرمِ پیشنهادیِ مدل را به یکی از مقدارهای مجاز نگاشت می‌کند. */
+function normalizeKind(raw: unknown): 'survey' | 'request' | 'checklist' | 'operational' {
+  const k = String(raw ?? '').trim().toLowerCase();
+  if (k === 'request' || k === 'checklist' || k === 'operational') return k;
+  return 'survey';
 }

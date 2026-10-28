@@ -9,7 +9,17 @@ interface GeneratedForm {
   language: string;
   pages: FormPage[];
   aiProvider: string;
+  kind?: 'survey' | 'request' | 'checklist' | 'operational';
+  settings?: Record<string, unknown>;
+  hints?: string[];
 }
+
+const KIND_LABELS: Record<string, string> = {
+  survey: 'نظرسنجی',
+  request: 'درخواست (نیازمندِ تأیید)',
+  checklist: 'چک‌لیستِ دوره‌ای',
+  operational: 'فرمِ عملیاتی',
+};
 
 /** ساخت پرسشنامه با هوش مصنوعی (بند ۱۰ سند). */
 export function AiPage() {
@@ -42,6 +52,10 @@ export function AiPage() {
         title: generated.title,
         slug: `ai-${Date.now().toString(36)}`,
         pages: generated.pages,
+        // تنظیماتِ مشتق‌شده از نوعِ فرم (نیازمندِ تأیید، چک‌لیست) را هم اعمال کن.
+        ...(generated.settings && Object.keys(generated.settings).length
+          ? { settings: generated.settings }
+          : {}),
       });
     },
     onSuccess: async (form) => {
@@ -55,18 +69,18 @@ export function AiPage() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>ساخت پرسشنامه با هوش مصنوعی</h1>
+        <h1>ساخت فرم با هوش مصنوعی</h1>
       </header>
 
       {error && <p className="error">{error}</p>}
 
       <section className="card">
         <label>
-          هدف نظرسنجی را به زبان طبیعی بنویسید
+          هدف یا نوعِ فرم را به زبانِ طبیعی بنویسید
           <textarea
             rows={3}
             value={goal}
-            placeholder="می‌خواهم رضایت مشتریان شعبه تهران از سرعت پاسخگویی را بسنجم"
+            placeholder="مثال: فرم درخواست مرخصی پرسنل / چک‌لیست روزانه تأسیسات / نظرسنجی رضایت مهمان هتل"
             onChange={(e) => setGoal(e.target.value)}
           />
         </label>
@@ -82,7 +96,12 @@ export function AiPage() {
       {generated && (
         <section className="card">
           <h3>{generated.title}</h3>
-          <p className="hint">سرویس‌دهنده: {generated.aiProvider}</p>
+          <p className="hint">
+            نوعِ فرم: <strong>{KIND_LABELS[generated.kind ?? 'survey']}</strong> · سرویس‌دهنده: {generated.aiProvider}
+          </p>
+          {(generated.hints ?? []).map((h, i) => (
+            <p key={i} className="hint">💡 {h}</p>
+          ))}
 
           {generated.pages.map((page) => (
             <div key={page.id} className="preview-page">
