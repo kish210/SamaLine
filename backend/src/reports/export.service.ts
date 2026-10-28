@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as ExcelJS from 'exceljs';
+import PptxGenJS from 'pptxgenjs';
 import { Repository } from 'typeorm';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import type { FormStructure } from '../forms/logic-types';
+import { AnalyticsService } from './analytics.service';
 
 export interface ExportColumn {
   key: string;
@@ -24,7 +26,58 @@ export class ExportService {
     private readonly responseRepo: Repository<ResponseEntity>,
     @InjectRepository(FormVersionEntity)
     private readonly versionRepo: Repository<FormVersionEntity>,
+    private readonly analytics: AnalyticsService,
   ) {}
+
+  /**
+   * خروجی PowerPoint از تحلیلِ فرم: اسلایدِ عنوان + یک اسلاید برای هر سوالِ
+   * نمودارپذیر (فهرستِ گزینه→تعداد). متن RTL برای فارسی. اکسل پاسخ‌های خام را
+   * می‌دهد؛ این خروجی برای ارائه‌ی مدیریتی است.
+   */
+  async toPptx(formId: string): Promise<Buffer> {
+    const data = await this.analytics.forForm(formId, {});
+    const version = await this.versionRepo.findOne({
+      where: { formId },
+      relations: { form: true },
+      order: { version: 'DESC' },
+    });
+    const formTitle = version?.form?.title || 'گزارشِ فرم';
+    const pptx = new PptxGenJS();
+    pptx.rtlMode = true;
+    pptx.layout = 'LAYOUT_WIDE';
+
+    const title = pptx.addSlide();
+    title.background = { color: '0F172A' };
+    title.addText(formTitle, {
+      x: 0.5, y: 2, w: '90%', h: 1.5,
+      fontSize: 40, bold: true, color: 'F8FAFC', align: 'right', rtlMode: true,
+    });
+    title.addText(
+      `تعداد پاسخ‌های کامل: ${data.totalResponses.toLocaleString('fa-IR')}`,
+      { x: 0.5, y: 3.6, w: '90%', h: 0.6, fontSize: 20, color: 'E7C66B', align: 'right', rtlMode: true },
+    );
+
+    for (const q of data.questions) {
+      if (!q.bars || q.bars.length === 0) continue;
+      const slide = pptx.addSlide();
+      slide.addText(q.title || q.id, {
+        x: 0.5, y: 0.4, w: '90%', h: 0.9,
+        fontSize: 26, bold: true, align: 'right', rtlMode: true, color: '111827',
+      });
+      const total = q.bars.reduce((s, b) => s + b.count, 0) || 1;
+      const lines = q.bars.map((b) => {
+        const pct = Math.round((b.count / total) * 100);
+        return `${b.label} —  ${b.count.toLocaleString('fa-IR')}  (${pct}٪)`;
+      });
+      slide.addText(lines.join('\n'), {
+        x: 0.5, y: 1.5, w: '90%', h: 4.5,
+        fontSize: 18, align: 'right', rtlMode: true, color: '1f2937', lineSpacingMultiple: 1.3,
+      });
+    }
+
+    const out = (await pptx.write({ outputType: 'nodebuffer' })) as Buffer;
+    return Buffer.from(out);
+  }
 
   /** ستون‌های خروجی از روی آخرین نسخه‌ی ساختار فرم. */
   async buildColumns(formId: string, advanced: boolean) {

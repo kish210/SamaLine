@@ -144,6 +144,27 @@ export class ReportController {
     res.send(csv);
   }
 
+  /** خروجی PowerPoint از تحلیلِ فرم (ارائه‌ی مدیریتی). */
+  @MinRole(OrganizationRole.ANALYST)
+  @Get('forms/:formId/export.pptx')
+  async exportPptx(
+    @Param('formId') formId: string,
+    @Res() res: Response,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.tenant.assertForm(formId, user);
+    const buffer = await this.exportService.toPptx(formId);
+    res.setHeader(
+      'content-type',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    );
+    res.setHeader(
+      'content-disposition',
+      `attachment; filename="report-${formId}.pptx"`,
+    );
+    res.send(buffer);
+  }
+
   @MinRole(OrganizationRole.ANALYST)
   @Post('filters')
   async saveFilter(@Body() dto: SaveFilterDto, @CurrentUser() user: JwtUser) {

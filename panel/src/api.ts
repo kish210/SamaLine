@@ -484,8 +484,8 @@ export const reportsApi = {
    */
   download: async (
     formId: string,
-    format: "xlsx" | "csv",
-    advanced: boolean,
+    format: "xlsx" | "csv" | "pptx",
+    advanced = false,
   ) => {
     const response = await api.get<Blob>(
       `/reports/forms/${formId}/export.${format}`,
@@ -495,7 +495,7 @@ export const reportsApi = {
     const url = URL.createObjectURL(response.data);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `responses-${formId}.${format}`;
+    link.download = `${format === "pptx" ? "report" : "responses"}-${formId}.${format}`;
     link.click();
     URL.revokeObjectURL(url);
   },

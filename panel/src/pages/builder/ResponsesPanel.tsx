@@ -235,6 +235,15 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
 
         <button
           type="button"
+          className="secondary"
+          onClick={() => void reportsApi.download(formId, 'pptx')}
+          disabled={!analytics.data}
+          title="خروجی PowerPoint از نمودارها و تحلیل‌ها"
+        >
+          خروجی PowerPoint
+        </button>
+        <button
+          type="button"
           className="secondary print-button"
           onClick={() => window.print()}
           disabled={!analytics.data}
