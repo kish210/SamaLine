@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import ExcelJS from 'exceljs';
 import { Repository } from 'typeorm';
@@ -8,6 +13,7 @@ import { ResponseEntity } from '../database/entities/response.entity';
 import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
 import { LIKE_OPERATOR } from '../database/column-types';
 import { StaffNotifyService } from '../integrations/staff-notify.service';
+import { AuditService } from '../common/audit.service';
 
 @Injectable()
 export class ResponseService {
@@ -19,6 +25,8 @@ export class ResponseService {
     @InjectRepository(ResponseCommentEntity)
     private readonly commentRepo: Repository<ResponseCommentEntity>,
     private readonly staffNotify: StaffNotifyService,
+    // اختیاری تا تست‌هایی که سرویس را دستی می‌سازند نشکنند؛ در اجرا تزریق می‌شود.
+    @Optional() private readonly audit?: AuditService,
   ) {}
 
   /** شناسه‌ی فرمِ یک پاسخ؛ برای بررسی مالکیت. */
@@ -321,6 +329,21 @@ export class ResponseService {
         note,
       });
     }
+
+    // ثبتِ ممیزی: چه کسی کدام درخواست را تأیید/رد یا به مرحله‌ی بعد برد.
+    await this.audit?.log({
+      organizationId: form.workspace.organizationId,
+      action: advancedTo ? 'response.workflow_advanced' : `response.${decision}`,
+      actorType: 'user',
+      actorId: reviewer.userId,
+      payload: {
+        responseId,
+        formId: form.id,
+        formTitle: form.title,
+        step: previous.step ?? null,
+        note: note ?? '',
+      },
+    });
 
     return saved;
   }

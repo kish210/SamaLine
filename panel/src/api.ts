@@ -1184,3 +1184,18 @@ export const opsApi = {
       }>(`/ops/services/${encodeURIComponent(name)}/${action}`)
       .then((r) => r.data),
 };
+
+// ── لاگ ممیزی ───────────────────────────────────────────────────────────────
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actorType: string;
+  actorId: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export const auditApi = {
+  list: () => api.get<AuditEntry[]>('/audit').then((r) => r.data),
+};

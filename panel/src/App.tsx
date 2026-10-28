@@ -47,6 +47,9 @@ const AiPage = lazyPage(() =>
 const SettingsPage = lazyPage(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
+const AuditLogPage = lazyPage(() =>
+  import("./pages/AuditLogPage").then((m) => ({ default: m.AuditLogPage })),
+);
 const PlatformSettingsPage = lazyPage(() =>
   import("./pages/PlatformSettingsPage").then((m) => ({
     default: m.PlatformSettingsPage,
@@ -84,6 +87,7 @@ function App() {
         <Route path="/personnel" element={page(<PersonnelPage />)} />
         <Route path="/approvals" element={page(<ApprovalsPage />)} />
         <Route path="/settings" element={page(<SettingsPage />)} />
+        <Route path="/audit" element={page(<AuditLogPage />)} />
         <Route path="/platform" element={page(<PlatformSettingsPage />)} />
         <Route path="*" element={<Navigate to="/forms" replace />} />
       </Route>

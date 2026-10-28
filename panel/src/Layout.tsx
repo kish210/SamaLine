@@ -30,6 +30,7 @@ const NAV = [
   { to: "/rooms", label: "اتاق‌های هتل", icon: "rooms" },
   { to: "/personnel", label: "پرسنل", icon: "personnel" },
   { to: "/approvals", label: "کارتابلِ تأیید", icon: "approvals" },
+  { to: "/audit", label: "لاگِ ممیزی", icon: "approvals" },
   { to: "/settings", label: "تنظیمات", icon: "settings" },
 ];
 
