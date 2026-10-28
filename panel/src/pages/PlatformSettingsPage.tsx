@@ -38,6 +38,11 @@ export function PlatformSettingsPage() {
     queryFn: platformApi.getSettings,
   });
 
+  const overview = useQuery({
+    queryKey: ['platform-overview'],
+    queryFn: platformApi.overview,
+  });
+
   useEffect(() => {
     if (settings.data) {
       setValue({
@@ -143,6 +148,19 @@ export function PlatformSettingsPage() {
     );
   }
 
+  const overviewTiles: Array<[string, number]> = overview.data
+    ? [
+        ['سازمان‌ها', overview.data.organizations],
+        ['کاربران', overview.data.users],
+        ['فضاهای کاری', overview.data.workspaces],
+        ['فرم‌ها', overview.data.forms],
+        ['فرم‌های فعال', overview.data.activeForms],
+        ['پاسخ‌های کامل', overview.data.completedResponses],
+        ['بخش‌ها', overview.data.departments],
+        ['پرسنل', overview.data.personnel],
+      ]
+    : [];
+
   return (
     <div className="page">
       <header className="page-header">
@@ -160,6 +178,22 @@ export function PlatformSettingsPage() {
       </header>
 
       {error && <p className="error">{error}</p>}
+
+      {overviewTiles.length > 0 && (
+        <section className="card">
+          <div className="section-head">
+            <h3>نمای کلِ سامانه (همه‌ی سازمان‌ها)</h3>
+          </div>
+          <div className="stat-grid">
+            {overviewTiles.map(([label, value]) => (
+              <div className="stat-tile" key={label}>
+                <div className="stat-value">{value.toLocaleString('fa-IR')}</div>
+                <div className="stat-label">{label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="card">
         <div className="section-head">

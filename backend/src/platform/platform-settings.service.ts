@@ -8,6 +8,11 @@ import {
 } from '../database/entities/platform-settings.entity';
 import { UserEntity } from '../database/entities/user.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { OrganizationEntity } from '../database/entities/organization.entity';
+import { FormEntity, FormStatus } from '../database/entities/form.entity';
+import { ResponseEntity, ResponseStatus } from '../database/entities/response.entity';
+import { DepartmentEntity } from '../database/entities/department.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 
 /** شکل نوار پایین که به فرم عمومی فرستاده می‌شود. */
 export interface PublicFooter {
@@ -42,7 +47,56 @@ export class PlatformSettingsService {
     private readonly users: Repository<UserEntity>,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaces: Repository<WorkspaceEntity>,
+    @InjectRepository(OrganizationEntity)
+    private readonly organizations: Repository<OrganizationEntity>,
+    @InjectRepository(FormEntity)
+    private readonly forms: Repository<FormEntity>,
+    @InjectRepository(ResponseEntity)
+    private readonly responses: Repository<ResponseEntity>,
+    @InjectRepository(DepartmentEntity)
+    private readonly departments: Repository<DepartmentEntity>,
+    @InjectRepository(PersonnelEntity)
+    private readonly personnel: Repository<PersonnelEntity>,
   ) {}
+
+  /**
+   * نمای فراسازمانیِ سوپرادمین: شمارشِ کلِ سامانه در همه‌ی سازمان‌ها.
+   * فقط از مسیرِ محافظت‌شده‌ی SuperAdminGuard صدا زده می‌شود.
+   */
+  async platformOverview() {
+    const [
+      organizations,
+      users,
+      workspaces,
+      forms,
+      activeForms,
+      responses,
+      completedResponses,
+      departments,
+      personnel,
+    ] = await Promise.all([
+      this.organizations.count(),
+      this.users.count(),
+      this.workspaces.count(),
+      this.forms.count(),
+      this.forms.count({ where: { status: FormStatus.ACTIVE } }),
+      this.responses.count(),
+      this.responses.count({ where: { status: ResponseStatus.COMPLETED } }),
+      this.departments.count(),
+      this.personnel.count(),
+    ]);
+    return {
+      organizations,
+      users,
+      workspaces,
+      forms,
+      activeForms,
+      responses,
+      completedResponses,
+      departments,
+      personnel,
+    };
+  }
 
   /** فهرست فرامستاجری فضاهای کاری، برای پنل سوپرادمین. */
   async allWorkspaces() {

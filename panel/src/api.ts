@@ -831,9 +831,24 @@ export const aiAdminApi = {
       .then((r) => r.data),
 };
 
+export interface PlatformOverview {
+  organizations: number;
+  users: number;
+  workspaces: number;
+  forms: number;
+  activeForms: number;
+  responses: number;
+  completedResponses: number;
+  departments: number;
+  personnel: number;
+}
+
 export const platformApi = {
   me: () =>
     api.get<{ isSuperAdmin: boolean }>("/platform/me").then((r) => r.data),
+
+  overview: () =>
+    api.get<PlatformOverview>("/platform/overview").then((r) => r.data),
 
   publicConfig: () =>
     api.get<PublicConfig>("/platform/public-config").then((r) => r.data),

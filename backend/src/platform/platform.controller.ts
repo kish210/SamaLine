@@ -94,6 +94,13 @@ export class PlatformController {
     return toSafeSettings(await this.settings.get());
   }
 
+  /** نمای فراسازمانیِ سوپرادمین: شمارشِ کلِ سامانه. */
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @Get('overview')
+  overview() {
+    return this.settings.platformOverview();
+  }
+
   @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @Patch('settings')
   async update(@Body() dto: UpdatePlatformDto) {
