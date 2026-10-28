@@ -455,7 +455,19 @@ export class PublicService {
      * همین را در داشبوردِ HR نشان می‌دهد و پاسخ‌دهنده در پورتالِ خودش می‌بیند.
      * review هم در meta (JSON) می‌نشیند، پس نه ستونِ تازه می‌خواهد نه مهاجرت.
      */
-    const needsApproval = Boolean(formData.settings?.requiresApproval);
+    /*
+     * گردش‌کارِ بین‌واحدی (#3): اگر فرم در تنظیماتش `workflow.steps` داشته باشد،
+     * هر پاسخ از مرحله‌ی ۰ شروع و به بخشِ همان مرحله مسیردهی می‌شود؛ تأییدِ هر
+     * مرحله آن را به مرحله‌ی بعد می‌برد. workflow به‌خودی‌خود «نیازمندِ تأیید»
+     * است. همه در meta (JSON) می‌نشیند، پس نه ستون تازه می‌خواهد نه مهاجرت.
+     */
+    const workflowSteps = Array.isArray(
+      (formData.settings?.workflow as { steps?: unknown } | undefined)?.steps,
+    )
+      ? ((formData.settings!.workflow as { steps: Array<{ departmentId?: string; label?: string }> }).steps)
+      : [];
+    const needsApproval =
+      Boolean(formData.settings?.requiresApproval) || workflowSteps.length > 0;
     const withContext = (base: Record<string, unknown> | undefined) => ({
       ...(base ?? {}),
       /*
@@ -471,6 +483,14 @@ export class PublicService {
               ...((base?.review as Record<string, unknown>) ?? {}),
               status: 'pending',
               requestedAt: submittedAt.toISOString(),
+              ...(workflowSteps.length > 0
+                ? {
+                    step: 0,
+                    stepCount: workflowSteps.length,
+                    departmentId: workflowSteps[0]?.departmentId ?? null,
+                    history: [],
+                  }
+                : {}),
             },
           }
         : {}),

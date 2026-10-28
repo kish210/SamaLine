@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import ExcelJS from 'exceljs';
 import { Repository } from 'typeorm';
@@ -115,20 +115,23 @@ export class ResponseService {
     workspaceId: string,
     scope: { isManager: boolean; departmentIds: string[] },
   ) {
+    /*
+     * فرم‌های نیازمندِ تأیید یا دارای گردش‌کار. دسترسیِ بخش این‌جا سطحِ فرم
+     * بررسی نمی‌شود چون در گردش‌کار، بخشِ مسئولِ هر پاسخ بسته به مرحله‌ی جاری
+     * فرق می‌کند (review.departmentId)، نه بخشِ خودِ فرم. پس فیلترِ بخش per-پاسخ
+     * اعمال می‌شود.
+     */
     const forms = (await this.formRepo.find({ where: { workspaceId } })).filter(
-      (form) =>
-        Boolean(
-          (form.settings as Record<string, unknown> | undefined)
-            ?.requiresApproval,
-        ) &&
-        (scope.isManager ||
-          !form.departmentId ||
-          scope.departmentIds.includes(form.departmentId)),
+      (form) => {
+        const s = form.settings as Record<string, unknown> | undefined;
+        return Boolean(s?.requiresApproval) || hasWorkflow(s);
+      },
     );
     if (forms.length === 0) {
       return { rows: [] as ResponseEntity[], titleById: new Map<string, string>() };
     }
 
+    const formById = new Map(forms.map((form) => [form.id, form]));
     const titleById = new Map(forms.map((form) => [form.id, form.title]));
     const all = await this.responseRepo
       .createQueryBuilder('response')
@@ -141,11 +144,16 @@ export class ResponseService {
       .take(1000)
       .getMany();
 
-    const rows = all.filter(
-      (row) =>
-        (row.meta?.review as Record<string, unknown> | undefined)?.status ===
-        'pending',
-    );
+    const rows = all.filter((row) => {
+      const review = row.meta?.review as Record<string, unknown> | undefined;
+      if (review?.status !== 'pending') return false;
+      if (scope.isManager) return true;
+      // بخشِ مسئولِ این پاسخ: در گردش‌کار بخشِ مرحله‌ی جاری، وگرنه بخشِ فرم.
+      const form = formById.get(row.formVersion?.formId ?? '');
+      const responsibleDept =
+        (review?.departmentId as string | undefined) ?? form?.departmentId ?? null;
+      return !responsibleDept || scope.departmentIds.includes(responsibleDept);
+    });
     return { rows, titleById };
   }
 
@@ -214,7 +222,12 @@ export class ResponseService {
     responseId: string,
     decision: 'approved' | 'rejected',
     note: string | undefined,
-    reviewer: { userId: string; email: string },
+    reviewer: {
+      userId: string;
+      email: string;
+      organizationId: string;
+      scope: { isManager: boolean; departmentIds: string[] };
+    },
   ) {
     const response = await this.responseRepo.findOne({
       where: { id: responseId },
@@ -225,21 +238,80 @@ export class ResponseService {
       throw new NotFoundException('پاسخ مورد نظر یافت نشد');
     }
 
-    const previous = (response.meta?.review ?? {}) as Record<string, unknown>;
-    const review: ResponseReview = {
-      ...previous,
-      status: decision,
-      byUserId: reviewer.userId,
+    const form = response.formVersion?.form;
+    const previous = (response.meta?.review ?? {}) as ResponseReview;
+    const steps = workflowSteps(form?.settings as Record<string, unknown> | undefined);
+    const inWorkflow = steps.length > 0 && typeof previous.step === 'number';
+
+    /*
+     * مجوزدهیِ متمرکز (چون این مسیر assertResponse را دور می‌زند تا گردش‌کارِ
+     * بین‌واحدی ممکن شود): اول مالکیتِ سازمان، بعد بخش.
+     */
+    if (!form) throw new NotFoundException('فرم این پاسخ یافت نشد');
+    if (form.workspace?.organizationId !== reviewer.organizationId) {
+      throw new ForbiddenException('به این پاسخ دسترسی ندارید');
+    }
+    if (!reviewer.scope.isManager) {
+      // در گردش‌کار: بخشِ مرحله‌ی جاری؛ وگرنه: بخشِ فرم.
+      const requiredDept = inWorkflow
+        ? (previous.departmentId ?? null)
+        : (form.departmentId ?? null);
+      if (requiredDept && !reviewer.scope.departmentIds.includes(requiredDept)) {
+        throw new ForbiddenException(
+          inWorkflow
+            ? 'این مرحله‌ی گردش‌کار برای واحدِ شما نیست'
+            : 'این فرم متعلق به بخشی است که عضو آن نیستید',
+        );
+      }
+    }
+
+    const now = new Date().toISOString();
+    const historyEntry = {
+      step: previous.step ?? 0,
+      departmentId: previous.departmentId ?? null,
+      decision,
       byEmail: reviewer.email,
-      at: new Date().toISOString(),
+      at: now,
       note: note ?? '',
     };
+    const history = [...(previous.history ?? []), historyEntry];
+
+    let review: ResponseReview;
+    let advancedTo: { departmentId: string | null } | null = null;
+    if (inWorkflow && decision === 'approved' && (previous.step ?? 0) < steps.length - 1) {
+      // به مرحله‌ی بعد برو؛ همچنان «در انتظار» ولی مسئولش بخشِ مرحله‌ی بعد است.
+      const nextStep = (previous.step ?? 0) + 1;
+      review = {
+        ...previous,
+        status: 'pending',
+        step: nextStep,
+        departmentId: steps[nextStep]?.departmentId ?? null,
+        byUserId: reviewer.userId,
+        byEmail: reviewer.email,
+        at: now,
+        note: note ?? '',
+        history,
+      };
+      advancedTo = { departmentId: steps[nextStep]?.departmentId ?? null };
+    } else {
+      // تصمیمِ نهایی (رد، یا تأییدِ آخرین مرحله / فرمِ بدونِ گردش‌کار).
+      review = {
+        ...previous,
+        status: decision,
+        byUserId: reviewer.userId,
+        byEmail: reviewer.email,
+        at: now,
+        note: note ?? '',
+        ...(inWorkflow ? { history } : {}),
+      };
+    }
+
     response.meta = { ...(response.meta ?? {}), review };
     const saved = await this.responseRepo.save(response);
 
     // اعلان به رباتِ پرسنل؛ خودش هرگز خطا نمی‌دهد و مسیرِ تأیید را نگه نمی‌دارد.
-    const form = response.formVersion?.form;
-    if (form) {
+    // فقط تصمیمِ نهایی به پاسخ‌دهنده اعلام می‌شود (نه پیشرویِ میان‌مرحله‌ای).
+    if (form && !advancedTo) {
       await this.staffNotify.notifyReviewDecision({
         organizationId: form.workspace.organizationId,
         workspaceId: form.workspaceId,
@@ -254,6 +326,18 @@ export class ResponseService {
   }
 }
 
+/** مراحلِ گردش‌کارِ یک فرم از تنظیماتش (خالی اگر گردش‌کار ندارد). */
+function workflowSteps(
+  settings: Record<string, unknown> | undefined,
+): Array<{ departmentId?: string; label?: string }> {
+  const steps = (settings?.workflow as { steps?: unknown } | undefined)?.steps;
+  return Array.isArray(steps) ? (steps as Array<{ departmentId?: string; label?: string }>) : [];
+}
+
+function hasWorkflow(settings: Record<string, unknown> | undefined): boolean {
+  return workflowSteps(settings).length > 0;
+}
+
 /** وضعیتِ بررسیِ یک درخواست، ذخیره‌شده داخلِ `response.meta.review`. */
 export interface ResponseReview {
   status: 'pending' | 'approved' | 'rejected';
@@ -263,4 +347,16 @@ export interface ResponseReview {
   note?: string;
   /** زمانِ ثبتِ درخواست توسطِ پرسنل (هنگامِ ارسالِ فرم تنظیم می‌شود). */
   requestedAt?: string;
+  /** گردش‌کار (#3): شماره‌ی مرحله‌ی جاری (۰-مبنا)، شمارِ کل، بخشِ مسئولِ مرحله، و تاریخچه. */
+  step?: number;
+  stepCount?: number;
+  departmentId?: string | null;
+  history?: Array<{
+    step: number;
+    departmentId: string | null;
+    decision: 'approved' | 'rejected';
+    byEmail: string;
+    at: string;
+    note: string;
+  }>;
 }

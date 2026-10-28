@@ -129,10 +129,17 @@ export class ResponseController {
     @Body() dto: ReviewResponseDto,
     @CurrentUser() user: JwtUser,
   ) {
-    await this.assertResponse(responseId, user);
+    // مجوزدهی داخلِ review متمرکز است: سازمان + بخشِ مرحله‌ی جاری (گردش‌کار) یا
+    // بخشِ فرم. این‌جا assertResponse (که فقط بخشِ فرم را می‌بیند) مانعِ تأییدِ
+    // مرحله‌ی یک واحدِ دیگر در گردش‌کارِ بین‌واحدی می‌شد.
     return this.responseService.review(responseId, dto.decision, dto.note, {
       userId: user.sub,
       email: user.email,
+      organizationId: user.organizationId,
+      scope: {
+        isManager: this.tenant.isManager(user),
+        departmentIds: await this.tenant.memberDepartmentIds(user.sub),
+      },
     });
   }
 

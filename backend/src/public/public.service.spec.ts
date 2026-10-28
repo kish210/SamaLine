@@ -506,6 +506,8 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       const updated = await reviewSvc().review(stored.id, 'approved', 'موافقم', {
         userId: 'mgr-1',
         email: 'mgr@hotel.ir',
+        organizationId,
+        scope: { isManager: true, departmentIds: [] },
       });
       const review = updated.meta.review as Record<string, unknown>;
       expect(review.status).toBe('approved');
@@ -525,10 +527,85 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
       const updated = await reviewSvc().review(stored.id, 'rejected', undefined, {
         userId: 'mgr-1',
         email: 'mgr@hotel.ir',
+        organizationId,
+        scope: { isManager: true, departmentIds: [] },
       });
       expect((updated.meta.review as Record<string, unknown>).status).toBe(
         'rejected',
       );
+    });
+  });
+
+  // گردش‌کارِ بین‌واحدی (#3): پاسخ از مرحله‌ی ۰ شروع و با هر تأیید به مرحله‌ی
+  // بعد (بخشِ بعد) می‌رود؛ فقط عضوِ بخشِ مرحله‌ی جاری یا مدیر تأیید می‌کند.
+  describe('گردش‌کارِ بین‌واحدی', () => {
+    const reviewSvc = () =>
+      new ResponseService(
+        ds.getRepository(ResponseEntity),
+        ds.getRepository(FormEntity),
+        ds.getRepository(ResponseCommentEntity),
+        { notifyReviewDecision: async () => {} } as never,
+      );
+
+    const submit = async () => {
+      await service.submitByToken(publicationToken, { answers: { q1: 'بله', rate: 4 } });
+      const [stored] = await ds.getRepository(ResponseEntity).find();
+      return stored;
+    };
+
+    it('پاسخ را در مرحله‌ی ۰ و بخشِ اولِ گردش‌کار ثبت می‌کند', async () => {
+      await seed({ workflow: { steps: [{ departmentId: 'd-tech' }, { departmentId: 'd-fin' }] } });
+      const stored = await submit();
+      const review = stored.meta.review as Record<string, unknown>;
+      expect(review.status).toBe('pending');
+      expect(review.step).toBe(0);
+      expect(review.stepCount).toBe(2);
+      expect(review.departmentId).toBe('d-tech');
+    });
+
+    it('تأییدِ مرحله، پاسخ را به بخشِ مرحله‌ی بعد می‌برد (نه نهایی)', async () => {
+      await seed({ workflow: { steps: [{ departmentId: 'd-tech' }, { departmentId: 'd-fin' }] } });
+      const stored = await submit();
+      const after = await reviewSvc().review(stored.id, 'approved', undefined, {
+        userId: 'u-tech',
+        email: 'tech@h.ir',
+        organizationId,
+        scope: { isManager: false, departmentIds: ['d-tech'] },
+      });
+      const review = after.meta.review as Record<string, unknown>;
+      expect(review.status).toBe('pending'); // هنوز نهایی نشده
+      expect(review.step).toBe(1);
+      expect(review.departmentId).toBe('d-fin');
+    });
+
+    it('عضوِ بخشِ اشتباه نمی‌تواند مرحله را تأیید کند', async () => {
+      await seed({ workflow: { steps: [{ departmentId: 'd-tech' }, { departmentId: 'd-fin' }] } });
+      const stored = await submit();
+      await expect(
+        reviewSvc().review(stored.id, 'approved', undefined, {
+          userId: 'u-fin',
+          email: 'fin@h.ir',
+          organizationId,
+          scope: { isManager: false, departmentIds: ['d-fin'] }, // هنوز مرحله‌ی tech است
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('تأییدِ آخرین مرحله، درخواست را نهایی (approved) می‌کند', async () => {
+      await seed({ workflow: { steps: [{ departmentId: 'd-tech' }, { departmentId: 'd-fin' }] } });
+      const stored = await submit();
+      const svc = reviewSvc();
+      await svc.review(stored.id, 'approved', undefined, {
+        userId: 'u-tech', email: 'tech@h.ir', organizationId,
+        scope: { isManager: false, departmentIds: ['d-tech'] },
+      });
+      const final = await svc.review(stored.id, 'approved', undefined, {
+        userId: 'u-fin', email: 'fin@h.ir', organizationId,
+        scope: { isManager: false, departmentIds: ['d-fin'] },
+      });
+      const review = final.meta.review as Record<string, unknown>;
+      expect(review.status).toBe('approved');
+      expect((review.history as unknown[]).length).toBe(2);
     });
   });
 
