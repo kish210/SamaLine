@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { QUESTION_CATEGORIES, typeLabel } from '../../question-catalog';
 import { reconcileQuestionType } from '../../question-type';
 import type { Question, QuestionType } from '../../types';
@@ -265,16 +265,9 @@ export function QuestionEditor({
       {hasChoices && (
         <label>
           گزینه‌ها (با ویرگول جدا کنید)
-          <input
-            value={(question.options ?? []).join('، ')}
-            onChange={(e) =>
-              onChange({
-                options: e.target.value
-                  .split(/[،,]/)
-                  .map((o) => o.trim())
-                  .filter(Boolean),
-              })
-            }
+          <OptionsInput
+            options={question.options ?? []}
+            onChange={(options) => onChange({ options })}
           />
         </label>
       )}
@@ -448,5 +441,54 @@ function ScaleSettings({ type, meta, onPatch }: ScaleProps) {
         </p>
       )}
     </fieldset>
+  );
+}
+
+/** متنِ گزینه‌ها را به آرایه تبدیل می‌کند (جداکننده: «،» یا «,»). */
+function parseOptions(text: string): string[] {
+  return text
+    .split(/[،,]/)
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
+/**
+ * ورودی گزینه‌ها با state محلیِ متن.
+ *
+ * باگ قبلی: ورودی value را از options.join می‌ساخت و در هر کیبردزدن متن را
+ * split/trim/filter(Boolean) می‌کرد؛ به‌محض تایپِ جداکننده («،» یا «,») گزینه‌ی
+ * خالیِ انتهایی حذف و متن از نو ساخته می‌شد، پس جداکننده هرگز نمی‌ماند و
+ * نمی‌شد گزینه‌ی دوم را تایپ کرد. حالا متنِ خام در state محلی می‌ماند (جداکننده
+ * و فاصله‌ها حفظ می‌شوند) و آرایه‌ی گزینه‌ها زنده از همان ساخته می‌شود.
+ */
+function OptionsInput({
+  options,
+  onChange,
+}: {
+  options: string[];
+  onChange: (options: string[]) => void;
+}) {
+  const [text, setText] = useState(options.join('، '));
+
+  // اگر گزینه‌ها از بیرون عوض شد (مثلاً با تغییر نوع سوال صفر شد) و با متنِ در
+  // حال تایپ هم‌خوان نبود، همگام کن؛ وقتی هم‌خوان است دست نمی‌زنیم تا جداکننده/
+  // فاصله‌ی در حال تایپ از بین نرود.
+  useEffect(() => {
+    const external = options.join('، ');
+    if (parseOptions(text).join('، ') !== external) {
+      setText(external);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options]);
+
+  return (
+    <input
+      value={text}
+      placeholder="مثلاً: بله، خیر، نمی‌دانم"
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(parseOptions(e.target.value));
+      }}
+    />
   );
 }
