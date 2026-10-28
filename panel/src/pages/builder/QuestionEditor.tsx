@@ -22,6 +22,10 @@ interface Props {
   onDragOverCard: () => void;
   onDropCard: () => void;
   onDragEnd: () => void;
+  /** باز بودن کارت (آکاردئون)؛ تعریف‌نشده یعنی باز. */
+  expanded?: boolean;
+  /** باز/بسته کردن این کارت. */
+  onToggleExpand?: () => void;
 }
 
 /**
@@ -57,7 +61,10 @@ export function QuestionEditor({
   onDragOverCard,
   onDropCard,
   onDragEnd,
+  expanded,
+  onToggleExpand,
 }: Props) {
+  const isOpen = expanded ?? true;
   const hasChoices = CHOICE_TYPES.includes(question.type);
   const meta = (question.meta ?? {}) as Record<string, unknown>;
   const hidden = meta.hidden === true;
@@ -148,7 +155,31 @@ export function QuestionEditor({
           >
             ⠿
           </span>
-          سوال {index + 1} · {typeLabel(question.type)}
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            aria-expanded={isOpen}
+            title={isOpen ? 'جمع کردن سوال' : 'باز کردن سوال'}
+            style={{
+              font: 'inherit',
+              color: 'inherit',
+              background: 'none',
+              border: 0,
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
+            <span aria-hidden="true">{isOpen ? '▾' : '▸'}</span> سوال {index + 1} ·{' '}
+            {typeLabel(question.type)}
+          </button>
+          {!isOpen && question.title && (
+            <span style={{ opacity: 0.7, marginInlineStart: 8 }}>
+              —{' '}
+              {question.title.length > 40
+                ? `${question.title.slice(0, 40)}…`
+                : question.title}
+            </span>
+          )}
           {hidden && <span className="badge-off">خاموش</span>}
         </span>
         <div className="question-actions">
@@ -178,6 +209,8 @@ export function QuestionEditor({
         </div>
       </div>
 
+      {isOpen && (
+        <>
       <label>
         عنوان سوال
         <input
@@ -332,6 +365,8 @@ export function QuestionEditor({
           </label>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

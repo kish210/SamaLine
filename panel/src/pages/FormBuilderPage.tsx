@@ -77,6 +77,9 @@ export function FormBuilderPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('build');
   const [pages, setPages] = useState<FormPage[]>([]);
+  // آکاردئون: فقط یک سوال هم‌زمان باز است تا فهرست فشرده بماند و افزودنِ سوالِ
+  // بعدی نیاز به اسکرول/زوم نداشته باشد.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -100,8 +103,11 @@ export function FormBuilderPage() {
   const loadedVersionId = form.data?.latestVersion?.id;
   useEffect(() => {
     if (form.data?.latestVersion?.structure.pages) {
-      setPages(form.data.latestVersion.structure.pages);
+      const loaded = form.data.latestVersion.structure.pages;
+      setPages(loaded);
       setDirty(false);
+      // اولین سوال را باز نگه دار تا فرم خالی به‌نظر نرسد.
+      setExpandedId((prev) => prev ?? loaded[0]?.questions?.[0]?.id ?? null);
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
@@ -477,6 +483,12 @@ export function FormBuilderPage() {
                     setDrag(null);
                   }}
                   onDragEnd={() => setDrag(null)}
+                  expanded={question.id === expandedId}
+                  onToggleExpand={() =>
+                    setExpandedId((prev) =>
+                      prev === question.id ? null : question.id,
+                    )
+                  }
                   onChange={(patch) =>
                     updateQuestion(pageIndex, questionIndex, patch)
                   }
@@ -496,14 +508,14 @@ export function FormBuilderPage() {
 
               <div className="inline-form">
                 <AddQuestionMenu
-                  onPick={(type) =>
+                  onPick={(type) => {
+                    const added = newQuestion(nextQuestionNumber(), type);
                     updatePage(pageIndex, {
-                      questions: [
-                        ...page.questions,
-                        newQuestion(nextQuestionNumber(), type),
-                      ],
-                    })
-                  }
+                      questions: [...page.questions, added],
+                    });
+                    // سوالِ تازه باز شود تا بی‌درنگ قابلِ ویرایش باشد.
+                    setExpandedId(added.id);
+                  }}
                 />
 
                 <QuestionBankMenu
