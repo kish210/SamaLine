@@ -116,43 +116,20 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - **onprem_licenses** — `organizationId`, `licenseKey`, `capabilities`(JSON),
   `expiresAt*`, `isActive`. (صدور/اعتبارسنجی هست؛ بررسی هنگام اجرا هنوز نه.)
 
-### نگهداری و تعمیرات هتل (ماژول maintenance)
-- **maintenance_requests** — `workspaceId`, `requestNo` (یکتا در فضای کاری),
-  `createdByUserId*`, `requesterName`, `building`/`floor`/`room`/`locationNote`,
-  `category` (MaintenanceCategory), `description`, `priority` (MaintenancePriority),
-  `assignedTo`, `status` (MaintenanceStatus), `workNotes`, `completionNotes`,
-  `estimatedCost`/`actualCost` (bigint), `attachments`(JSON [{url,name}]),
-  `closedAt*`, `archivedAt*` (حذف نرم). ایندکس (workspaceId,status) و یکتا
-  (workspaceId,requestNo).
-- **maintenance_events** — `requestId`(FK→maintenance_requests, CASCADE),
-  `actorId*`, `actorName`, `action` (created/status_changed/assigned/note_added/
-  archived), `fromValue*`, `toValue*`, `note`. ردپای ممیزیِ هر درخواست.
-- **room_readiness** — `workspaceId`, `room` (یکتا با workspaceId),
-  `building`/`floor`, `status` (RoomReadinessStatus), `note`, `updatedByName`.
-  **مستقل از وضعیت درخواست**؛ بسته‌شدن تیکت آن را خودکار عوض نمی‌کند.
-
-### سنسور دمای سردخانه (ماژول sensors — فاز ۴، اختیاری)
-- **cold_room_sensors** — `workspaceId`, `name`, `location`, `unit` (C/F),
-  `minThreshold*`/`maxThreshold*`, `staleAfterSeconds`, `connector`
-  (SensorConnectorKind: manual/http/simulated), `connectorConfig`(JSON؛ token
-  رمزشده با secret-box، در API پنهان)، `isActive`, `lastValue*`,
-  `lastReadingAt*`, `lastHealth` (SensorHealth). ایندکس (workspaceId).
-- **sensor_readings** — `sensorId`(FK→cold_room_sensors, CASCADE), `value`,
-  `unit`, `isSimulated` (داده‌ی آزمایشیِ شبیه‌ساز، صریح علامت‌خورده), `observedAt`.
-  ایندکس (sensorId, observedAt).
-- **sensor_alerts** — `sensorId`(FK, CASCADE), `kind` (SensorAlertKind:
-  low/high/stale), `value*`, `message`, `acknowledgedAt*`, `acknowledgedBy*`.
-  هشدار + تأیید/رسیدگی + تاریخچه.
-
-> **نکته:** MQTT/Modbus/وندور تا رسیدن مشخصات واقعی سخت‌افزار پیاده نشده؛ فقط
-> رابط ماژولار + HTTP عمومی + شبیه‌سازِ آزمایشی.
+> **حذف‌شده (نسخه ۱.۶.۸):** ماژول‌های «تعمیرات» (maintenance_requests،
+> maintenance_events، room_readiness) و «سنسور سردخانه» (cold_room_sensors،
+> sensor_readings، sensor_alerts) برداشته شدند؛ کار نگهداری فرم‌محور شد
+> (فرمِ عملیاتیِ بخشِ فنی + گردش‌کار). مهاجرتِ `DropHotelOpsModules` این
+> جدول‌ها و enumهایشان را می‌اندازد، پس در دیتابیسِ فعلی وجود ندارند.
 
 ### سکو و متفرقه
 - **platform_settings** — کلید ثابت `singleton`. `footerEnabled/Text/Url`
   (نوار پایین فرم‌ها)، `registrationEnabled` (سوئیچ ثبت‌نام)، `aiProvider`
   (`mock`/`openai`)، `aiBaseUrl`، `aiModel`، `aiApiKey` (رمزشده). فقط سوپرادمین.
 - **audit_logs** — `organizationId`, `action`, `actorType`, `actorId*`,
-  `payload`(JSON). (جدول هست؛ نوشتن رویداد هنوز کامل نیست.)
+  `payload`(JSON). `AuditService` (سراسری، بی‌خطر) رویدادهای مهم را می‌نویسد —
+  تأیید/رد/پیشرویِ گردش‌کارِ درخواست‌ها (response.approved/rejected/
+  workflow_advanced). نمای `GET /audit` و صفحه‌ی «لاگِ ممیزی» (مدیر+).
 - **menus** — `workspaceId`, `slug`(یکتا), `title`, `description`, `logoUrl`,
   `images`, `sections`(JSON)، `theme` (کلیدِ ظاهر، پیش‌فرض `classic`)، `isActive`.
   منوی QR.
@@ -172,6 +149,10 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 - گردش‌کارِ تأیید بدونِ جدول است: `forms.settings.requiresApproval` و
   `responses.meta.review` (`status` pending/approved/rejected، `byEmail`، `at`،
   `note`، `requestedAt`).
+- **گردش‌کارِ بین‌واحدی (#۳)** هم بدونِ جدول: `forms.settings.workflow.steps`
+  (`[{departmentId,label}]`) و `responses.meta.review` با `step`/`stepCount`/
+  `departmentId` (بخشِ مرحله‌ی جاری) و `history[]`. هر پاسخ مرحله‌به‌مرحله به
+  بخشِ بعد مسیردهی می‌شود؛ «کارتابلِ تأیید» هر واحد فقط مرحله‌ی خودش را می‌بیند.
 - **api_keys** — `organizationId`, `name`, `keyPrefix`(یکتا), `keyHash`,
   `isActive`, `role` (OrganizationRole), `lastUsedAt*`, `expiresAt*`,
   `scopes`(JSON). احراز با `X-API-Key` یا `Authorization: Bearer sl_…`.

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { reportsApi, responsesApi } from '../../api';
+import { aiApi, describeError, reportsApi, responsesApi } from '../../api';
 import type { ResponseRow } from '../../types';
 import { useAuth } from '../../auth';
 import { hasRole } from '../../types';
@@ -36,7 +36,7 @@ interface Props {
   formTitle: string;
 }
 
-type Tab = 'charts' | 'table';
+type Tab = 'charts' | 'table' | 'ai';
 type StatusFilter = 'all' | 'completed' | 'partial';
 
 /** تعداد ردیف در هر صفحه‌ی جدول پاسخ‌ها. */
@@ -223,6 +223,13 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
         >
           جدول پاسخ‌ها
         </button>
+        <button
+          type="button"
+          className={tab === 'ai' ? 'active' : ''}
+          onClick={() => setTab('ai')}
+        >
+          تحلیل هوش مصنوعی
+        </button>
 
         <div className="tabs-spacer" />
 
@@ -245,6 +252,13 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
             <QuestionCharts data={analytics.data} formTitle={formTitle} />
           )}
         </>
+      )}
+
+      {tab === 'ai' && (
+        <AiAnswerAnalysis
+          questions={analytics.data?.questions ?? []}
+          rows={responses.data ?? []}
+        />
       )}
 
       <section className="card" hidden={tab !== 'table'}>
@@ -611,4 +625,117 @@ function formatAnswer(value: unknown): string {
   if (Array.isArray(value)) return value.join('، ');
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+/** نوعِ سوال‌هایی که پاسخِ متن‌بازِ قابل‌تحلیل دارند. */
+const OPEN_TEXT_TYPES = new Set(['long_text', 'short_text']);
+
+interface AiAnalysisResult {
+  sentiment?: { positive?: number; neutral?: number; negative?: number };
+  topics?: Array<{ label: string; count: number }>;
+  summary?: string;
+}
+
+/**
+ * تحلیلِ هوش مصنوعیِ پاسخ‌های متن‌بازِ یک سوال.
+ *
+ * پاسخ‌های یک سوالِ متن‌باز را از همه‌ی پاسخ‌نامه‌ها جمع می‌کند و به موتورِ
+ * `analyze-open-text` می‌دهد؛ لحن، موضوع‌های پرتکرار و خلاصه را نشان می‌دهد.
+ */
+function AiAnswerAnalysis({
+  questions,
+  rows,
+}: {
+  questions: Array<{ id: string; title: string; type?: string }>;
+  rows: ResponseRow[];
+}) {
+  const openQuestions = questions.filter((q) => OPEN_TEXT_TYPES.has(q.type ?? ''));
+  const [questionId, setQuestionId] = useState<string>(openQuestions[0]?.id ?? '');
+
+  const answersFor = (id: string): string[] =>
+    rows
+      .map((r) => r.answers?.[id])
+      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+      .map((v) => v.trim());
+
+  const analyze = useMutation({
+    mutationFn: () => aiApi.analyze(answersFor(questionId)),
+  });
+  const result = analyze.data as AiAnalysisResult | undefined;
+  const count = questionId ? answersFor(questionId).length : 0;
+
+  if (openQuestions.length === 0) {
+    return (
+      <section className="card">
+        <h3>تحلیل هوش مصنوعی</h3>
+        <p className="hint">
+          این فرم سوالِ متن‌بازی (پاسخِ تشریحی) ندارد؛ تحلیلِ متن روی همین نوع
+          سوال‌ها کار می‌کند.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="card">
+      <h3>تحلیل هوش مصنوعیِ پاسخ‌های متن‌باز</h3>
+      <div className="inline-form">
+        <label className="inline-select">
+          <span>سوال</span>
+          <select value={questionId} onChange={(e) => setQuestionId(e.target.value)}>
+            {openQuestions.map((q) => (
+              <option key={q.id} value={q.id}>
+                {q.title || q.id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="hint">{count.toLocaleString('fa-IR')} پاسخِ متنی</span>
+        <button
+          type="button"
+          disabled={analyze.isPending || count === 0}
+          onClick={() => analyze.mutate()}
+        >
+          {analyze.isPending ? 'در حال تحلیل…' : 'تحلیل با هوش مصنوعی'}
+        </button>
+      </div>
+
+      {analyze.isError && <p className="error">{describeError(analyze.error)}</p>}
+
+      {result && (
+        <div className="ai-analysis">
+          {result.summary && (
+            <p>
+              <strong>خلاصه:</strong> {result.summary}
+            </p>
+          )}
+          {result.sentiment && (
+            <p className="hint">
+              لحن — مثبت: {Number(result.sentiment.positive ?? 0).toLocaleString('fa-IR')} ·
+              خنثی: {Number(result.sentiment.neutral ?? 0).toLocaleString('fa-IR')} ·
+              منفی: {Number(result.sentiment.negative ?? 0).toLocaleString('fa-IR')}
+            </p>
+          )}
+          {result.topics && result.topics.length > 0 && (
+            <table className="simple-table">
+              <thead>
+                <tr>
+                  <th>موضوع</th>
+                  <th>تکرار</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.topics.map((t, i) => (
+                  <tr key={i}>
+                    <td>{t.label}</td>
+                    <td>{Number(t.count ?? 0).toLocaleString('fa-IR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
