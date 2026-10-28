@@ -111,7 +111,9 @@ export class TelegramRecipientPatchDto {
   isActive?: boolean;
 }
 
-@MinRole(OrganizationRole.ADMIN)
+// رباتِ بله/تلگرام فقط برای «مالکِ» سازمان دیده و تنظیم می‌شود؛ بقیه (حتی مدیر)
+// دسترسی ندارند.
+@MinRole(OrganizationRole.OWNER)
 @Controller('integrations/telegram')
 @UseGuards(JwtAuthGuard)
 export class TelegramController {
