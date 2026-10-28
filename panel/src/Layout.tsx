@@ -269,6 +269,9 @@ export function Layout() {
           <span className="statusbar-extra">مدیر کل سامانه</span>
         )}
         <span className="spacer" />
+        <span className="statusbar-extra" title="نسخه‌ی نصب‌شده روی همین سرور">
+          نسخه {__APP_VERSION__}
+        </span>
         <span className="statusbar-extra">شرکت سماع رایانه کیش</span>
       </footer>
     </div>
