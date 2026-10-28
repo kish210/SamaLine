@@ -27,7 +27,7 @@ export interface UnitSetupResult {
   departmentId: string;
   department: 'created' | 'existing';
   form: 'created' | 'existing' | 'skipped';
-  dashboard: 'created' | 'existing';
+  dashboard: 'created' | 'existing' | 'repaired';
   portal: 'created' | 'existing' | 'skipped';
   /** دلیلِ ساخته نشدنِ فرم (مثلا سقفِ پلن). */
   note?: string;
@@ -102,7 +102,8 @@ export class HotelSetupService {
       }
 
       let dashState: UnitSetupResult['dashboard'] = 'existing';
-      if (!orgDashboards.some((d) => d.departmentId === deptId)) {
+      const existingDash = orgDashboards.find((d) => d.departmentId === deptId);
+      if (!existingDash) {
         const dashboard = await this.dashboards.create(
           organizationId,
           `داشبوردِ واحدِ ${unit.name}`,
@@ -112,6 +113,23 @@ export class HotelSetupService {
           widgets: unitWidgets(unit.name, formId),
         });
         dashState = 'created';
+      } else if (formId) {
+        /*
+         * تعمیر: داشبوردِ واحد از قبل هست ولی اگر ویجتِ آماری formId نداشته باشد
+         * (داشبورد پیش از ساختِ فرمِ واحد ساخته شده)، آمار هرگز پر نمی‌شود.
+         * formId را روی همان ویجت‌ها می‌گذاریم، بدونِ پاک‌کردنِ سفارشی‌سازیِ مدیر.
+         */
+        const widgets = (existingDash.widgets ?? []) as DashboardWidget[];
+        const needsRepair = widgets.some((w) => w.type === 'stat' && !w.formId);
+        if (needsRepair) {
+          const repaired = widgets.map((w) =>
+            w.type === 'stat' && !w.formId ? { ...w, formId } : w,
+          );
+          await this.dashboards.update(organizationId, existingDash.id, {
+            widgets: repaired,
+          });
+          dashState = 'repaired';
+        }
       }
 
       // پرتالِ واحد: فرمِ همین واحد را برای کارکنانِ همان بخش عمومی می‌کند.
