@@ -14,6 +14,11 @@ function makeFakes(opts: { formCreateFails?: boolean } = {}) {
     name: string;
     widgets: unknown[];
   }> = [];
+  const portals: Array<{
+    id: string;
+    departmentId: string | null;
+    formIds: string[];
+  }> = [];
   let n = 0;
 
   const departments = {
@@ -46,12 +51,29 @@ function makeFakes(opts: { formCreateFails?: boolean } = {}) {
       return d;
     },
   };
+  const portalService = {
+    list: async () => portals,
+    save: async (
+      _ws: string,
+      _id: string | null,
+      input: { departmentId?: string | null; formIds?: string[] },
+    ) => {
+      const p = {
+        id: `p${++n}`,
+        departmentId: input.departmentId ?? null,
+        formIds: input.formIds ?? [],
+      };
+      portals.push(p);
+      return p;
+    },
+  };
   const service = new HotelSetupService(
     departments as never,
     formService as never,
     dashboardService as never,
+    portalService as never,
   );
-  return { service, depts, forms, dashboards };
+  return { service, depts, forms, dashboards, portals };
 }
 
 describe('HotelSetupService — واحدهای استانداردِ هتل', () => {
@@ -71,6 +93,13 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
     expect(JSON.stringify(dash.widgets)).toContain(
       f.forms.find((x) => x.departmentId === technical.departmentId)!.id,
     );
+    // هر واحد یک پرتال هم می‌گیرد که فرمِ همان واحد را دارد.
+    expect(f.portals).toHaveLength(5);
+    const techPortal = f.portals.find((p) => p.departmentId === technical.departmentId)!;
+    expect(techPortal.formIds).toContain(
+      f.forms.find((x) => x.departmentId === technical.departmentId)!.id,
+    );
+    expect(result.every((r) => r.portal === 'created')).toBe(true);
   });
 
   it('اجرای دوباره چیزِ تکراری نمی‌سازد', async () => {
@@ -80,8 +109,13 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
     expect(f.depts).toHaveLength(5);
     expect(f.forms).toHaveLength(5);
     expect(f.dashboards).toHaveLength(5);
+    expect(f.portals).toHaveLength(5);
     expect(again.every((r) => r.department === 'existing')).toBe(true);
-    expect(again.every((r) => r.form === 'existing' && r.dashboard === 'existing')).toBe(true);
+    expect(
+      again.every(
+        (r) => r.form === 'existing' && r.dashboard === 'existing' && r.portal === 'existing',
+      ),
+    ).toBe(true);
   });
 
   it('شکستِ ساختِ فرم (مثلا سقفِ پلن) بخش و داشبورد را نمی‌شکند', async () => {

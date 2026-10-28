@@ -3,12 +3,19 @@ import { TenantAccessModule } from '../common/tenant-access.module';
 import { DepartmentsModule } from '../departments/departments.module';
 import { FormModule } from '../forms/form.module';
 import { ReportModule } from '../reports/report.module';
+import { PublicModule } from '../public/public.module';
 import { HotelSetupController } from './hotel-setup.controller';
 import { HotelSetupService } from './hotel-setup.service';
 
-/** راه‌اندازیِ یک‌کلیکیِ واحدهای هتل (بخش + فرمِ عملیاتی + داشبورد). */
+/** راه‌اندازیِ یک‌کلیکیِ واحدهای هتل (بخش + فرمِ عملیاتی + داشبورد + پرتال). */
 @Module({
-  imports: [TenantAccessModule, DepartmentsModule, FormModule, ReportModule],
+  imports: [
+    TenantAccessModule,
+    DepartmentsModule,
+    FormModule,
+    ReportModule,
+    PublicModule,
+  ],
   controllers: [HotelSetupController],
   providers: [HotelSetupService],
 })

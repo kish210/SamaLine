@@ -4,6 +4,7 @@ import type { DashboardWidget } from '../database/entities/dashboard.entity';
 import { DepartmentsService } from '../departments/departments.service';
 import { FormService } from '../forms/form.service';
 import { DashboardService } from '../reports/dashboard.service';
+import { PortalService } from '../public/portal.service';
 import { findTemplate } from '../templates/form-templates';
 
 /**
@@ -27,6 +28,7 @@ export interface UnitSetupResult {
   department: 'created' | 'existing';
   form: 'created' | 'existing' | 'skipped';
   dashboard: 'created' | 'existing';
+  portal: 'created' | 'existing' | 'skipped';
   /** دلیلِ ساخته نشدنِ فرم (مثلا سقفِ پلن). */
   note?: string;
 }
@@ -48,6 +50,7 @@ export class HotelSetupService {
     private readonly departments: DepartmentsService,
     private readonly forms: FormService,
     private readonly dashboards: DashboardService,
+    private readonly portals: PortalService,
   ) {}
 
   async setupStandardUnits(
@@ -57,6 +60,7 @@ export class HotelSetupService {
     const existingDepts = await this.departments.list(organizationId);
     const workspaceForms = await this.forms.list(workspaceId, true);
     const orgDashboards = await this.dashboards.list(organizationId);
+    const existingPortals = await this.portals.list(workspaceId);
 
     const results: UnitSetupResult[] = [];
     for (const unit of STANDARD_UNITS) {
@@ -110,6 +114,26 @@ export class HotelSetupService {
         dashState = 'created';
       }
 
+      // پرتالِ واحد: فرمِ همین واحد را برای کارکنانِ همان بخش عمومی می‌کند.
+      // پیش از این setup پرتال نمی‌ساخت، پس پرتالِ واحد همیشه خالی بود.
+      let portalState: UnitSetupResult['portal'] = 'existing';
+      if (!existingPortals.some((p) => p.departmentId === deptId)) {
+        try {
+          await this.portals.save(workspaceId, null, {
+            slug: `${unit.key}-${randomBytes(3).toString('hex')}`,
+            title: `پرتالِ واحدِ ${unit.name}`,
+            departmentId: deptId,
+            formIds: formId ? [formId] : [],
+          });
+          portalState = 'created';
+        } catch (error) {
+          // سقفِ پلن نباید کلِ راه‌اندازی را بشکند.
+          portalState = 'skipped';
+          note = note ?? (error as Error).message;
+          this.logger.warn(`پرتالِ ${unit.key} ساخته نشد: ${(error as Error).message}`);
+        }
+      }
+
       results.push({
         key: unit.key,
         name: unit.name,
@@ -117,6 +141,7 @@ export class HotelSetupService {
         department: deptState,
         form: formState,
         dashboard: dashState,
+        portal: portalState,
         ...(note ? { note } : {}),
       });
     }

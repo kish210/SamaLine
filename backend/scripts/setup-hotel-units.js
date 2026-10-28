@@ -58,6 +58,7 @@ if (!email || email.startsWith('--')) {
     for (const r of result) {
       console.log(
         `• ${r.name}: بخش ${r.department}، فرم ${r.form}، داشبورد ${r.dashboard}` +
+          (r.portal ? `، پرتال ${r.portal}` : '') +
           (r.note ? ` — ${r.note}` : ''),
       );
     }

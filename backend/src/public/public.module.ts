@@ -60,5 +60,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     PortalAdminController,
     PublicPortalController,
   ],
+  // راه‌اندازیِ واحدهای هتل برای ساختِ پرتالِ هر واحد به PortalService نیاز دارد.
+  exports: [PortalService],
 })
 export class PublicModule {}
