@@ -1,5 +1,28 @@
 import { ALL_QUESTION_TYPES } from '../types/form-types';
 
+/** نام‌های رایجِ نوعِ سوال که مدل‌ها می‌دهند → نوعِ واقعیِ سامانه. */
+const TYPE_ALIASES: Record<string, string> = {
+  text: 'short_text',
+  string: 'short_text',
+  input: 'short_text',
+  short_answer: 'short_text',
+  textarea: 'long_text',
+  paragraph: 'long_text',
+  long_answer: 'long_text',
+  radio: 'multiple_choice',
+  single_choice: 'multiple_choice',
+  choice: 'multiple_choice',
+  checkbox: 'multiple_choice',
+  checkboxes: 'multiple_choice',
+  select: 'dropdown',
+  yes_no: 'boolean',
+  yesno: 'boolean',
+  scale: 'rating',
+  stars: 'rating',
+  tel: 'phone',
+  integer: 'number',
+};
+
 export interface SchemaValidationResult {
   valid: boolean;
   errors: string[];
@@ -83,7 +106,11 @@ export function validateGeneratedForm(raw: unknown): SchemaValidationResult {
       }
       seenQuestionIds.add(id);
 
-      const type = typeof question.type === 'string' ? question.type : '';
+      // مدل‌ها نام‌های رایجِ فرم‌های وب را می‌دهند (text، radio، checkbox …)؛
+      // به‌جای ردِ کلِ فرم، به نوعِ معادلِ سامانه برگردانده می‌شوند.
+      const rawType =
+        typeof question.type === 'string' ? question.type.trim().toLowerCase() : '';
+      const type = TYPE_ALIASES[rawType] ?? rawType;
       if (!(ALL_QUESTION_TYPES as readonly string[]).includes(type)) {
         errors.push(
           `نوع سوال «${type || 'نامشخص'}» در سامانه پشتیبانی نمی‌شود`,

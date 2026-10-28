@@ -135,3 +135,25 @@ describe('validateGeneratedForm', () => {
     expect(result.normalized?.pages[0].questions[0]).not.toHaveProperty('حمله');
   });
 });
+
+describe('validateGeneratedForm — نام‌های رایجِ نوعِ سوال', () => {
+  it('text/radio/checkbox را به نوعِ سامانه برمی‌گرداند', () => {
+    const r = validateGeneratedForm({
+      title: 'نظرسنجی',
+      pages: [
+        {
+          id: 'p1',
+          title: 'صفحه',
+          questions: [
+            { id: 'a', type: 'text', title: 'نام' },
+            { id: 'b', type: 'Radio', title: 'رضایت', options: ['بله', 'خیر'] },
+            { id: 'c', type: 'checkbox', title: 'خدمات', options: ['صبحانه'] },
+          ],
+        },
+      ],
+    });
+    expect(r.valid).toBe(true);
+    const types = r.normalized!.pages[0].questions.map((q) => q.type);
+    expect(types).toEqual(['short_text', 'multiple_choice', 'multiple_choice']);
+  });
+});

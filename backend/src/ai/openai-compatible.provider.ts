@@ -26,7 +26,9 @@ export class OpenAiCompatibleProvider implements AiProvider {
       `یک پرسشنامه برای این هدف بساز: ${input.goal}\n` +
         `زبان: ${input.language ?? 'fa'}\n` +
         'قالب خروجی: {"title":string,"language":string,"pages":[{"id":string,"title":string,' +
-        '"questions":[{"id":string,"type":string,"title":string,"required":boolean,"options":string[]}]}]}',
+        '"questions":[{"id":string,"type":string,"title":string,"required":boolean,"options":string[]}]}]}\n' +
+        'type فقط یکی از این‌ها: short_text, long_text, multiple_choice, dropdown, boolean, rating, nps, number, date, email, mobile. ' +
+        'برای سوالِ گزینه‌ای options را پر کن.',
     );
   }
 
