@@ -22,38 +22,69 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   createForm(input: AiCreateFormInput) {
     return this.completeJson(
-      'تو یک طراح پرسشنامه‌ی حرفه‌ای فارسی هستی. فقط JSON معتبر برگردان.',
-      `یک پرسشنامه برای این هدف بساز: ${input.goal}\n` +
-        `زبان: ${input.language ?? 'fa'}\n` +
-        'قالب خروجی: {"title":string,"language":string,"pages":[{"id":string,"title":string,' +
+      [
+        'تو طراحِ حرفه‌ایِ فرم و نظرسنجیِ سامانه‌ی «سَماع» هستی (ویژه‌ی هتل و کسب‌وکار).',
+        'کاربر معمولاً فقط یک جمله‌ی کوتاه می‌نویسد؛ کارِ تو این است که از همان جمله',
+        'صنف/شغل/صنعتِ مرتبط را تشخیص دهی و فرمی استاندارد و حرفه‌ایِ همان حوزه بسازی —',
+        'نه چند سوالِ عمومی. مثال: «رضایت مهمان هتل» → پذیرش، نظافتِ اتاق، رستوران،',
+        'برخوردِ کارکنان، نسبتِ ارزش به قیمت، احتمالِ توصیه (NPS)؛ «سفارش کافه» → اقلام،',
+        'کیفیت، سرعتِ سرو، قیمت؛ «استخدام» → سوابق، مهارت، حقوقِ درخواستی.',
+        'سوال‌ها و شاخص‌های متعارفِ همان صنف را بیاور تا خروجی برای متخصصِ آن حوزه هم حرفه‌ای باشد.',
+        'قواعد: عنوان‌ها کوتاه و بدونِ سوگیری یا هدایت‌کنندگی؛ ترتیبِ منطقی و هم‌موضوع در یک صفحه؛',
+        'معمولاً ۵ تا ۱۲ سوال؛ نوعِ هر سوال مناسبِ همان پرسش (نه همه short_text)؛',
+        'سوالِ هویتی/تماس فقط اگر لازم است و required منطقی.',
+        'خروجی باید عیناً در سَماع قابلِ‌استفاده باشد: فقط JSON معتبر و مطابقِ قالب؛ بدونِ توضیح، بدونِ ```.',
+      ].join(' '),
+      `هدفِ کاربر (متنِ خودش): «${input.goal}»\n` +
+        `زبانِ خروجی: ${input.language ?? 'fa'} (همه‌ی متن‌ها به همین زبان).\n` +
+        'قالبِ خروجی دقیقاً: {"title":string,"language":string,"pages":[{"id":string,"title":string,' +
         '"questions":[{"id":string,"type":string,"title":string,"required":boolean,"options":string[]}]}]}\n' +
-        'type فقط یکی از این‌ها: short_text, long_text, multiple_choice, dropdown, boolean, rating, nps, number, date, email, mobile. ' +
-        'برای سوالِ گزینه‌ای options را پر کن.',
+        'type فقط یکی از: short_text, long_text, multiple_choice, dropdown, boolean, rating, nps, slider, number, date, email, mobile, phone.\n' +
+        'برای multiple_choice/dropdown، options را با گزینه‌های واقعی و جامع پر کن (برای بقیه options را [] بگذار).\n' +
+        'id هر سوال و صفحه را کوتاه و یکتا و لاتین بگذار (مثل q1, q2, p1).',
     );
   }
 
   reviewForm(input: AiReviewInput) {
     return this.completeJson(
-      'تو یک ممیز پرسشنامه هستی. سوگیری، ابهام و سوال هدایت‌کننده را پیدا کن. فقط JSON برگردان.',
-      `این ساختار را بازنگری کن: ${JSON.stringify(input.structure)}\n` +
-        'قالب خروجی: {"issues":[{"questionId":string,"kind":string,"message":string,"suggestion":string}]}',
+      [
+        'تو ممیزِ کیفیتِ فرم و نظرسنجی هستی.',
+        'هر سوال را از نظرِ سوگیری، ابهام، هدایت‌کنندگی، گزینه‌های ناقص/هم‌پوشان،',
+        'و سوالِ تکراری یا زائد بررسی کن. برای هر ایراد یک اصلاحِ مشخص و عملی بده.',
+        'اگر فرم خوب است، issues را خالی برگردان. فقط JSON برگردان؛ بدونِ توضیح، بدونِ ```.',
+      ].join(' '),
+      `این ساختارِ فرم را بازنگری کن:\n${JSON.stringify(input.structure)}\n` +
+        'قالبِ خروجی دقیقاً: {"issues":[{"questionId":string,"kind":string,"message":string,"suggestion":string}]}\n' +
+        'kind یکی از: bias, ambiguity, leading, options, redundant, other. پیام و پیشنهاد به فارسیِ روان.',
     );
   }
 
   analyzeTextAnswers(input: { answers: string[] }) {
     return this.completeJson(
-      'تو یک تحلیلگر داده‌ی نظرسنجی فارسی هستی. فقط JSON برگردان.',
-      `این پاسخ‌های متن باز را تحلیل کن: ${JSON.stringify(input.answers)}\n` +
-        'قالب خروجی: {"sentiment":{"positive":number,"neutral":number,"negative":number},' +
-        '"topics":[{"label":string,"count":number}],"summary":string}',
+      [
+        'تو تحلیلگرِ پاسخ‌های بازِ نظرسنجیِ فارسی هستی.',
+        'لحن (مثبت/خنثی/منفی) را بر پایه‌ی معنای واقعی بسنج (نه فقط کلمات)،',
+        'موضوع‌های پرتکرار را دسته‌بندی کن و شمارشِ تقریبی بده،',
+        'و یک خلاصه‌ی کوتاه و کاربردی برای مدیر بنویس. فقط JSON برگردان؛ بدونِ ```.',
+      ].join(' '),
+      `پاسخ‌های متن‌باز:\n${JSON.stringify(input.answers)}\n` +
+        'قالبِ خروجی دقیقاً: {"sentiment":{"positive":number,"neutral":number,"negative":number},' +
+        '"topics":[{"label":string,"count":number}],"summary":string}\n' +
+        'عددهای sentiment تعدادِ پاسخ‌اند و جمعشان با کلِ پاسخ‌ها بخواند. label و summary فارسی.',
     );
   }
 
   chatWithData(input: { question: string; context?: Record<string, unknown> }) {
     return this.completeJson(
-      'به پرسش کاربر فقط بر اساس داده‌ی داده‌شده پاسخ بده. فقط JSON برگردان.',
-      `پرسش: ${input.question}\nداده: ${JSON.stringify(input.context ?? {})}\n` +
-        'قالب خروجی: {"answer":string,"basis":string[]}',
+      [
+        'تو دستیارِ تحلیلِ داده‌ی سَماع هستی.',
+        'فقط و فقط بر پایه‌ی «داده»ی داده‌شده پاسخ بده؛ چیزی از خودت نساز.',
+        'اگر داده برای پاسخ کافی نیست، صادقانه بگو که داده کافی نیست.',
+        'پاسخ کوتاه، دقیق و فارسی. فقط JSON برگردان؛ بدونِ ```.',
+      ].join(' '),
+      `پرسشِ کاربر: «${input.question}»\nداده:\n${JSON.stringify(input.context ?? {})}\n` +
+        'قالبِ خروجی دقیقاً: {"answer":string,"basis":string[]}\n' +
+        'basis فهرستِ کوتاهی از همان بخش‌هایی از داده است که پاسخ بر آن‌ها استوار است.',
     );
   }
 
@@ -62,8 +93,13 @@ export class OpenAiCompatibleProvider implements AiProvider {
     targetLanguage: 'fa' | 'en' | 'ar';
   }) {
     return this.completeJson(
-      'تو یک مترجم پرسشنامه هستی. ساختار را دست‌نخورده نگه دار و فقط متن‌ها را ترجمه کن. فقط JSON برگردان.',
-      `به زبان ${input.targetLanguage} ترجمه کن: ${JSON.stringify(input.structure)}`,
+      [
+        'تو مترجمِ حرفه‌ایِ فرم هستی.',
+        'فقط متنِ دیده‌شده توسطِ کاربر (title، options، توضیح‌ها) را ترجمه کن؛',
+        'ساختار و کلیدها و id‌ها و type‌ها را عیناً دست‌نخورده نگه دار.',
+        'ترجمه روان و بومی باشد، نه تحت‌اللفظی. فقط JSON با همان ساختار برگردان؛ بدونِ ```.',
+      ].join(' '),
+      `زبانِ مقصد: ${input.targetLanguage}\nساختارِ فرم:\n${JSON.stringify(input.structure)}`,
     );
   }
 
