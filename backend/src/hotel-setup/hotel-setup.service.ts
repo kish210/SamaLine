@@ -165,6 +165,103 @@ export class HotelSetupService {
     }
     return results;
   }
+
+  /**
+   * ساختِ خودکارِ داشبورد + پرتال برای یک فرمِ موجود (مثلاً فرمِ ساخته‌شده با AI).
+   * داشبورد ویجتِ آمار + یک نمودار برای هر سوالِ نمودارپذیر می‌گیرد؛ پرتال همان
+   * فرم را دارد. هر دو بخشِ همان فرم را می‌گیرند (اگر فرم بخشی باشد).
+   */
+  async autoBuildForForm(organizationId: string, formId: string) {
+    const form = (await this.forms.get(formId)) as {
+      title: string;
+      workspaceId: string;
+      departmentId: string | null;
+      latestVersion?: { structure?: { pages?: Array<{ questions?: Array<{ id: string; title?: string; type?: string }> }> } };
+    };
+    const title = form.title || 'فرم';
+    const departmentId = form.departmentId ?? null;
+    const questions = (form.latestVersion?.structure?.pages ?? []).flatMap(
+      (p) => p.questions ?? [],
+    );
+
+    const dashboard = await this.dashboards.create(
+      organizationId,
+      `داشبوردِ ${title}`,
+      departmentId,
+    );
+    await this.dashboards.update(organizationId, dashboard.id, {
+      widgets: reportWidgets(title, formId, questions),
+    });
+
+    let portalSlug: string | null = null;
+    try {
+      const portal = await this.portals.save(form.workspaceId, null, {
+        slug: `rep-${randomBytes(3).toString('hex')}`,
+        title: `پرتالِ ${title}`,
+        departmentId,
+        formIds: [formId],
+      });
+      portalSlug = portal.slug;
+    } catch (error) {
+      this.logger.warn(`پرتالِ خودکار ساخته نشد: ${(error as Error).message}`);
+    }
+
+    return { dashboardId: dashboard.id, portalSlug };
+  }
+}
+
+/** انواعِ سوالی که روی داشبورد نمودارپذیرند و نوعِ ویجتشان. */
+const CHART_WIDGET: Record<string, 'bar' | 'nps'> = {
+  multiple_choice: 'bar',
+  dropdown: 'bar',
+  boolean: 'bar',
+  emoji: 'bar',
+  image_choice: 'bar',
+  rating: 'bar',
+  slider: 'bar',
+  number: 'bar',
+  nps: 'nps',
+};
+
+/** ویجت‌های داشبوردِ یک فرم: متنِ عنوان + آمار + یک نمودار برای هر سوالِ نمودارپذیر. */
+function reportWidgets(
+  title: string,
+  formId: string,
+  questions: Array<{ id: string; title?: string; type?: string }>,
+): DashboardWidget[] {
+  const id = () => randomBytes(6).toString('hex');
+  const widgets: DashboardWidget[] = [
+    {
+      id: id(),
+      type: 'text',
+      title,
+      content: `گزارشِ خودکارِ فرمِ «${title}».`,
+      layout: { x: 0, y: 0, w: 12, h: 1 },
+    },
+    {
+      id: id(),
+      type: 'stat',
+      title: 'پاسخ‌های کامل',
+      formId,
+      metric: 'completed',
+      layout: { x: 0, y: 1, w: 4, h: 2 },
+    },
+  ];
+  let y = 3;
+  for (const q of questions) {
+    const widgetType = CHART_WIDGET[q.type ?? ''];
+    if (!widgetType) continue;
+    widgets.push({
+      id: id(),
+      type: widgetType,
+      title: q.title || q.id,
+      formId,
+      questionId: q.id,
+      layout: { x: 0, y, w: 12, h: 3 },
+    });
+    y += 3;
+  }
+  return widgets;
 }
 
 /** ویجت‌های آغازینِ داشبوردِ یک واحد؛ مدیر بعدا ویرایششان می‌کند. */

@@ -341,6 +341,16 @@ export const hotelSetupApi = {
         params: { workspaceId },
       })
       .then((r) => r.data),
+
+  /** ساختِ خودکارِ داشبورد + پرتال برای یک فرم. */
+  formReport: (formId: string) =>
+    api
+      .post<{ dashboardId: string; portalSlug: string | null }>(
+        "/hotel-setup/form-report",
+        null,
+        { params: { formId } },
+      )
+      .then((r) => r.data),
 };
 
 export const departmentsApi = {

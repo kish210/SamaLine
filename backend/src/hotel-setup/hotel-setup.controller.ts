@@ -27,4 +27,15 @@ export class HotelSetupController {
     await this.tenant.assertWorkspace(workspaceId, user);
     return this.setup.setupStandardUnits(user.organizationId, workspaceId);
   }
+
+  /** ساختِ خودکارِ داشبورد + پرتال برای یک فرم (مثلاً فرمِ ساخته‌شده با AI). */
+  @Post('form-report')
+  @MinRole(OrganizationRole.EDITOR)
+  async formReport(
+    @Query('formId') formId: string,
+    @CurrentUser() user: JwtUser,
+  ) {
+    await this.tenant.assertForm(formId, user);
+    return this.setup.autoBuildForForm(user.organizationId, formId);
+  }
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { aiApi, describeError, formsApi, workspaceApi } from '../api';
+import { aiApi, describeError, formsApi, hotelSetupApi, workspaceApi } from '../api';
 import type { FormPage } from '../types';
 
 interface GeneratedForm {
@@ -28,6 +28,7 @@ export function AiPage() {
   const [goal, setGoal] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedForm | null>(null);
+  const [autoReport, setAutoReport] = useState(true);
 
   const generate = useMutation({
     mutationFn: () => aiApi.createSurvey(goal),
@@ -47,7 +48,7 @@ export function AiPage() {
       const workspaceId = workspaces[0]?.id;
       if (!workspaceId) throw new Error('فضای کاری یافت نشد');
 
-      return formsApi.create({
+      const form = await formsApi.create({
         workspaceId,
         title: generated.title,
         slug: `ai-${Date.now().toString(36)}`,
@@ -57,6 +58,15 @@ export function AiPage() {
           ? { settings: generated.settings }
           : {}),
       });
+      // ساختِ خودکارِ داشبورد + پرتالِ همین فرم؛ بهترین‌تلاش، مانع ساختِ فرم نشود.
+      if (autoReport) {
+        try {
+          await hotelSetupApi.formReport(form.id);
+        } catch {
+          /* نادیده */
+        }
+      }
+      return form;
     },
     onSuccess: async (form) => {
       await queryClient.invalidateQueries({ queryKey: ['forms'] });
@@ -117,12 +127,21 @@ export function AiPage() {
             </div>
           ))}
 
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={autoReport}
+              onChange={(e) => setAutoReport(e.target.checked)}
+            />
+            داشبورد و پرتالِ خودکار برای این فرم هم ساخته شود
+          </label>
+
           <button
             type="button"
             disabled={saveAsForm.isPending}
             onClick={() => saveAsForm.mutate()}
           >
-            ذخیره به‌عنوان فرم و ویرایش
+            {saveAsForm.isPending ? 'در حال ساخت…' : 'ذخیره به‌عنوان فرم و ویرایش'}
           </button>
         </section>
       )}
