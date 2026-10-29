@@ -42,6 +42,8 @@ export class TelegramApi {
     chatId: string,
     text: string,
     baseUrl: string = TELEGRAM_API,
+    /** کیبوردِ اختیاری (reply_markup)؛ سازگار با تلگرام و بله. */
+    replyMarkup?: Record<string, unknown>,
   ): Promise<TelegramOk> {
     /*
      * پیام‌ها با HTML نوشته می‌شوند (تلگرام با parse_mode=HTML رندر می‌کند).
@@ -60,6 +62,7 @@ export class TelegramApi {
       body.parse_mode = 'HTML';
       body.disable_web_page_preview = true;
     }
+    if (replyMarkup) body.reply_markup = replyMarkup;
     return this.call(botToken, 'sendMessage', body, baseUrl);
   }
 

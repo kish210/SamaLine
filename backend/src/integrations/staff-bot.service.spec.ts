@@ -75,7 +75,9 @@ describe('StaffBotService', () => {
   it('با موبایلِ ثبت‌شده، گفتگو را به پرونده وصل می‌کند', async () => {
     await hr.create(ORG, { fullName: 'زهرا محمدی', mobile: '09120000001' });
     const reply = await service.tryHandle(BOT, 'chat-7', '0912 000 0001');
-    expect(reply).toContain('زهرا محمدی');
+    // اتصالِ موفق متن + کیبوردِ پرسنلی برمی‌گرداند.
+    expect(replyText(reply)).toContain('زهرا محمدی');
+    expect(typeof reply === 'object' && reply?.keyboard).toBeTruthy();
 
     const linked = await hr.findByChat('chat-7', 'bale');
     expect(linked?.fullName).toBe('زهرا محمدی');
@@ -245,3 +247,12 @@ describe('StaffBotService', () => {
     });
   });
 });
+
+/** متنِ پاسخ را از رشته یا شیءِ {text,keyboard} بیرون می‌کشد. */
+function replyText(reply: unknown): string {
+  if (typeof reply === 'string') return reply;
+  if (reply && typeof reply === 'object' && 'text' in reply) {
+    return String((reply as { text: string }).text);
+  }
+  return '';
+}

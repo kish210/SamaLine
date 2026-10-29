@@ -8,7 +8,7 @@ import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramApi, platformApiBase } from './telegram-api';
 import { TelegramDigestService } from './telegram-digest.service';
-import { StaffBotService } from './staff-bot.service';
+import { StaffBotService, type BotReply } from './staff-bot.service';
 
 /**
  * عمر کد اتصال.
@@ -140,13 +140,18 @@ export class TelegramBotService {
 
       const chatId = String(chat.id);
       const reply = await this.respond(bot, chatId, text, chat);
-      if (reply)
+      if (reply) {
+        // پاسخ یا فقط متن است یا متن + کیبورد (reply_markup).
+        const asText = typeof reply === 'string' ? reply : reply.text;
+        const keyboard = typeof reply === 'string' ? undefined : reply.keyboard;
         await this.api.send(
           bot.botToken,
           chatId,
-          reply,
+          asText,
           platformApiBase(bot.platform),
+          keyboard,
         );
+      }
     } catch (error) {
       this.logger.warn(
         `پردازش پیام تلگرام ناموفق بود: ${(error as Error).message}`,
@@ -159,7 +164,7 @@ export class TelegramBotService {
     chatId: string,
     text: string,
     chat: NonNullable<TelegramUpdate['message']>['chat'],
-  ): Promise<string | null> {
+  ): Promise<BotReply | null> {
     /*
      * رباتِ پرسنل (فاز F) اول فرصت می‌یابد: پیام‌های شبیهِ موبایل و فرمان‌های
      * پرسنلی (/me، /خروج) را می‌گیرد و گفتگو را به پروندهٔ پرسنل وصل می‌کند.

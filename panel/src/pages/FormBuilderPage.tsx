@@ -78,9 +78,21 @@ export function FormBuilderPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('build');
   const [pages, setPages] = useState<FormPage[]>([]);
-  // آکاردئون: فقط یک سوال هم‌زمان باز است تا فهرست فشرده بماند و افزودنِ سوالِ
-  // بعدی نیاز به اسکرول/زوم نداشته باشد.
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // آکاردئون چندتایی: هر سوال می‌تواند جداگانه باز/بسته باشد. پیش‌فرض فقط اولی
+  // باز است تا هنگامِ افزودن فشرده بماند، ولی کاربر می‌تواند با «باز کردن همه»
+  // کلِ فرم (مثلاً گزینه‌های سوال‌های چندگزینه‌ایِ فرمِ AI) را یک‌جا ببیند/ویرایش کند.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allQuestionIdList = () =>
+    pages.flatMap((page) => page.questions.map((q) => q.id));
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -107,8 +119,13 @@ export function FormBuilderPage() {
       const loaded = form.data.latestVersion.structure.pages;
       setPages(loaded);
       setDirty(false);
-      // اولین سوال را باز نگه دار تا فرم خالی به‌نظر نرسد.
-      setExpandedId((prev) => prev ?? loaded[0]?.questions?.[0]?.id ?? null);
+      // اولین سوال را باز نگه دار تا فرم خالی به‌نظر نرسد (اگر کاربر هنوز
+      // چیزی را دستی باز/بسته نکرده).
+      setExpandedIds((prev) => {
+        if (prev.size) return prev;
+        const first = loaded[0]?.questions?.[0]?.id;
+        return new Set(first ? [first] : []);
+      });
     }
   }, [loadedVersionId, form.data?.latestVersion?.structure.pages]);
 
@@ -421,6 +438,24 @@ export function FormBuilderPage() {
       {tab === 'build' && (
         <div className="builder-layout">
           <div className="builder">
+          {allQuestionIdList().length > 1 && (
+            <div className="builder-toolbar">
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setExpandedIds(new Set(allQuestionIdList()))}
+              >
+                باز کردن همه
+              </button>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => setExpandedIds(new Set())}
+              >
+                بستن همه
+              </button>
+            </div>
+          )}
           {pages.map((page, pageIndex) => (
             <section key={page.id} className="page-section">
               <div className="page-title-row">
@@ -484,12 +519,8 @@ export function FormBuilderPage() {
                     setDrag(null);
                   }}
                   onDragEnd={() => setDrag(null)}
-                  expanded={question.id === expandedId}
-                  onToggleExpand={() =>
-                    setExpandedId((prev) =>
-                      prev === question.id ? null : question.id,
-                    )
-                  }
+                  expanded={expandedIds.has(question.id)}
+                  onToggleExpand={() => toggleExpanded(question.id)}
                   onChange={(patch) =>
                     updateQuestion(pageIndex, questionIndex, patch)
                   }
@@ -514,8 +545,9 @@ export function FormBuilderPage() {
                     updatePage(pageIndex, {
                       questions: [...page.questions, added],
                     });
-                    // سوالِ تازه باز شود تا بی‌درنگ قابلِ ویرایش باشد.
-                    setExpandedId(added.id);
+                    // سوالِ تازه باز شود تا بی‌درنگ قابلِ ویرایش باشد (بقیه
+                    // دست‌نخورده می‌مانند).
+                    setExpandedIds((prev) => new Set(prev).add(added.id));
                   }}
                 />
 

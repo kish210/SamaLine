@@ -67,6 +67,29 @@ export function QuestionEditor({
   const isOpen = expanded ?? true;
   const hasChoices = CHOICE_TYPES.includes(question.type);
   const meta = (question.meta ?? {}) as Record<string, unknown>;
+
+  /*
+   * خلاصه‌ی سوالِ جمع‌شده.
+   *
+   * بدون این، کارتِ بسته فقط عنوان را نشان می‌داد و گزینه‌های سوال‌های
+   * چندگزینه‌ای (مثلاً فرم‌هایی که با AI ساخته شده‌اند) تا بازکردنِ تک‌تک
+   * دیده نمی‌شدند؛ کاربر گمان می‌کرد ویرایشگر گزینه‌ها را اصلاً نشان نمی‌دهد.
+   */
+  const collapsedSummary = (() => {
+    if (CHOICE_TYPES.includes(question.type)) {
+      const opts = question.options ?? [];
+      if (opts.length === 0) return 'بدون گزینه';
+      const shown = opts.slice(0, 4).join('، ');
+      return `گزینه‌ها: ${shown}${opts.length > 4 ? ` +${opts.length - 4}` : ''}`;
+    }
+    if (SCALE_TYPES.includes(question.type)) {
+      if (question.type === 'nps') return 'بازه ۰ تا ۱۰';
+      const lo = Number(meta.min ?? (question.type === 'rating' ? 1 : 0));
+      const hi = Number(meta.max ?? (question.type === 'rating' ? 5 : 10));
+      return `بازه ${lo} تا ${hi}`;
+    }
+    return '';
+  })();
   const hidden = meta.hidden === true;
   const imageUrl = typeof meta.imageUrl === 'string' ? meta.imageUrl : '';
 
@@ -208,6 +231,15 @@ export function QuestionEditor({
           </button>
         </div>
       </div>
+
+      {!isOpen && collapsedSummary && (
+        <div
+          className="collapsed-summary"
+          style={{ opacity: 0.7, fontSize: '0.85em', marginInlineStart: 28 }}
+        >
+          {collapsedSummary}
+        </div>
+      )}
 
       {isOpen && (
         <>

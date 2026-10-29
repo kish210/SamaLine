@@ -17,6 +17,32 @@ export function looksLikeMobile(text: string): boolean {
   return /^\d{10,13}$/.test(digits);
 }
 
+/** پاسخِ ربات: یا فقط متن، یا متن + کیبورد (reply_markup). */
+export type BotReply = string | { text: string; keyboard?: Record<string, unknown> };
+
+/** متنِ دکمه‌های انتخابِ نوع (کاربر با زدنشان همین متن را می‌فرستد). */
+const BTN_STAFF = '👤 ورود پرسنل';
+const BTN_MANAGER = '⚙️ راهنمای مدیریت';
+const BTN_REQUESTS = '📋 درخواست‌های من';
+const BTN_NEWS = '📢 اطلاعیه‌ها';
+const BTN_ME = '👤 پرونده‌ی من';
+const BTN_LOGOUT = '🚪 خروج';
+
+/** کیبوردِ انتخابِ نوعِ کاربر هنگامِ شروع (برای کسی که هنوز وصل نیست). */
+const TYPE_KEYBOARD = {
+  keyboard: [[{ text: BTN_STAFF }], [{ text: BTN_MANAGER }]],
+  resize_keyboard: true,
+};
+
+/** کیبوردِ پرسنلِ وصل‌شده. */
+const STAFF_KEYBOARD = {
+  keyboard: [
+    [{ text: BTN_REQUESTS }, { text: BTN_NEWS }],
+    [{ text: BTN_ME }, { text: BTN_LOGOUT }],
+  ],
+  resize_keyboard: true,
+};
+
 /**
  * رباتِ پرسنل (فاز F): کارمند با فرستادنِ شماره موبایلِ خود، گفتگوی بله/تلگرامش
  * را به پروندهٔ پرسنلِ خود وصل می‌کند.
@@ -54,26 +80,76 @@ export class StaffBotService {
     bot: TelegramIntegrationEntity,
     chatId: string,
     text: string,
-  ): Promise<string | null> {
+  ): Promise<BotReply | null> {
     const trimmed = text.trim();
     const command = trimmed.toLowerCase().replace(/@.*$/, '');
 
-    if (command === '/me' || command === '/من') {
+    /*
+     * تفکیکِ سخت‌گیرانه‌ی نوع (خواسته‌ی کارفرما): هنگامِ شروع، اول نوعِ کاربر
+     * مشخص می‌شود. پرسنلِ وصل‌شده منوی خودش را با کیبورد می‌گیرد؛ کسی که وصل
+     * نیست بینِ «پرسنل» و «مدیریت» انتخاب می‌کند تا پاسخِ مربوط به خودش را ببیند.
+     */
+    if (command === '/start' || command === '/شروع') {
+      // /start با آرگومان = کدِ اتصالِ مدیر؛ بگذار رباتِ مدیریتی هندل کند.
+      if (/\s/.test(trimmed)) return null;
+      const linkedAtStart = await this.hr.findByChat(chatId, bot.platform);
+      if (linkedAtStart) {
+        return { text: this.menuText(linkedAtStart), keyboard: STAFF_KEYBOARD };
+      }
+      return {
+        text: [
+          '👋 به ربات هتل خوش آمدید.',
+          'لطفاً نوعِ خود را انتخاب کنید تا پاسخِ مربوط به خودتان را بگیرید:',
+        ].join('\n'),
+        keyboard: TYPE_KEYBOARD,
+      };
+    }
+
+    if (trimmed === BTN_STAFF) {
+      return 'شماره موبایلِ ثبت‌شده‌تان در واحدِ منابع انسانی را همین‌جا بفرستید تا وصل شوید.';
+    }
+    if (trimmed === BTN_MANAGER) {
+      return [
+        '⚙️ بخشِ مدیریت.',
+        'برای اتصالِ گزارش‌های یک فرم به این گفتگو، از پنل «کدِ اتصال» بگیرید و',
+        'به‌صورتِ /start <کد> بفرستید. راهنما: /راهنما',
+      ].join('\n');
+    }
+
+    if (command === '/me' || command === '/من' || trimmed === BTN_ME) {
       return this.status(bot, chatId);
     }
-    if (command === '/خروج' || command === '/leave') {
+    if (command === '/خروج' || command === '/leave' || trimmed === BTN_LOGOUT) {
       return this.unlink(bot, chatId);
     }
-    if (command === '/اطلاعیه' || command === '/news') {
+    if (command === '/اطلاعیه' || command === '/news' || trimmed === BTN_NEWS) {
       return this.recentAnnouncements(bot, chatId);
     }
-    if (command === '/درخواست‌ها' || command === '/درخواستها' || command === '/requests') {
+    if (
+      command === '/درخواست‌ها' ||
+      command === '/درخواستها' ||
+      command === '/requests' ||
+      trimmed === BTN_REQUESTS
+    ) {
       return this.myRequests(bot, chatId);
     }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
     return null;
+  }
+
+  /** متنِ منوی پرسنلِ وصل‌شده. */
+  private menuText(person: { fullName: string; position?: string | null }): string {
+    return [
+      `👤 <b>${escapeHtml(person.fullName)}</b> خوش آمدید.`,
+      person.position ? `سمت: ${escapeHtml(person.position)}` : '',
+      '',
+      'از دکمه‌های پایین استفاده کنید یا فرمان بزنید:',
+      'درخواست‌های من · اطلاعیه‌ها · پرونده‌ی من · خروج',
+    ]
+      .filter((l) => l !== '')
+      .join('\n');
   }
 
   /**
@@ -169,7 +245,7 @@ export class StaffBotService {
     bot: TelegramIntegrationEntity,
     chatId: string,
     mobile: string,
-  ): Promise<string> {
+  ): Promise<BotReply> {
     const organizationId = await this.orgIdOf(bot);
     if (!organizationId) return '❌ این ربات به سازمانی وصل نیست.';
 
@@ -183,22 +259,23 @@ export class StaffBotService {
     if (!person) {
       return [
         '❌ این شماره در فهرستِ پرسنل پیدا نشد.',
-        'اگر تازه استخدام شده‌اید، از واحدِ منابع انسانی بخواهید شماره‌تان را ثبت کند.',
+        'اگر تازه استخدام شده‌اید, از واحدِ منابع انسانی بخواهید شماره‌تان را ثبت کند.',
       ].join('\n');
     }
 
-    return [
-      `✅ خوش آمدید <b>${escapeHtml(person.fullName)}</b>.`,
-      person.position ? `سمت: ${escapeHtml(person.position)}` : '',
-      '',
-      'از این پس وضعیتِ درخواست‌هایتان را اینجا دنبال می‌کنید.',
-      'درخواست‌های شما: /درخواست‌ها',
-      'اطلاعیه‌ها: /اطلاعیه',
-      'پروندهٔ شما: /me',
-      'قطعِ اتصال: /خروج',
-    ]
-      .filter((line) => line !== '')
-      .join('\n');
+    // پس از اتصال، کیبوردِ پرسنلی را نشان بده تا کارها یک‌لمسی شوند.
+    return {
+      text: [
+        `✅ خوش آمدید <b>${escapeHtml(person.fullName)}</b>.`,
+        person.position ? `سمت: ${escapeHtml(person.position)}` : '',
+        '',
+        'از این پس وضعیتِ درخواست‌هایتان را اینجا دنبال می‌کنید.',
+        'از دکمه‌های پایین استفاده کنید.',
+      ]
+        .filter((line) => line !== '')
+        .join('\n'),
+      keyboard: STAFF_KEYBOARD,
+    };
   }
 
   private async status(
