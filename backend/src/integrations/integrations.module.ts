@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { TenantAccessModule } from '../common/tenant-access.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebhookEntity } from '../database/entities/webhook.entity';
 import { FormEntity } from '../database/entities/form.entity';
+import { PublicationEntity } from '../database/entities/publication.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
@@ -42,6 +44,8 @@ import { EmailReportService } from './email-report.service';
     PlanModule,
     // رباتِ پرسنل (فاز F) پرونده‌ها را با موبایل وصل می‌کند.
     HrModule,
+    // توکنِ هویتِ مینی‌اپ با همان رازِ سرور امضا می‌شود (payloadِ mode='bot').
+    JwtModule.register({ secret: process.env.JWT_SECRET ?? 'change-me' }),
     TypeOrmModule.forFeature([
       WebhookEntity,
       TelegramIntegrationEntity,
@@ -53,6 +57,8 @@ import { EmailReportService } from './email-report.service';
       AnnouncementEntity,
       // «/درخواست‌ها»ِ رباتِ پرسنل پاسخ‌های خودِ پرسنل را می‌خواند.
       ResponseEntity,
+      // «📝 فرم‌ها»ِ ربات، فرم‌های منتشرشده در ربات و لینکِ انتشارشان را می‌خواند.
+      PublicationEntity,
     ]),
   ],
   controllers: [

@@ -1,6 +1,9 @@
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
+// StaffBotService (وابسته‌ی غیرمستقیم) از @nestjs/jwt استفاده می‌کند که ESM است
+// و Jest بارش نمی‌کند؛ اینجا هم mock می‌شود.
+jest.mock('@nestjs/jwt', () => ({ JwtService: class {} }));
 
 import { TelegramBotService } from './telegram-bot.service';
 import type { TelegramApi } from './telegram-api';

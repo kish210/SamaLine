@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { formApi } from './api';
+import { formApi, setRespondentToken } from './api';
 import { isNetworkError, offlineOutbox } from './offline-outbox';
 import { randomKey, resolveRespondentKey } from './respondent-key';
 import type { Answers, Page, PublicForm } from './types';
@@ -31,16 +31,27 @@ function readUrlState() {
   const hidden: Record<string, string> = {};
   params.forEach((value, key) => {
     // reset و idle تنظیم کیوسک‌اند، نه پارامتر مخفی فرم.
-    if (!['respondentKey', 'r', 'lang', 'reset', 'idle'].includes(key)) {
+    if (!['respondentKey', 'r', 'lang', 'reset', 'idle', 'rt'].includes(key)) {
       hidden[key] = value;
     }
   });
+
+  /*
+   * توکنِ هویتِ رباتِ پرسنلی از قطعه‌ی آدرس (#rt=…) خوانده می‌شود، نه از
+   * کوئری: قطعه به سرور/لاگ/Referer نمی‌رود، پس توکن نشت نمی‌کند. برای
+   * سازگاری، ?rt= هم پذیرفته می‌شود.
+   */
+  const hashParams = new URLSearchParams(
+    window.location.hash.replace(/^#/, ''),
+  );
+  const respondentToken = hashParams.get('rt') ?? params.get('rt') ?? '';
 
   return {
     hiddenParams: hidden,
     // لینک‌های کمپین کلید گیرنده را در پارامتر `r` می‌فرستند.
     respondentKey: params.get('respondentKey') ?? params.get('r') ?? '',
     lang: params.get('lang'),
+    respondentToken,
   };
 }
 
@@ -78,7 +89,18 @@ export function useFormFlow(
   const [authMode, setAuthMode] = useState<string | null | undefined>(
     undefined,
   );
-  const [authenticated, setAuthenticated] = useState(false);
+  /*
+   * لینکِ رباتِ پرسنلی توکنِ هویت را همراه دارد؛ پس دروازه‌ی ورود رد می‌شود و
+   * فرم مستقیم با همان توکن باز می‌شود (سرور هویت را از توکن می‌گیرد).
+   */
+  const [authenticated, setAuthenticated] = useState(
+    Boolean(urlState.respondentToken),
+  );
+
+  // توکنِ هویتِ ربات را همان ابتدا روی هدرِ درخواست‌ها می‌نشانیم.
+  useEffect(() => {
+    if (urlState.respondentToken) setRespondentToken(urlState.respondentToken);
+  }, [urlState.respondentToken]);
   const [pendingCount, setPendingCount] = useState(0);
   /*
    * قطعی شبکه هنگام رفتن بین صفحات.

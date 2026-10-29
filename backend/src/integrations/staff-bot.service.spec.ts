@@ -1,6 +1,9 @@
 jest.mock('@nestjs/typeorm', () => ({
   InjectRepository: () => () => undefined,
 }));
+// @nestjs/jwt فایلِ ESM است و Jest آن را بار نمی‌کند؛ سرویس فقط نوعش را برای
+// تزریق لازم دارد و تست استابِ خودش را می‌دهد.
+jest.mock('@nestjs/jwt', () => ({ JwtService: class {} }));
 
 import type { DataSource } from 'typeorm';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
@@ -62,6 +65,14 @@ describe('StaffBotService', () => {
       hr,
       announcements,
       ds.getRepository(ResponseEntity),
+      ds.getRepository(FormEntity),
+      ds.getRepository(PublicationEntity),
+      // سرویس فقط sign را صدا می‌زند؛ استابِ ساده کافی است و @nestjs/jwt را
+      // (که ESM است و در Jest بار نمی‌شود) وارد نمی‌کند.
+      {
+        sign: (payload: Record<string, unknown>) =>
+          `tok.${Buffer.from(JSON.stringify(payload)).toString('base64url')}`,
+      } as never,
     );
   });
 
@@ -244,6 +255,89 @@ describe('StaffBotService', () => {
     it('برای کاربرِ وصل‌نشده راهنماییِ اتصال می‌دهد', async () => {
       const reply = await service.tryHandle(BOT, 'chat-99', '/درخواست‌ها');
       expect(reply).toContain('وصل نشده');
+    });
+  });
+
+  describe('فرم‌ها (انتشار در ربات/مینی‌اپ)', () => {
+    const OLD_URL = process.env.PUBLIC_URL;
+    beforeEach(() => {
+      process.env.PUBLIC_URL = 'https://x.test';
+    });
+    afterEach(() => {
+      process.env.PUBLIC_URL = OLD_URL;
+    });
+
+    let m = 0;
+    /** فرمِ فعال در سازمانِ داده‌شده، با/بی انتشار در ربات و لینکِ عمومی. */
+    const seedForm = async (opts: {
+      orgId: string;
+      title: string;
+      botPublish: boolean;
+      withPublication?: boolean;
+      departmentId?: string | null;
+    }) => {
+      m += 1;
+      const ws = await ds
+        .getRepository(WorkspaceEntity)
+        .save({ organizationId: opts.orgId, name: `فرم‌فضا ${m}` });
+      const form = await ds.getRepository(FormEntity).save({
+        workspaceId: ws.id,
+        title: opts.title,
+        slug: `form-${m}-${Date.now()}`,
+        status: FormStatus.ACTIVE,
+        departmentId: opts.departmentId ?? null,
+        settings: { botPublish: opts.botPublish },
+      });
+      if (opts.withPublication !== false) {
+        await ds.getRepository(PublicationEntity).save({
+          formId: form.id,
+          type: PublicationType.LINK,
+          token: `pub-${m}-${Date.now()}`,
+          isActive: true,
+        });
+      }
+      return form;
+    };
+
+    const linkedStaff = async () => {
+      const org = await ds
+        .getRepository(OrganizationEntity)
+        .save({ name: 'هتل' });
+      await hr.create(org.id, { fullName: 'رضا', mobile: '09120000040' });
+      await hr.linkBotChat(org.id, '09120000040', 'chat-40', 'bale', 'ws-1');
+      return org.id;
+    };
+
+    it('فقط فرمِ منتشرشده در ربات را با لینکِ مینی‌اپ نشان می‌دهد', async () => {
+      const orgId = await linkedStaff();
+      await seedForm({ orgId, title: 'گزارش روزانه', botPublish: true });
+      await seedForm({ orgId, title: 'فرمِ خصوصی', botPublish: false });
+
+      const reply = await service.tryHandle(BOT, 'chat-40', '📝 فرم‌ها');
+      expect(replyText(reply)).toContain('گزارش روزانه');
+      expect(replyText(reply)).not.toContain('فرمِ خصوصی');
+      // لینک حاملِ توکنِ هویت (rt) است و دکمه‌ی مینی‌اپ دارد.
+      expect(replyText(reply)).toContain('#rt=');
+      const kb = (reply as { keyboard?: { inline_keyboard?: unknown[] } })
+        .keyboard;
+      expect(Array.isArray(kb?.inline_keyboard)).toBe(true);
+    });
+
+    it('فرمِ منتشرشده ولی بدونِ لینکِ عمومی را کنار می‌گذارد', async () => {
+      const orgId = await linkedStaff();
+      await seedForm({
+        orgId,
+        title: 'بی‌لینک',
+        botPublish: true,
+        withPublication: false,
+      });
+      const reply = await service.tryHandle(BOT, 'chat-40', '/فرم‌ها');
+      expect(replyText(reply)).toContain('منتشر نشده');
+    });
+
+    it('برای کاربرِ وصل‌نشده راهنماییِ اتصال می‌دهد', async () => {
+      const reply = await service.tryHandle(BOT, 'chat-99', '/فرم‌ها');
+      expect(replyText(reply)).toContain('وصل نشده');
     });
   });
 });

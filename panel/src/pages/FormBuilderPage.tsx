@@ -16,6 +16,7 @@ import { EdgePagesEditor } from './builder/EdgePagesEditor';
 import { ChecklistEditor } from './builder/ChecklistEditor';
 import { ReminderEditor } from './builder/ReminderEditor';
 import { WorkflowEditor } from './builder/WorkflowEditor';
+import { BotPublishCard } from './builder/BotPublishCard';
 import { LivePreview } from './builder/LivePreview';
 import { AccessModeCard } from './builder/AccessModeCard';
 import { PublishCard } from './builder/PublishCard';
@@ -610,6 +611,11 @@ export function FormBuilderPage() {
             hasDepartment={Boolean(form.data.departmentId)}
           />
           <WorkflowEditor formId={formId} settings={form.data.settings} />
+          <BotPublishCard
+            formId={formId}
+            settings={form.data.settings}
+            hasPublication={Boolean(form.data.publication)}
+          />
           <IndicatorEditor
             pages={pages}
             indexes={indexes}

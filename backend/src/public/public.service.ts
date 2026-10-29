@@ -201,7 +201,10 @@ export class PublicService {
     const auth =
       publication.authMode === PublicationAuthMode.STAFF
         ? await this.respondentAuth.verifyStaff(publication, accessToken)
-        : this.respondentAuth.verifyAccess(publication, accessToken);
+        : this.respondentAuth.verifyAccess(publication, accessToken) ??
+          // فرمِ بی‌احراز که از لینکِ رباتِ پرسنلی باز شده: توکنِ botِ معتبر
+          // هویتِ پرسنل (موبایل) را می‌چسباند تا پاسخ به نامِ خودش ثبت شود.
+          this.respondentAuth.verifyBotToken(publication, accessToken);
 
     const latestVersion = await this.versionRepo.findOne({
       where: { formId: publication.formId },

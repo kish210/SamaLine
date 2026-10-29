@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
@@ -6,10 +7,20 @@ import {
   ResponseEntity,
   ResponseStatus,
 } from '../database/entities/response.entity';
+import { FormEntity, FormStatus } from '../database/entities/form.entity';
+import {
+  PublicationEntity,
+  PublicationType,
+} from '../database/entities/publication.entity';
 import { HrService } from '../hr/hr.service';
 import { AnnouncementService } from './announcement.service';
 import { isoToJalaliText } from '../common/jalali';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
+
+/** عمرِ توکنِ هویتِ مینی‌اپ (ثانیه)؛ با توکنِ پاسخ‌دهنده هم‌تراز. */
+const BOT_FORM_TOKEN_TTL = Number(
+  process.env.RESPONDENT_TOKEN_TTL_SECONDS ?? 2 * 60 * 60,
+);
 
 /** موبایلِ ایرانی: ۱۰ تا ۱۳ رقم (با/بی ۰ یا ۹۸). فقط رقم و نشانه‌های رایج. */
 export function looksLikeMobile(text: string): boolean {
@@ -25,6 +36,7 @@ const BTN_STAFF = '👤 ورود پرسنل';
 const BTN_MANAGER = '⚙️ راهنمای مدیریت';
 const BTN_REQUESTS = '📋 درخواست‌های من';
 const BTN_NEWS = '📢 اطلاعیه‌ها';
+const BTN_FORMS = '📝 فرم‌ها';
 const BTN_ME = '👤 پرونده‌ی من';
 const BTN_LOGOUT = '🚪 خروج';
 
@@ -37,6 +49,7 @@ const TYPE_KEYBOARD = {
 /** کیبوردِ پرسنلِ وصل‌شده. */
 const STAFF_KEYBOARD = {
   keyboard: [
+    [{ text: BTN_FORMS }],
     [{ text: BTN_REQUESTS }, { text: BTN_NEWS }],
     [{ text: BTN_ME }, { text: BTN_LOGOUT }],
   ],
@@ -61,6 +74,11 @@ export class StaffBotService {
     private readonly announcements: AnnouncementService,
     @InjectRepository(ResponseEntity)
     private readonly responses: Repository<ResponseEntity>,
+    @InjectRepository(FormEntity)
+    private readonly forms: Repository<FormEntity>,
+    @InjectRepository(PublicationEntity)
+    private readonly publications: Repository<PublicationEntity>,
+    private readonly jwt: JwtService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -116,6 +134,14 @@ export class StaffBotService {
       ].join('\n');
     }
 
+    if (
+      command === '/فرم‌ها' ||
+      command === '/فرمها' ||
+      command === '/forms' ||
+      trimmed === BTN_FORMS
+    ) {
+      return this.botForms(bot, chatId);
+    }
     if (command === '/me' || command === '/من' || trimmed === BTN_ME) {
       return this.status(bot, chatId);
     }
@@ -146,10 +172,86 @@ export class StaffBotService {
       person.position ? `سمت: ${escapeHtml(person.position)}` : '',
       '',
       'از دکمه‌های پایین استفاده کنید یا فرمان بزنید:',
-      'درخواست‌های من · اطلاعیه‌ها · پرونده‌ی من · خروج',
+      'فرم‌ها · درخواست‌های من · اطلاعیه‌ها · پرونده‌ی من · خروج',
     ]
       .filter((l) => l !== '')
       .join('\n');
+  }
+
+  /**
+   * «📝 فرم‌ها» (فاز مینی‌اپ): فرم‌هایی که در پنل برای ربات منتشر شده‌اند
+   * (settings.botPublish) و به سازمان/بخشِ همین پرسنل مربوط‌اند، با دکمه‌ی
+   * مینی‌اپِ بله باز می‌شوند تا پرسنل گزارش/درخواست را از داخلِ ربات پر کند.
+   *
+   * هر لینک توکنِ هویت دارد (موبایلِ پرسنل = کلیدِ پاسخ‌دهنده) تا پاسخ به‌نامِ
+   * خودش در «درخواست‌های من» و گردش‌کار بنشیند، بدونِ ورودِ دوباره.
+   */
+  private async botForms(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+
+    const base = (process.env.PUBLIC_URL ?? '').replace(/\/+$/, '');
+    if (!base) {
+      return 'لینکِ فرم‌ها هنوز پیکربندی نشده است؛ با مدیر سامانه تماس بگیرید.';
+    }
+
+    // فرم‌های فعالِ همین سازمان (از طریقِ فضای کاری)؛ انتشار در ربات و تطبیقِ
+    // بخش در حافظه بررسی می‌شود تا کوئریِ JSON به گویشِ دیتابیس وابسته نشود.
+    const candidates = await this.forms
+      .createQueryBuilder('form')
+      .innerJoin('form.workspace', 'workspace')
+      .where('workspace.organizationId = :org', {
+        org: person.organizationId,
+      })
+      .andWhere('form.status = :status', { status: FormStatus.ACTIVE })
+      .orderBy('form.createdAt', 'DESC')
+      .getMany();
+    const published = candidates.filter((form) => {
+      const on = (form.settings as { botPublish?: unknown })?.botPublish === true;
+      const dept = form.departmentId;
+      const forMe = !dept || dept === person.departmentId;
+      return on && forMe;
+    });
+
+    if (published.length === 0) {
+      return 'فعلاً فرمی برای شما در ربات منتشر نشده است.';
+    }
+
+    const buttons: Array<Array<Record<string, unknown>>> = [];
+    const lines = ['📝 <b>فرم‌های شما</b>', ''];
+    for (const form of published) {
+      const pub = await this.publications.findOne({
+        where: { formId: form.id, type: PublicationType.LINK, isActive: true },
+      });
+      if (!pub) continue; // منتشرشده ولی لینکِ عمومی ندارد؛ از فهرست کنار می‌رود.
+
+      const token = this.jwt.sign(
+        { publicationId: pub.id, respondentKey: person.mobile ?? '', mode: 'bot' },
+        { expiresIn: BOT_FORM_TOKEN_TTL },
+      );
+      // قطعه‌ی آدرس (#rt=) توکن را حمل می‌کند؛ به سرور/لاگ نمی‌رود.
+      const url = `${base}/f/${pub.slug ?? pub.token}#rt=${token}`;
+
+      lines.push(`• <b>${escapeHtml(form.title)}</b>`);
+      lines.push(url);
+      lines.push('');
+      // دکمه‌ی مینی‌اپِ بله؛ اگر کلاینت مینی‌اپ را باز نکرد، همان لینکِ بالا کار می‌کند.
+      buttons.push([{ text: `📝 ${form.title}`.slice(0, 40), web_app: { url } }]);
+    }
+
+    if (buttons.length === 0) {
+      return 'فعلاً فرمی برای شما در ربات منتشر نشده است.';
+    }
+
+    return {
+      text: lines.join('\n').trim(),
+      keyboard: { inline_keyboard: buttons },
+    };
   }
 
   /**

@@ -31,7 +31,7 @@ const ACCESS_TTL_SECONDS = Number(
 export interface RespondentTokenPayload {
   publicationId: string;
   respondentKey: string | null;
-  mode: PublicationAuthMode;
+  mode: PublicationAuthMode | 'bot';
 }
 
 /**
@@ -165,6 +165,44 @@ export class RespondentAuthService {
     }
 
     return { ...payload, respondentKey: payload.respondentKey || null };
+  }
+
+  /**
+   * توکنِ هویتِ رباتِ پرسنلی (فاز مینی‌اپ): پرسنلی که گفتگوی بله‌اش با موبایلِ
+   * ثبت‌شده به پرونده وصل شده، در ربات لینکِ فرم می‌گیرد؛ این لینک توکنی دارد
+   * که هویتش را (موبایل = کلیدِ پاسخ‌دهنده) حمل می‌کند تا فرم را بدونِ ورودِ
+   * دوباره پر کند و پاسخش در «درخواست‌های من» و گردش‌کار به نامِ خودش بنشیند.
+   *
+   * برخلاف password/otp اینجا احراز قبلاً سمتِ ربات (با موبایلِ ثبت‌شده‌ی HR)
+   * انجام شده؛ پس حتی فرمِ بی‌احراز هم با این توکن هویت می‌گیرد. mode='bot' تا
+   * از توکن‌های احرازِ مهمان تفکیک شود.
+   */
+  issueBotToken(publicationId: string, respondentKey: string): string {
+    return this.jwt.sign(
+      { publicationId, respondentKey, mode: 'bot' },
+      { expiresIn: ACCESS_TTL_SECONDS },
+    );
+  }
+
+  /**
+   * بررسیِ توکنِ ربات برای فرمی که خودش احراز نمی‌خواهد.
+   *
+   * اگر توکنِ معتبرِ botِ همین انتشار باشد هویتش برمی‌گردد؛ وگرنه null (توکنِ
+   * نامرتبط یا منقضی نباید فرمِ عمومی را بشکند، فقط هویت نمی‌چسبد).
+   */
+  verifyBotToken(
+    publication: PublicationEntity,
+    accessToken?: string,
+  ): RespondentTokenPayload | null {
+    if (!accessToken) return null;
+    try {
+      const payload = this.jwt.verify<RespondentTokenPayload>(accessToken);
+      if (payload.mode !== 'bot') return null;
+      if (payload.publicationId !== publication.id) return null;
+      return { ...payload, respondentKey: payload.respondentKey || null };
+    } catch {
+      return null;
+    }
   }
 
   /** ورود با رمز عبوری که سازنده‌ی فرم تعیین کرده است. */
