@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { departmentsApi, describeError, hrApi } from "../api";
+import { departmentsApi, describeError, hrApi, telegramApi, workspaceApi } from "../api";
 import type { Personnel } from "../api";
 import { useAuth } from "../auth";
 import { hasRole } from "../types";
@@ -32,6 +32,14 @@ export function PersonnelPage() {
   const [annResult, setAnnResult] = useState<string | null>(null);
 
   const people = useQuery({ queryKey: ["personnel"], queryFn: hrApi.list });
+  // وضعیتِ رباتِ پرسنلی (همان رباتِ بله/تلگرامِ فضای کاری).
+  const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: workspaceApi.list });
+  const workspaceId = workspaces.data?.[0]?.id ?? "";
+  const bot = useQuery({
+    queryKey: ["telegram-bot", workspaceId],
+    queryFn: () => telegramApi.getBot(workspaceId),
+    enabled: Boolean(workspaceId) && canEdit,
+  });
   const departments = useQuery({
     queryKey: ["departments"],
     queryFn: departmentsApi.list,
@@ -148,6 +156,53 @@ export function PersonnelPage() {
       </header>
 
       {error && <p className="error">{error}</p>}
+
+      {canEdit && (
+        <section className="card">
+          <div className="section-head">
+            <h3>رباتِ پرسنلی (بله)</h3>
+          </div>
+          {!bot.data?.configured ? (
+            <p className="hint">
+              رباتِ پرسنلی از همان رباتِ بله‌ی سازمان استفاده می‌کند. اول در
+              «تنظیمات → ربات بله/تلگرام» ربات را وصل کنید، بعد پرسنل می‌توانند با
+              موبایلِ ثبت‌شده‌شان به ربات وصل شوند.
+            </p>
+          ) : (
+            <>
+              <p className="hint">
+                ربات{" "}
+                {bot.data.botUsername ? (
+                  <>
+                    <b dir="ltr">@{bot.data.botUsername}</b> متصل است.{" "}
+                    <a
+                      dir="ltr"
+                      href={`${bot.data.platform === "bale" ? "https://ble.ir/" : "https://t.me/"}${bot.data.botUsername}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      باز کردنِ ربات
+                    </a>
+                  </>
+                ) : (
+                  "متصل است."
+                )}
+              </p>
+              <p className="hint">
+                هر پرسنل در {bot.data.platform === "bale" ? "بله" : "تلگرام"} به
+                ربات پیام دهد و همان <b>شماره موبایلی</b> را که اینجا ثبت کرده‌اید
+                بفرستد تا وصل شود؛ از آن پس اطلاعیه‌ها و تأییدِ درخواست‌هایش را در
+                ربات می‌گیرد. وضعیتِ اتصالِ هر نفر در ستونِ «ربات» پایین دیده می‌شود.
+              </p>
+              <p className="hint">
+                متصل‌شده:{" "}
+                {(people.data ?? []).filter((p) => p.botChatId).length.toLocaleString("fa-IR")}{" "}
+                از {(people.data ?? []).length.toLocaleString("fa-IR")} پرسنل.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       {canEdit && (
         <section className="card">

@@ -48,8 +48,6 @@ export function SettingsPage() {
   const organizationId = user?.organizationId ?? "";
   // کارت‌های مدیریتی برای ویرایشگر و پایین‌تر پنهان می‌شوند؛ سرور هم ردشان می‌کند.
   const isAdmin = hasRole(user?.role, "admin");
-  // رباتِ بله/تلگرام فقط برای مالک (هم‌راستا با گیتِ owner در بک‌اند).
-  const isOwner = hasRole(user?.role, "owner");
 
   const policy = useQuery({
     queryKey: ["policy", organizationId],
@@ -125,7 +123,7 @@ export function SettingsPage() {
 
       {isAdmin && <DepartmentsCard />}
 
-      {isOwner && workspaceId && <TelegramCard workspaceId={workspaceId} />}
+      {isAdmin && workspaceId && <TelegramCard workspaceId={workspaceId} />}
       {isAdmin && workspaceId && <EmailReportCard workspaceId={workspaceId} />}
 
       {isAdmin && <WebhooksCard />}
