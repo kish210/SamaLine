@@ -46,6 +46,8 @@ import { AddAnnouncements1800000000008 } from './migrations/1800000000008-AddAnn
 import { PgAddAnnouncements1800000000009 } from './migrations/1800000000009-PgAddAnnouncements';
 import { AddPmAndRoomReadiness1800000000018 } from './migrations/1800000000018-AddPmAndRoomReadiness';
 import { PgAddPmAndRoomReadiness1800000000019 } from './migrations/1800000000019-PgAddPmAndRoomReadiness';
+import { AddInventory1800000000020 } from './migrations/1800000000020-AddInventory';
+import { PgAddInventory1800000000021 } from './migrations/1800000000021-PgAddInventory';
 import { AddHrDomain1800000000016 } from './migrations/1800000000016-AddHrDomain';
 import { PgAddHrDomain1800000000017 } from './migrations/1800000000017-PgAddHrDomain';
 import { AddCmmsCore1800000000014 } from './migrations/1800000000014-AddCmmsCore';
@@ -92,6 +94,7 @@ export const SQLITE_MIGRATIONS = [
   AddCmmsCore1800000000014,
   AddHrDomain1800000000016,
   AddPmAndRoomReadiness1800000000018,
+  AddInventory1800000000020,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -119,6 +122,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddCmmsCore1800000000015,
   PgAddHrDomain1800000000017,
   PgAddPmAndRoomReadiness1800000000019,
+  PgAddInventory1800000000021,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

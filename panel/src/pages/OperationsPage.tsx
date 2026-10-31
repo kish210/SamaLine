@@ -5,6 +5,7 @@ import {
   NewRequestForm,
   NewWorkOrderForm,
 } from './operations/CmmsForms';
+import { InventoryPanel } from './operations/InventoryPanel';
 import {
   cmmsApi,
   type Asset,
@@ -51,6 +52,7 @@ const KIND_LABELS: Record<OpsBucket['kind'], string> = {
   request: 'درخواست‌ها',
   workOrder: 'دستورهای کار',
   asset: 'تجهیزات',
+  part: 'انبارِ قطعات',
 };
 
 const TONE_COLORS: Record<OpsBucket['tone'], string> = {
@@ -111,6 +113,9 @@ export function OperationsPage() {
   >(null);
   /** ساختِ دستورِ کار از روی یک درخواستِ مشخص. */
   const [fromRequest, setFromRequest] = useState<OpsRow | null>(null);
+  /** انبار بدونِ کلیک روی سطل هم باز می‌شود. */
+  const [inventory, setInventory] = useState(false);
+  const inventoryOpen = inventory || active?.kind === 'part';
 
   const changeStatus = useMutation({
     // خروجیِ دو مسیر شکلِ یکسان ندارد و اینجا لازم هم نیست؛ فقط باطل‌کردنِ
@@ -157,9 +162,11 @@ export function OperationsPage() {
       if (!active) return null;
       if (active.kind === 'request') return cmmsApi.requests(query);
       if (active.kind === 'workOrder') return cmmsApi.workOrders(query);
+      // انبار جدولِ خودش را دارد (موجودی، نقطهٔ سفارش، گردش).
+      if (active.kind === 'part') return null;
       return cmmsApi.assets(query);
     },
-    enabled: Boolean(active),
+    enabled: Boolean(active) && active?.kind !== 'part',
   });
 
   const openBucket = (bucket: OpsBucket) => {
@@ -191,6 +198,17 @@ export function OperationsPage() {
             onClick={() => setCreating('asset')}
           >
             + تجهیز
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              // بازکردنِ انبار، سطلِ فعال را رها می‌کند تا دو جدول هم‌زمان نماند.
+              setInventory((v) => !v);
+              if (active?.kind === 'part') setActive(null);
+            }}
+          >
+            {inventoryOpen ? 'بستنِ انبار' : 'انبار'}
           </button>
           <button
             type="button"
@@ -291,7 +309,12 @@ export function OperationsPage() {
 
           <div className="builder-layout">
             <div className="builder">
+              {inventoryOpen && (
+                <InventoryPanel lowStockOnly={active?.kind === 'part'} />
+              )}
+
               {/* جدولِ رکوردها: فقط وقتی سطلی انتخاب شده. */}
+              {!inventoryOpen && (
               <section className="card">
                 <div className="section-head">
                   <h3>
@@ -445,6 +468,7 @@ export function OperationsPage() {
                   </>
                 )}
               </section>
+              )}
             </div>
 
             <div className="side-column">
@@ -459,6 +483,30 @@ export function OperationsPage() {
                   <dd>{fa(Math.round(data.cost.laborMinutes / 60))} ساعت</dd>
                 </dl>
               </section>
+
+              {data.inventory && (
+                <section className="card">
+                  <h3>انبار</h3>
+                  <dl className="info-list">
+                    <dt>ارزشِ موجودی</dt>
+                    <dd>{fa(data.inventory.valuation)} ریال</dd>
+                    <dt>
+                      مصرفِ {fa(data.inventory.consumption.days)} روزِ گذشته
+                    </dt>
+                    <dd>{fa(data.inventory.consumption.cost)} ریال</dd>
+                  </dl>
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => {
+                      setInventory(true);
+                      if (active?.kind === 'part') setActive(null);
+                    }}
+                  >
+                    بازکردنِ انبار
+                  </button>
+                </section>
+              )}
 
               <section className="card">
                 <h3>بارِ کاریِ تکنسین‌ها</h3>

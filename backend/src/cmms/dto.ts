@@ -21,6 +21,7 @@ import {
 import { WorkOrderStatus } from '../database/entities/work-order.entity';
 import { PmInterval } from '../database/entities/pm-schedule.entity';
 import { RoomReadiness } from '../database/entities/hotel-room.entity';
+import { StockMovementType } from '../database/entities/spare-part.entity';
 
 export class AssetDto {
   @IsNotEmpty()
@@ -160,6 +161,60 @@ export class PmScheduleDto {
   @IsOptional() @IsString() instructions?: string;
   @IsOptional() @IsString() @MaxLength(10) nextDueAt?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+/** قطعهٔ انبار. */
+export class SparePartDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(40)
+  code: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(160)
+  name: string;
+
+  @IsOptional() @IsString() @MaxLength(80) category?: string;
+  @IsOptional() @IsString() @MaxLength(24) unit?: string;
+  @IsOptional() @IsString() @MaxLength(160) location?: string;
+  @IsOptional() @IsString() @MaxLength(160) supplier?: string;
+  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsBoolean() isActive?: boolean;
+
+  @IsOptional() @IsInt() @Min(0) reorderLevel?: number;
+  @IsOptional() @IsInt() @Min(0) unitCost?: number;
+
+  /**
+   * موجودیِ ابتدای کار.
+   *
+   * به‌شکلِ یک «ورود» در دفترِ گردش ثبت می‌شود، نه نوشتنِ مستقیمِ موجودی؛
+   * پس دفتر از روزِ اول کامل است.
+   */
+  @IsOptional() @IsInt() @Min(0) openingQuantity?: number;
+}
+
+/** یک گردشِ انبار: ورود، مصرف، برگشت، ضایعات یا اصلاح. */
+export class StockMovementDto {
+  @IsNotEmpty() @IsString() partId: string;
+
+  @IsIn(Object.values(StockMovementType))
+  type: StockMovementType;
+
+  @IsInt() @Min(1) quantity: number;
+
+  @IsOptional() @IsInt() @Min(0) unitCost?: number;
+  @IsOptional() @IsString() workOrderId?: string | null;
+  @IsOptional() @IsString() personnelId?: string | null;
+  @IsOptional() @IsString() @MaxLength(80) reference?: string;
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
+/** انبارگردانی: شمارشِ واقعیِ قفسه. */
+export class RecountDto {
+  @IsInt() @Min(0) countedQuantity: number;
+
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
 }
 
 /** تغییرِ دستیِ وضعیتِ آمادگیِ اتاق. */

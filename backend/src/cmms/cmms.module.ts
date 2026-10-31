@@ -9,9 +9,14 @@ import {
 import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { HotelRoomEntity } from '../database/entities/hotel-room.entity';
 import { PmScheduleEntity } from '../database/entities/pm-schedule.entity';
+import {
+  SparePartEntity,
+  StockMovementEntity,
+} from '../database/entities/spare-part.entity';
 import { CmmsController } from './cmms.controller';
 import { CmmsService } from './cmms.service';
 import { PmService } from './pm.service';
+import { InventoryService } from './inventory.service';
 
 /**
  * دامنهٔ نگهداری و تعمیرات (CMMS).
@@ -32,10 +37,13 @@ import { PmService } from './pm.service';
       // آمادگیِ اتاق با پیشرفتِ دستورِ کار همگام می‌شود.
       HotelRoomEntity,
       PmScheduleEntity,
+      // انبارِ قطعات: موجودی فقط از مسیرِ دفترِ گردش عوض می‌شود.
+      SparePartEntity,
+      StockMovementEntity,
     ]),
   ],
   controllers: [CmmsController],
-  providers: [CmmsService, PmService],
-  exports: [CmmsService, PmService],
+  providers: [CmmsService, PmService, InventoryService],
+  exports: [CmmsService, PmService, InventoryService],
 })
 export class CmmsModule {}

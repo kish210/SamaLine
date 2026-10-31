@@ -1262,7 +1262,7 @@ export interface OpsBucket {
   label: string;
   count: number;
   /** روی کدام فهرست drill-down می‌کند. */
-  kind: 'request' | 'workOrder' | 'asset';
+  kind: 'request' | 'workOrder' | 'asset' | 'part';
   /** فیلتری که همان فهرست را بازمی‌سازد. */
   filter: Record<string, unknown>;
   tone: 'info' | 'warn' | 'danger';
@@ -1286,6 +1286,11 @@ export interface OpsDashboard {
     contractor: number;
     laborMinutes: number;
     days: number;
+  };
+  /** ارزشِ انبار و مصرفِ ۳۰ روز؛ از سرویسِ انبار می‌آید. */
+  inventory?: {
+    valuation: number;
+    consumption: { cost: number; quantity: number; days: number };
   };
   generatedAt: string;
 }
@@ -1391,7 +1396,71 @@ export const cmmsApi = {
     api
       .patch<WorkOrder>(`/cmms/work-orders/${id}/status`, { status, note })
       .then((r) => r.data),
+
+  // ── انبارِ قطعات ───────────────────────────────────────────────────────
+
+  parts: (query: CmmsQuery = {}) =>
+    api
+      .get<CmmsPage<SparePart>>('/cmms/parts', { params: query })
+      .then((r) => r.data),
+
+  createPart: (body: Record<string, unknown>) =>
+    api.post<SparePart>('/cmms/parts', body).then((r) => r.data),
+
+  updatePart: (id: string, body: Record<string, unknown>) =>
+    api.patch<SparePart>(`/cmms/parts/${id}`, body).then((r) => r.data),
+
+  stockMovements: (query: CmmsQuery = {}) =>
+    api
+      .get<CmmsPage<StockMovement>>('/cmms/stock-movements', { params: query })
+      .then((r) => r.data),
+
+  move: (body: Record<string, unknown>) =>
+    api.post<StockMovement>('/cmms/stock-movements', body).then((r) => r.data),
+
+  recount: (id: string, countedQuantity: number, note?: string) =>
+    api
+      .post<{ part: SparePart }>(`/cmms/parts/${id}/recount`, {
+        countedQuantity,
+        note,
+      })
+      .then((r) => r.data),
 };
+
+/** قطعهٔ انبار. */
+export interface SparePart {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  quantityOnHand: number;
+  reorderLevel: number;
+  unitCost: number;
+  location: string;
+  supplier: string;
+  notes: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** یک سطرِ دفترِ گردشِ انبار. */
+export interface StockMovement {
+  id: string;
+  partId: string;
+  partCode: string;
+  partName: string;
+  partUnit: string;
+  type: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  balanceAfter: number;
+  workOrderId: string | null;
+  reference: string;
+  note: string;
+  createdAt: string;
+}
 
 // ── مرخصی و ماندهٔ آن (HR) ──────────────────────────────────────────────
 

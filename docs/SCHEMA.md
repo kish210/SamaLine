@@ -200,6 +200,14 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 21. `AddAnnouncements` — announcements.
 22. `AddMenuTheme` — `theme` روی menus.
 23. `AddBotFormSessions` — bot_form_sessions.
+24. `AddCmmsCore` — assets، maintenance_requests، work_orders،
+    work_order_technicians (دامنهٔ فنی با موجودیتِ اختصاصی، نه پاسخِ فرم).
+25. `AddHrDomain` — leave_requests، leave_balances + ستون‌های وضعیتِ اشتغال و
+    قرارداد روی personnel.
+26. `AddPmAndRoomReadiness` — pm_schedules + `readiness`/`readinessNote` روی
+    hotel_rooms.
+27. `AddInventory` — spare_parts، stock_movements (انبارِ قطعات؛ موجودی فقط
+    از مسیرِ دفترِ گردش عوض می‌شود).
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

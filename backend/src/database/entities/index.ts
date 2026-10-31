@@ -17,6 +17,10 @@ import { BotFormSessionEntity } from './bot-form-session.entity';
 import { AssetEntity } from './asset.entity';
 import { PmScheduleEntity } from './pm-schedule.entity';
 import {
+  SparePartEntity,
+  StockMovementEntity,
+} from './spare-part.entity';
+import {
   LeaveBalanceEntity,
   LeaveRequestEntity,
 } from './leave-request.entity';
@@ -79,6 +83,8 @@ export const ALL_ENTITIES = [
   BotFormSessionEntity,
   AssetEntity,
   PmScheduleEntity,
+  SparePartEntity,
+  StockMovementEntity,
   LeaveRequestEntity,
   LeaveBalanceEntity,
   MaintenanceRequestEntity,

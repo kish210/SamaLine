@@ -18,12 +18,17 @@ import {
   AssetDto,
   MaintenanceRequestDto,
   PmScheduleDto,
+  RecountDto,
   RequestStatusDto,
   RoomReadinessDto,
+  SparePartDto,
+  StockMovementDto,
   WorkOrderDto,
   WorkOrderStatusDto,
 } from './dto';
 import { PmService } from './pm.service';
+import { InventoryService } from './inventory.service';
+import type { MovementListQuery, PartListQuery } from './inventory.service';
 
 /**
  * APIهای دامنهٔ فنی (CMMS).
@@ -39,6 +44,7 @@ export class CmmsController {
   constructor(
     private readonly cmms: CmmsService,
     private readonly pm: PmService,
+    private readonly inventory: InventoryService,
   ) {}
 
   /**
@@ -48,11 +54,26 @@ export class CmmsController {
    */
   @Get('dashboard')
   @MinRole(OrganizationRole.ANALYST)
-  dashboard(
+  async dashboard(
     @CurrentUser() user: JwtUser,
     @Query('departmentId') departmentId?: string,
   ) {
-    return this.cmms.operationalSummary(user.organizationId, { departmentId });
+    /*
+     * سطل‌های انبار به همان فهرستِ سطل‌ها می‌پیوندند.
+     *
+     * سرویسِ انبار جدا می‌ماند (CmmsService از قطعات بی‌خبر است)، ولی مدیر
+     * یک داشبورد می‌بیند، نه دو تا؛ «زیرِ نقطهٔ سفارش» هم باید هم‌رده‌ی
+     * «منتظرِ قطعه» دیده شود.
+     */
+    const [ops, inv] = await Promise.all([
+      this.cmms.operationalSummary(user.organizationId, { departmentId }),
+      this.inventory.summary(user.organizationId),
+    ]);
+    return {
+      ...ops,
+      buckets: [...ops.buckets, ...inv.buckets],
+      inventory: { valuation: inv.valuation, consumption: inv.consumption },
+    };
   }
 
   // ── دارایی ────────────────────────────────────────────────────────────
@@ -187,6 +208,75 @@ export class CmmsController {
   @MinRole(OrganizationRole.ADMIN)
   runPm() {
     return this.pm.run().then((made) => ({ generated: made }));
+  }
+
+  // ── انبارِ قطعات ──────────────────────────────────────────────────────
+
+  @Get('parts')
+  @MinRole(OrganizationRole.ANALYST)
+  listParts(@CurrentUser() user: JwtUser, @Query() query: PartListQuery) {
+    return this.inventory.listParts(user.organizationId, query);
+  }
+
+  @Get('parts/:id')
+  @MinRole(OrganizationRole.ANALYST)
+  getPart(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.inventory.getPart(user.organizationId, id);
+  }
+
+  @Post('parts')
+  @MinRole(OrganizationRole.EDITOR)
+  createPart(@CurrentUser() user: JwtUser, @Body() dto: SparePartDto) {
+    return this.inventory.createPart(user.organizationId, dto, user.sub);
+  }
+
+  @Patch('parts/:id')
+  @MinRole(OrganizationRole.EDITOR)
+  updatePart(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: Partial<SparePartDto>,
+  ) {
+    return this.inventory.updatePart(user.organizationId, id, dto, user.sub);
+  }
+
+  /** دفترِ گردشِ انبار. */
+  @Get('stock-movements')
+  @MinRole(OrganizationRole.ANALYST)
+  listMovements(
+    @CurrentUser() user: JwtUser,
+    @Query() query: MovementListQuery,
+  ) {
+    return this.inventory.listMovements(user.organizationId, query);
+  }
+
+  /** ورود، مصرف، برگشت یا ضایعاتِ قطعه. */
+  @Post('stock-movements')
+  @MinRole(OrganizationRole.EDITOR)
+  move(@CurrentUser() user: JwtUser, @Body() dto: StockMovementDto) {
+    return this.inventory.move(user.organizationId, dto, user.sub);
+  }
+
+  /**
+   * انبارگردانی.
+   *
+   * موجودیِ ثبت‌شده را با شمارشِ واقعی یکی می‌کند و اختلاف را به‌شکلِ گردشِ
+   * اصلاحی در دفتر می‌گذارد. از «مدیر» به بالا، چون سندِ مالی می‌سازد.
+   */
+  @Post('parts/:id/recount')
+  @MinRole(OrganizationRole.ADMIN)
+  recount(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: RecountDto,
+  ) {
+    return this.inventory.recount(
+      user.organizationId,
+      id,
+      dto.countedQuantity,
+      dto.note ?? '',
+      user.sub,
+    );
   }
 
   // ── آمادگیِ اتاق ──────────────────────────────────────────────────────
