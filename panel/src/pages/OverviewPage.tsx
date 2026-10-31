@@ -1,8 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { describeError, overviewApi, workspaceApi } from "../api";
-import type { ManagerOverview } from "../api";
+import {
+  commandCenterApi,
+  describeError,
+  overviewApi,
+  workspaceApi,
+} from "../api";
+import type { CommandDesk, ManagerOverview } from "../api";
 import { isoToJalaliText } from "../jalali";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
@@ -19,6 +24,21 @@ const PERIODS = [
   { days: 30, label: "۳۰ روز" },
   { days: 90, label: "۹۰ روز" },
 ];
+
+const TONE_COLORS: Record<string, string> = {
+  info: "var(--accent, #2563eb)",
+  warn: "#b45309",
+  danger: "#b91c1c",
+};
+
+/** نامِ فارسیِ بخشی که در پاسخ نیامده، برای پیامِ صریحِ «غایب». */
+const DEGRADED_LABELS: Record<string, string> = {
+  technical: "عملیاتِ فنی",
+  workforce: "نیرویِ انسانی",
+  leave: "مرخصی",
+  rooms: "اتاق‌ها",
+  inventory: "انبار",
+};
 
 /**
  * داشبوردِ مدیریت: یک نگاه به کلِ عملیاتِ هتل.
@@ -42,6 +62,20 @@ export function OverviewPage() {
     refetchInterval: 5 * 60_000,
   });
 
+  /*
+   * میزِ فرماندهی مستقل از بازهٔ نظرسنجی است.
+   *
+   * «الان چه چیزی توجه می‌خواهد؟» بازه ندارد؛ کارِ اضطراریِ باز با عوض
+   * کردنِ «۳۰ روز» به «۷ روز» عوض نمی‌شود. برای همین کوئریِ جدا دارد و با
+   * دکمه‌های بازه دوباره خوانده نمی‌شود.
+   */
+  const desk = useQuery({
+    queryKey: ["command-center"],
+    queryFn: () => commandCenterApi.get(),
+    refetchOnWindowFocus: true,
+    refetchInterval: 2 * 60_000,
+  });
+
   const data = overview.data;
 
   return (
@@ -62,6 +96,25 @@ export function OverviewPage() {
           ))}
         </div>
       </header>
+
+      {desk.isError && (
+        <p className="error">خواندنِ وضعیتِ عملیات ناموفق بود.</p>
+      )}
+      {desk.data && <CommandDeskView desk={desk.data} />}
+
+      <section className="card">
+        <div className="section-head">
+          <h3>بازخوردِ مهمان</h3>
+          <span className="hint">
+            {fa(data?.totals.current ?? 0)} گزارش در {fa(data?.days ?? 0)} روزِ
+            اخیر
+          </span>
+        </div>
+        <p className="hint">
+          بخشِ زیر دربارهٔ فرم‌ها و نظرسنجی است و بازهٔ بالا رویش اثر دارد؛
+          وضعیتِ عملیاتیِ بالا بازه ندارد.
+        </p>
+      </section>
 
       {overview.isError && (
         <p className="error">{describeError(overview.error)}</p>
@@ -113,6 +166,147 @@ export function OverviewPage() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * میزِ فرماندهی: «الان چه چیزی توجه می‌خواهد؟»
+ *
+ * اول فهرستِ اولویت‌دار (تا مدیر برای فهمیدنِ اولویت پنج کاشی را با چشم
+ * مقایسه نکند)، بعد عددهای هر دامنه. هر عدد لینک است و به همان فهرستِ
+ * زیرین می‌رود؛ داشبوردی که نمی‌شود از آن به رکورد رسید همان «بی‌استفاده»
+ * بودنِ قبلی است.
+ */
+function CommandDeskView({ desk }: { desk: CommandDesk }) {
+  const calm = desk.attention.length === 0;
+
+  return (
+    <>
+      <section className="card">
+        <div className="section-head">
+          <h3>الان چه چیزی توجه می‌خواهد؟</h3>
+          <span className="hint">
+            به‌روزرسانی:{" "}
+            {new Date(desk.generatedAt).toLocaleTimeString("fa-IR")}
+          </span>
+        </div>
+
+        {desk.degraded.length > 0 && (
+          <p className="error">
+            این بخش‌ها الان خوانده نشدند:{" "}
+            {desk.degraded
+              .map((d) => DEGRADED_LABELS[d] ?? d)
+              .join("، ")}
+            . بقیهٔ عددها درست‌اند.
+          </p>
+        )}
+
+        {calm ? (
+          <p className="hint">
+            چیزی معلق نیست: نه کارِ اضطراری، نه حضورِ ثبت‌نشده، نه مرخصیِ
+            منتظرِ تأیید.
+          </p>
+        ) : (
+          <ul className="attention-list">
+            {desk.attention.map((item) => (
+              <li key={item.key}>
+                <Link to={item.href} className="attention-row">
+                  <span
+                    className="attention-count"
+                    style={{ color: TONE_COLORS[item.tone] }}
+                  >
+                    {fa(item.count)}
+                  </span>
+                  <span className="attention-text">{item.text}</span>
+                  <span className="attention-go" aria-hidden="true">
+                    ←
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {desk.sections.map((section) => (
+        <section className="card" key={section.key}>
+          <div className="section-head">
+            <h3>{section.title}</h3>
+            <Link to={section.href} className="hint">
+              باز کردنِ میزِ کار ←
+            </Link>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(9.5rem, 1fr))",
+              gap: "0.6rem",
+            }}
+          >
+            {section.tiles.map((tile) => (
+              <Link
+                key={tile.key}
+                to={tile.href}
+                style={{
+                  textAlign: "start",
+                  padding: "0.6rem 0.7rem",
+                  borderRadius: 10,
+                  border: "1px solid var(--border, #d4d4d8)",
+                  color: "inherit",
+                  textDecoration: "none",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: 700,
+                    lineHeight: 1.1,
+                    color: tile.count > 0 ? TONE_COLORS[tile.tone] : "inherit",
+                    opacity: tile.count > 0 ? 1 : 0.45,
+                  }}
+                >
+                  {fa(tile.count)}
+                </div>
+                <div style={{ fontSize: "0.82rem", opacity: 0.85 }}>
+                  {tile.label}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
+
+      {(desk.cost || desk.inventoryValue !== null) && (
+        <div className="kpi-row">
+          <div className="kpi-card">
+            <span className="kpi-label">نیروی فعال</span>
+            <span className="kpi-value">{fa(desk.headcount)}</span>
+            <span className="kpi-delta neutral">پروندهٔ فعالِ پرسنل</span>
+          </div>
+          {desk.cost && (
+            <div className="kpi-card">
+              <span className="kpi-label">
+                هزینهٔ نگهداریِ {fa(desk.cost.days)} روز
+              </span>
+              <span className="kpi-value">
+                {fa(desk.cost.internal + desk.cost.contractor)}
+              </span>
+              <span className="kpi-delta neutral">
+                ریال — {fa(desk.cost.internal)} داخلی ·{" "}
+                {fa(desk.cost.contractor)} پیمانکار
+              </span>
+            </div>
+          )}
+          {desk.inventoryValue !== null && (
+            <div className="kpi-card">
+              <span className="kpi-label">ارزشِ انبار</span>
+              <span className="kpi-value">{fa(desk.inventoryValue)}</span>
+              <span className="kpi-delta neutral">ریال</span>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   describeError,
   leavesApi,
@@ -96,7 +96,17 @@ const matches = (row: DayBoardRow, filter: BoardFilter): boolean => {
 export function WorkforcePage() {
   const qc = useQueryClient();
   const [date, setDate] = useState(todayIso());
-  const [filter, setFilter] = useState<BoardFilter>('all');
+
+  /*
+   * صافیِ آماده از داشبوردِ مدیریت (`?filter=unrecorded`).
+   *
+   * مقدارِ ناشناخته نادیده گرفته می‌شود تا لینکِ کهنه صفحه را خالی نکند.
+   */
+  const [params] = useSearchParams();
+  const wanted = params.get('filter');
+  const [filter, setFilter] = useState<BoardFilter>(
+    wanted && wanted in FILTER_LABELS ? (wanted as BoardFilter) : 'all',
+  );
   const [assigning, setAssigning] = useState<DayBoardRow | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 

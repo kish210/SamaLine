@@ -1548,6 +1548,59 @@ export const leavesApi = {
   }) => api.post('/hr/leaves/balance', body).then((r) => r.data),
 };
 
+// ── میزِ فرماندهیِ مدیریت ───────────────────────────────────────────────
+
+/** یک عددِ قابلِ‌اقدام روی میزِ کار؛ `href` مقصدِ drill-down است. */
+export interface DeskTile {
+  key: string;
+  label: string;
+  count: number;
+  tone: 'info' | 'warn' | 'danger';
+  href: string;
+}
+
+export interface DeskSection {
+  key: string;
+  title: string;
+  href: string;
+  tiles: DeskTile[];
+}
+
+export interface AttentionItem {
+  key: string;
+  text: string;
+  count: number;
+  tone: 'info' | 'warn' | 'danger';
+  href: string;
+}
+
+export interface CommandDesk {
+  generatedAt: string;
+  date: string;
+  sections: DeskSection[];
+  /** «این الان توجه می‌خواهد»؛ خالی یعنی واقعاً چیزی معلق نیست. */
+  attention: AttentionItem[];
+  cost: {
+    internal: number;
+    contractor: number;
+    laborMinutes: number;
+    days: number;
+  } | null;
+  inventoryValue: number | null;
+  headcount: number;
+  /** بخش‌هایی که خطا دادند و در پاسخ نیستند. */
+  degraded: string[];
+}
+
+export const commandCenterApi = {
+  get: (departmentId?: string) =>
+    api
+      .get<CommandDesk>('/command-center', {
+        params: departmentId ? { departmentId } : {},
+      })
+      .then((r) => r.data),
+};
+
 // ── برنامهٔ کار و حضور ──────────────────────────────────────────────────
 
 /** الگوی شیفت: «صبح ۰۷:۰۰–۱۵:۰۰». */

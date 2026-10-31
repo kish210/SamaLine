@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   NewAssetForm,
   NewRequestForm,
@@ -117,6 +118,17 @@ export function OperationsPage() {
   const [inventory, setInventory] = useState(false);
   const inventoryOpen = inventory || active?.kind === 'part';
 
+  /*
+   * ورود با صافیِ آماده از داشبوردِ مدیریت.
+   *
+   * `?bucket=overdue` یا `?inventory=1` یعنی مدیر روی یک عدد زده و باید
+   * همان فهرست باز شود؛ بدونِ این، drill-down فقط کاربر را به صفحهٔ خالی
+   * می‌آورد و باید دوباره دستی سطل را پیدا کند.
+   */
+  const [params, setParams] = useSearchParams();
+  const wantedBucket = params.get('bucket');
+  const wantedInventory = params.get('inventory');
+
   const changeStatus = useMutation({
     // خروجیِ دو مسیر شکلِ یکسان ندارد و اینجا لازم هم نیست؛ فقط باطل‌کردنِ
     // کوئری‌ها مهم است.
@@ -174,6 +186,24 @@ export function OperationsPage() {
     setSearch('');
     setPage(1);
   };
+
+  /*
+   * سطلِ خواسته‌شده را به‌محضِ رسیدنِ داشبورد باز می‌کند و پارامتر را
+   * برمی‌دارد، تا رفرشِ بعدیِ کاربر دوباره صافی را تحمیل نکند.
+   */
+  useEffect(() => {
+    if (!dashboard.data) return;
+    if (wantedInventory === '1') {
+      setInventory(true);
+      setParams({}, { replace: true });
+      return;
+    }
+    if (!wantedBucket) return;
+    const found = dashboard.data.buckets.find((b) => b.key === wantedBucket);
+    if (found) openBucket(found);
+    setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashboard.data, wantedBucket, wantedInventory]);
 
   const data = dashboard.data;
 

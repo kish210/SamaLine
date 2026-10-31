@@ -175,6 +175,47 @@ body {
   flex: 1;
 }
 
+/* ---- فهرستِ «توجه می‌خواهد» روی داشبوردِ مدیریت ---- */
+.attention-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.attention-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+}
+
+.attention-list li:last-child .attention-row {
+  border-bottom: none;
+}
+
+.attention-row:hover {
+  background: var(--surface-2, rgb(37 99 235 / 6%));
+}
+
+/* عددِ ثابت‌عرض تا ستونِ متن‌ها در هم نریزد. */
+.attention-count {
+  flex: 0 0 2.5rem;
+  font-size: var(--text-lg, 1.15rem);
+  font-weight: var(--fw-bold, 700);
+  text-align: center;
+}
+
+.attention-text {
+  flex: 1;
+}
+
+.attention-go {
+  opacity: 0.45;
+}
+
 /* ---- گروه‌های منو ---- */
 .nav-group {
   display: flex;
