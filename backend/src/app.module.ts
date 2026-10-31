@@ -28,6 +28,7 @@ import { DepartmentsModule } from './departments/departments.module';
 import { ChecklistsModule } from './checklists/checklists.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { HrModule } from './hr/hr.module';
+import { CmmsModule } from './cmms/cmms.module';
 import { HotelSetupModule } from './hotel-setup/hotel-setup.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { AuditModule } from './common/audit.module';
@@ -67,6 +68,8 @@ import { buildDataSourceOptions } from './database/data-source';
     ChecklistsModule,
     RoomsModule,
     HrModule,
+    // دامنهٔ فنی/نگهداری؛ مستقل از فرم و نظرسنجی.
+    CmmsModule,
     HotelSetupModule,
   ],
 })

@@ -14,6 +14,12 @@ import { InvitationEntity } from './invitation.entity';
 import { MenuEntity } from './menu.entity';
 import { InvoiceEntity } from './invoice.entity';
 import { BotFormSessionEntity } from './bot-form-session.entity';
+import { AssetEntity } from './asset.entity';
+import { MaintenanceRequestEntity } from './maintenance-request.entity';
+import {
+  WorkOrderEntity,
+  WorkOrderTechnicianEntity,
+} from './work-order.entity';
 import { KioskSessionEntity } from './kiosk-session.entity';
 import { OnPremLicenseEntity } from './onprem-license.entity';
 import { OtpChallengeEntity } from './otp-challenge.entity';
@@ -66,6 +72,10 @@ export const ALL_ENTITIES = [
   IdentityProviderEntity,
   KioskSessionEntity,
   BotFormSessionEntity,
+  AssetEntity,
+  MaintenanceRequestEntity,
+  WorkOrderEntity,
+  WorkOrderTechnicianEntity,
   InterviewerQuotaEntity,
   InvoiceEntity,
   InvitationEntity,

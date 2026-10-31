@@ -44,6 +44,8 @@ import { AddPersonnelBotWorkspace1800000000006 } from './migrations/180000000000
 import { PgAddPersonnelBotWorkspace1800000000007 } from './migrations/1800000000007-PgAddPersonnelBotWorkspace';
 import { AddAnnouncements1800000000008 } from './migrations/1800000000008-AddAnnouncements';
 import { PgAddAnnouncements1800000000009 } from './migrations/1800000000009-PgAddAnnouncements';
+import { AddCmmsCore1800000000014 } from './migrations/1800000000014-AddCmmsCore';
+import { PgAddCmmsCore1800000000015 } from './migrations/1800000000015-PgAddCmmsCore';
 import { AddBotFormSessions1800000000012 } from './migrations/1800000000012-AddBotFormSessions';
 import { PgAddBotFormSessions1800000000013 } from './migrations/1800000000013-PgAddBotFormSessions';
 import { AddMenuTheme1800000000010 } from './migrations/1800000000010-AddMenuTheme';
@@ -83,6 +85,7 @@ export const SQLITE_MIGRATIONS = [
   AddAnnouncements1800000000008,
   AddMenuTheme1800000000010,
   AddBotFormSessions1800000000012,
+  AddCmmsCore1800000000014,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -107,6 +110,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddAnnouncements1800000000009,
   PgAddMenuTheme1800000000011,
   PgAddBotFormSessions1800000000013,
+  PgAddCmmsCore1800000000015,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */
