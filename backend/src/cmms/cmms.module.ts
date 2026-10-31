@@ -7,8 +7,11 @@ import {
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { HotelRoomEntity } from '../database/entities/hotel-room.entity';
+import { PmScheduleEntity } from '../database/entities/pm-schedule.entity';
 import { CmmsController } from './cmms.controller';
 import { CmmsService } from './cmms.service';
+import { PmService } from './pm.service';
 
 /**
  * دامنهٔ نگهداری و تعمیرات (CMMS).
@@ -26,10 +29,13 @@ import { CmmsService } from './cmms.service';
       WorkOrderTechnicianEntity,
       // فقط برای نشان‌دادنِ نامِ تکنسین در بارِ کاری؛ دفترچهٔ پرسنل مالِ HR است.
       PersonnelEntity,
+      // آمادگیِ اتاق با پیشرفتِ دستورِ کار همگام می‌شود.
+      HotelRoomEntity,
+      PmScheduleEntity,
     ]),
   ],
   controllers: [CmmsController],
-  providers: [CmmsService],
-  exports: [CmmsService],
+  providers: [CmmsService, PmService],
+  exports: [CmmsService, PmService],
 })
 export class CmmsModule {}

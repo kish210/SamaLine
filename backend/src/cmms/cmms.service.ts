@@ -26,6 +26,10 @@ import {
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import {
+  HotelRoomEntity,
+  RoomReadiness,
+} from '../database/entities/hotel-room.entity';
 import { AuditService } from '../common/audit.service';
 import { LIKE_OPERATOR } from '../database/column-types';
 
@@ -192,6 +196,8 @@ export class CmmsService {
     private readonly technicians: Repository<WorkOrderTechnicianEntity>,
     @InjectRepository(PersonnelEntity)
     private readonly personnel: Repository<PersonnelEntity>,
+    @InjectRepository(HotelRoomEntity)
+    private readonly rooms: Repository<HotelRoomEntity>,
     private readonly dataSource: DataSource,
     @Optional() private readonly audit?: AuditService,
   ) {}
@@ -512,9 +518,68 @@ export class CmmsService {
     }
 
     const saved = await this.workOrders.save(row);
+
+    // وضعیتِ اتاقِ مرتبط را با پیشرفتِ کار همگام نگه می‌دارد.
+    if (row.roomId) {
+      await this.syncRoomReadiness(organizationId, row.roomId, next, row.number);
+    }
+
     this.log(opts.actorId, organizationId, 'workorder.status', id, {
       to: next,
     });
+    return saved;
+  }
+
+  /**
+   * آمادگیِ اتاق را با وضعیتِ دستورِ کار همگام می‌کند.
+   *
+   * قاعده‌ی مهم: **تکمیلِ کار اتاق را «آماده» نمی‌کند.** کارِ تمام‌شده به
+   * «منتظرِ بازرسی» می‌رود و فقط تأییدِ مدیر آن را آماده می‌کند؛ وگرنه اتاقی
+   * که هنوز بازرسی نشده به فروش می‌رفت.
+   */
+  private async syncRoomReadiness(
+    organizationId: string,
+    roomId: string,
+    status: WorkOrderStatus,
+    orderNumber: string,
+  ) {
+    const map: Partial<Record<WorkOrderStatus, RoomReadiness>> = {
+      [WorkOrderStatus.IN_PROGRESS]: RoomReadiness.UNDER_MAINTENANCE,
+      [WorkOrderStatus.WAITING_PARTS]: RoomReadiness.OUT_OF_SERVICE,
+      [WorkOrderStatus.WAITING_CONTRACTOR]: RoomReadiness.OUT_OF_SERVICE,
+      [WorkOrderStatus.COMPLETED]: RoomReadiness.AWAITING_INSPECTION,
+      [WorkOrderStatus.VERIFIED]: RoomReadiness.READY,
+      [WorkOrderStatus.CLOSED]: RoomReadiness.READY,
+    };
+    const readiness = map[status];
+    if (!readiness) return;
+
+    await this.rooms.update(
+      { id: roomId, organizationId },
+      {
+        readiness,
+        readinessNote:
+          readiness === RoomReadiness.READY ? '' : `دستورِ کار ${orderNumber}`,
+      },
+    );
+  }
+
+  /** تغییرِ دستیِ وضعیتِ آمادگیِ اتاق (مثلاً خارج کردن از سرویس). */
+  async setRoomReadiness(
+    organizationId: string,
+    roomId: string,
+    readiness: RoomReadiness,
+    note = '',
+    actorId?: string,
+  ) {
+    const room = await this.rooms.findOne({
+      where: { id: roomId, organizationId },
+    });
+    if (!room) throw new NotFoundException('اتاق یافت نشد');
+    room.readiness = readiness;
+    room.readinessNote = note;
+    const saved = await this.rooms.save(room);
+    this.log(actorId, organizationId, 'room.readiness', roomId, { readiness });
     return saved;
   }
 

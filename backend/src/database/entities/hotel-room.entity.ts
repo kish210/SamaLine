@@ -6,7 +6,27 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
+
+/**
+ * آمادگیِ اتاق برای فروش.
+ *
+ * جدا از `isActive` است: اتاقِ فعال ممکن است همین حالا در تعمیر باشد یا
+ * منتظرِ بازرسی. تکمیلِ دستورِ کار به‌تنهایی اتاق را «آماده» نمی‌کند؛ اگر
+ * بازرسی لازم باشد اول به «منتظرِ بازرسی» می‌رود.
+ */
+export enum RoomReadiness {
+  READY = 'ready',
+  UNDER_MAINTENANCE = 'under_maintenance',
+  OUT_OF_SERVICE = 'out_of_service',
+  AWAITING_INSPECTION = 'awaiting_inspection',
+  REPAIRED_AWAITING_APPROVAL = 'repaired_awaiting_approval',
+}
 
 /** یک قلم/دارایی داخل اتاق (تلویزیون، کولر، یخچال …). */
 export interface RoomAsset {
@@ -46,6 +66,17 @@ export class HotelRoomEntity {
 
   @Column({ type: JSON_COLUMN, default: '[]' })
   assets: RoomAsset[];
+
+  @Column({
+    type: ENUM_COLUMN,
+    enum: RoomReadiness,
+    default: RoomReadiness.READY,
+  })
+  readiness: RoomReadiness;
+
+  /** علتِ وضعیتِ فعلی (مثلاً شماره‌ی دستورِ کار). */
+  @Column({ type: 'varchar', length: 200, default: '' })
+  readinessNote: string;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

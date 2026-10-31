@@ -17,10 +17,13 @@ import type { ListQuery } from './cmms.service';
 import {
   AssetDto,
   MaintenanceRequestDto,
+  PmScheduleDto,
   RequestStatusDto,
+  RoomReadinessDto,
   WorkOrderDto,
   WorkOrderStatusDto,
 } from './dto';
+import { PmService } from './pm.service';
 
 /**
  * APIهای دامنهٔ فنی (CMMS).
@@ -33,7 +36,10 @@ import {
 @Controller('cmms')
 @UseGuards(JwtAuthGuard)
 export class CmmsController {
-  constructor(private readonly cmms: CmmsService) {}
+  constructor(
+    private readonly cmms: CmmsService,
+    private readonly pm: PmService,
+  ) {}
 
   /**
    * داشبوردِ عملیاتیِ بخشِ فنی: سطل‌های قابلِ‌اقدام، بارِ تکنسین‌ها، فعالیتِ
@@ -138,6 +144,67 @@ export class CmmsController {
   @MinRole(OrganizationRole.EDITOR)
   createWorkOrder(@CurrentUser() user: JwtUser, @Body() dto: WorkOrderDto) {
     return this.cmms.createWorkOrder(user.organizationId, dto, user.sub);
+  }
+
+  // ── نگهداریِ پیشگیرانه ────────────────────────────────────────────────
+
+  @Get('pm')
+  @MinRole(OrganizationRole.ANALYST)
+  listPm(@CurrentUser() user: JwtUser) {
+    return this.pm.list(user.organizationId);
+  }
+
+  /** برنامه‌هایی که موعدشان رسیده. */
+  @Get('pm/due')
+  @MinRole(OrganizationRole.ANALYST)
+  duePm(@CurrentUser() user: JwtUser) {
+    return this.pm.due(user.organizationId);
+  }
+
+  @Post('pm')
+  @MinRole(OrganizationRole.EDITOR)
+  createPm(@CurrentUser() user: JwtUser, @Body() dto: PmScheduleDto) {
+    return this.pm.create(user.organizationId, dto as never, user.sub);
+  }
+
+  @Patch('pm/:id')
+  @MinRole(OrganizationRole.EDITOR)
+  updatePm(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: Partial<PmScheduleDto>,
+  ) {
+    return this.pm.update(user.organizationId, id, dto as never, user.sub);
+  }
+
+  /**
+   * اجرای همین‌حالای تولیدِ دستورِ کار.
+   *
+   * سامانه خودش ساعتی یک بار اجرا می‌کند؛ این برای وقتی است که مدیر
+   * نمی‌خواهد منتظر بماند.
+   */
+  @Post('pm/run')
+  @MinRole(OrganizationRole.ADMIN)
+  runPm() {
+    return this.pm.run().then((made) => ({ generated: made }));
+  }
+
+  // ── آمادگیِ اتاق ──────────────────────────────────────────────────────
+
+  @Patch('rooms/:id/readiness')
+  @MinRole(OrganizationRole.EDITOR)
+  setRoomReadiness(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() dto: RoomReadinessDto,
+  ) {
+    return this.cmms.setRoomReadiness(
+      user.organizationId,
+      id,
+      dto.readiness,
+      dto.note ?? '',
+      user.sub,
+    );
   }
 
   @Patch('work-orders/:id/status')

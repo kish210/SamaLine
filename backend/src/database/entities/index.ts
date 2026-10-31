@@ -15,6 +15,7 @@ import { MenuEntity } from './menu.entity';
 import { InvoiceEntity } from './invoice.entity';
 import { BotFormSessionEntity } from './bot-form-session.entity';
 import { AssetEntity } from './asset.entity';
+import { PmScheduleEntity } from './pm-schedule.entity';
 import {
   LeaveBalanceEntity,
   LeaveRequestEntity,
@@ -77,6 +78,7 @@ export const ALL_ENTITIES = [
   KioskSessionEntity,
   BotFormSessionEntity,
   AssetEntity,
+  PmScheduleEntity,
   LeaveRequestEntity,
   LeaveBalanceEntity,
   MaintenanceRequestEntity,

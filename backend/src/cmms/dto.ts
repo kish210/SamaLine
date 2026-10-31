@@ -19,6 +19,8 @@ import {
   MaintenanceRequestStatus,
 } from '../database/entities/maintenance-request.entity';
 import { WorkOrderStatus } from '../database/entities/work-order.entity';
+import { PmInterval } from '../database/entities/pm-schedule.entity';
+import { RoomReadiness } from '../database/entities/hotel-room.entity';
 
 export class AssetDto {
   @IsNotEmpty()
@@ -132,4 +134,38 @@ export class WorkOrderStatusDto {
   status: WorkOrderStatus;
 
   @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+
+/** برنامهٔ نگهداریِ پیشگیرانه. */
+export class PmScheduleDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(200)
+  title: string;
+
+  @IsOptional() @IsString() assetId?: string | null;
+  @IsOptional() @IsString() roomId?: string | null;
+  @IsOptional() @IsString() departmentId?: string | null;
+
+  @IsOptional()
+  @IsIn(Object.values(MaintenanceCategory))
+  category?: MaintenanceCategory;
+
+  @IsOptional() @IsIn(Object.values(PmInterval)) interval?: PmInterval;
+
+  @IsOptional() @IsInt() @Min(0) intervalDays?: number;
+
+  @IsOptional() @IsArray() checklist?: Array<Record<string, unknown>>;
+  @IsOptional() @IsArray() technicianIds?: string[];
+  @IsOptional() @IsString() instructions?: string;
+  @IsOptional() @IsString() @MaxLength(10) nextDueAt?: string;
+  @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+/** تغییرِ دستیِ وضعیتِ آمادگیِ اتاق. */
+export class RoomReadinessDto {
+  @IsIn(Object.values(RoomReadiness))
+  readiness: RoomReadiness;
+
+  @IsOptional() @IsString() @MaxLength(200) note?: string;
 }

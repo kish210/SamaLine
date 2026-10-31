@@ -16,6 +16,7 @@ import {
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { HotelRoomEntity } from '../database/entities/hotel-room.entity';
 import { CmmsService } from './cmms.service';
 
 const ORG = 'org-1';
@@ -33,6 +34,7 @@ describe('CmmsService', () => {
       ds.getRepository(WorkOrderEntity),
       ds.getRepository(WorkOrderTechnicianEntity),
       ds.getRepository(PersonnelEntity),
+      ds.getRepository(HotelRoomEntity),
       ds,
     );
   });
