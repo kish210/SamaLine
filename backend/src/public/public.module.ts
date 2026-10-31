@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TenantAccessModule } from '../common/tenant-access.module';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -31,7 +31,8 @@ import { IntegrationsModule } from '../integrations/integrations.module';
   imports: [
     TenantAccessModule,
     PlatformModule,
-    IntegrationsModule,
+    // حلقه‌ی دوطرفه: ربات برای ثبتِ فرمِ پرشده در گفتگو به PublicService نیاز دارد.
+    forwardRef(() => IntegrationsModule),
     TypeOrmModule.forFeature([
       PublicationEntity,
       FormVersionEntity,
@@ -61,6 +62,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     PublicPortalController,
   ],
   // راه‌اندازیِ واحدهای هتل برای ساختِ پرتالِ هر واحد به PortalService نیاز دارد.
-  exports: [PortalService],
+  // رباتِ پرسنلی فرمی را که در گفتگو پر شده، از همین مسیرِ عمومی ثبت می‌کند.
+  exports: [PortalService, PublicService],
 })
 export class PublicModule {}

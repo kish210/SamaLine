@@ -98,6 +98,10 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
   (none/weekly/monthly), `lastDigestAt*`, `lastError*`, `lastSentAt*`.
 - **telegram_link_codes** — `code`, `workspaceId`, `formId*`, `label`,
   `expiresAt`, `maxUses*`, `useCount`, `usedAt*`. وصل‌کردن گفتگو از داخل ربات.
+- **bot_form_sessions** — `chatId`, `platform`, `formId`, `publicationId`,
+  `respondentKey`, `questionIndex`, `answers`(JSON). گفتگوی نیمه‌کاره‌ی پر کردنِ
+  فرم داخلِ ربات؛ ایندکسِ یکتا روی (chatId,platform) یعنی هر گفتگو هم‌زمان فقط
+  یک فرمِ باز دارد.
 - **email_report_recipients** — `workspaceId`, `formId*`, `email`, `label`,
   `digest` (weekly/monthly), `isActive`, `lastDigestAt*`, `lastError*`,
   `lastSentAt*`. گزارش دوره‌ای ایمیلی. ایندکس (workspaceId,formId).
@@ -195,6 +199,7 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 20. `AddPersonnelBotWorkspace` — `botWorkspaceId` روی personnel.
 21. `AddAnnouncements` — announcements.
 22. `AddMenuTheme` — `theme` روی menus.
+23. `AddBotFormSessions` — bot_form_sessions.
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

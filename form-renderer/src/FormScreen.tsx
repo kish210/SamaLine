@@ -162,10 +162,22 @@ function FormBody({ token, flow, endSlot }: FormBodyProps) {
    * فقط در حالت تک‌سوالی معنا دارد و فقط وقتی سوال اجباری نیست یا مقداری
    * انتخاب شده؛ مکث کوتاه برای این است که پاسخ‌دهنده انتخابش را ببیند.
    */
-  const autoAdvance = () => {
+  const autoAdvance = (questionId: string, committed: unknown) => {
     if (!oneAtATime || flow.loading) return;
-    // مقدار نامعتبر نباید با رفتن خودکار از قلم بیفتد.
-    if (firstInvalid(visibleQuestions, flow.answers)) return;
+    /*
+     * مقدارِ همین انتخاب سنجیده می‌شود، نه پاسخ‌های رندرِ قبلی.
+     *
+     * `commit` اول `onChange` را صدا می‌زند که فقط به‌روزرسانی را در صف
+     * می‌گذارد؛ پس `flow.answers` هنوز خالی است و سوالِ اجباری همیشه
+     * «نامعتبر» درمی‌آمد و پیشرویِ خودکار بی‌صدا لغو می‌شد.
+     */
+    if (
+      firstInvalid(visibleQuestions, {
+        ...flow.answers,
+        [questionId]: committed,
+      })
+    )
+      return;
     setDirection('forward');
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     autoTimerRef.current = setTimeout(() => {
@@ -190,6 +202,13 @@ function FormBody({ token, flow, endSlot }: FormBodyProps) {
 
   const handleBack = async () => {
     setFieldErrors({});
+    /*
+     * تایمرِ پیشرویِ خودکارِ معلق باید لغو شود.
+     *
+     * اگر کاربر کمتر از ۳۵۰ میلی‌ثانیه پس از انتخابِ گزینه «قبلی» را بزند،
+     * تایمر بعداً اجرا می‌شد و او را دوباره به جلو (یا حتی به ارسال) می‌برد.
+     */
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     setDirection('back');
     if (oneAtATime && questionIndex > 0) {
       setQuestionIndex((prev) => prev - 1);
@@ -347,7 +366,7 @@ function FormBody({ token, flow, endSlot }: FormBodyProps) {
                       });
                     }
                   }}
-                  onCommit={autoAdvance}
+                  onCommit={(committed) => autoAdvance(question.id, committed)}
                 />
                 {fieldErrors[question.id] && (
                   <p className="field-error" role="alert">

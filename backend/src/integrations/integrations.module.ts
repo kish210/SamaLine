@@ -1,5 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PublicModule } from '../public/public.module';
+import { BotFormSessionEntity } from '../database/entities/bot-form-session.entity';
+import { FormVersionEntity } from '../database/entities/form-version.entity';
+import { BotFormFillService } from './bot-form-fill.service';
 import { TenantAccessModule } from '../common/tenant-access.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebhookEntity } from '../database/entities/webhook.entity';
@@ -46,6 +50,12 @@ import { EmailReportService } from './email-report.service';
     HrModule,
     // توکنِ هویتِ مینی‌اپ با همان رازِ سرور امضا می‌شود (payloadِ mode='bot').
     JwtModule.register({ secret: process.env.JWT_SECRET ?? 'change-me' }),
+    /*
+     * ثبتِ فرمی که داخلِ ربات پر شده از همان مسیرِ عمومی انجام می‌شود.
+     * `PublicModule` خودش این ماژول را برای اعلانِ پرسنل لازم دارد، پس حلقه
+     * با forwardRef باز می‌شود.
+     */
+    forwardRef(() => PublicModule),
     TypeOrmModule.forFeature([
       WebhookEntity,
       TelegramIntegrationEntity,
@@ -59,6 +69,9 @@ import { EmailReportService } from './email-report.service';
       ResponseEntity,
       // «📝 فرم‌ها»ِ ربات، فرم‌های منتشرشده در ربات و لینکِ انتشارشان را می‌خواند.
       PublicationEntity,
+      // پر کردنِ فرم داخلِ گفتگو: وضعیتِ گفتگو + ساختارِ نسخه‌ی فرم.
+      BotFormSessionEntity,
+      FormVersionEntity,
     ]),
   ],
   controllers: [
@@ -75,6 +88,7 @@ import { EmailReportService } from './email-report.service';
     TelegramBotService,
     TelegramDigestService,
     StaffBotService,
+    BotFormFillService,
     StaffNotifyService,
     AnnouncementService,
     EmailReportService,

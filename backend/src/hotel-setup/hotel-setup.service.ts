@@ -194,6 +194,14 @@ export class HotelSetupService {
     });
 
     let portalSlug: string | null = null;
+    /*
+     * دلیلِ نساختنِ پرتال هم برمی‌گردد.
+     *
+     * پیش از این فقط لاگِ هشدار می‌شد و پنل `null` می‌گرفت؛ کاربر می‌دید
+     * «داشبورد و پرتالِ خودکار» را زده ولی پرتالی نیست و هیچ توضیحی هم ندارد
+     * (معمولاً سقفِ پرتالِ پلن پر است). حالا پنل می‌تواند علت را بگوید.
+     */
+    let portalError: string | null = null;
     try {
       const portal = await this.portals.save(form.workspaceId, null, {
         slug: `rep-${randomBytes(3).toString('hex')}`,
@@ -203,10 +211,11 @@ export class HotelSetupService {
       });
       portalSlug = portal.slug;
     } catch (error) {
-      this.logger.warn(`پرتالِ خودکار ساخته نشد: ${(error as Error).message}`);
+      portalError = (error as Error).message;
+      this.logger.warn(`پرتالِ خودکار ساخته نشد: ${portalError}`);
     }
 
-    return { dashboardId: dashboard.id, portalSlug };
+    return { dashboardId: dashboard.id, portalSlug, portalError };
   }
 }
 

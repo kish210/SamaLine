@@ -14,6 +14,7 @@ import {
 } from '../database/entities/publication.entity';
 import { HrService } from '../hr/hr.service';
 import { AnnouncementService } from './announcement.service';
+import { BotFormFillService, isBotFillable } from './bot-form-fill.service';
 import { isoToJalaliText } from '../common/jalali';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 
@@ -39,6 +40,9 @@ const BTN_NEWS = '📢 اطلاعیه‌ها';
 const BTN_FORMS = '📝 فرم‌ها';
 const BTN_ME = '👤 پرونده‌ی من';
 const BTN_LOGOUT = '🚪 خروج';
+const BTN_BACK = '↩️ بازگشت';
+/** پیشوندِ دکمه‌ی «این فرم را همین‌جا پر کن». */
+const BTN_FILL_PREFIX = '▶️ ';
 
 /** کیبوردِ انتخابِ نوعِ کاربر هنگامِ شروع (برای کسی که هنوز وصل نیست). */
 const TYPE_KEYBOARD = {
@@ -79,6 +83,7 @@ export class StaffBotService {
     @InjectRepository(PublicationEntity)
     private readonly publications: Repository<PublicationEntity>,
     private readonly jwt: JwtService,
+    private readonly fill: BotFormFillService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -101,6 +106,14 @@ export class StaffBotService {
   ): Promise<BotReply | null> {
     const trimmed = text.trim();
     const command = trimmed.toLowerCase().replace(/@.*$/, '');
+
+    /*
+     * گفتگوی نیمه‌کاره‌ی پر کردنِ فرم بر همه‌چیز مقدم است: وقتی ربات منتظرِ
+     * پاسخِ یک سوال است، پیامِ کاربر پاسخ است نه فرمانِ منو. خودِ سرویس
+     * «لغو» را می‌شناسد و با پایانِ فرم گفتگو را می‌بندد.
+     */
+    const inFill = await this.fill.handleMessage(chatId, bot.platform, trimmed);
+    if (inFill) return inFill;
 
     /*
      * تفکیکِ سخت‌گیرانه‌ی نوع (خواسته‌ی کارفرما): هنگامِ شروع، اول نوعِ کاربر
@@ -141,6 +154,22 @@ export class StaffBotService {
       trimmed === BTN_FORMS
     ) {
       return this.botForms(bot, chatId);
+    }
+    if (trimmed === BTN_BACK) {
+      const who = await this.hr.findByChat(chatId, bot.platform);
+      return who
+        ? { text: this.menuText(who), keyboard: STAFF_KEYBOARD }
+        : 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+    // «▶️ نامِ فرم» یعنی شروعِ پر کردنِ همان فرم داخلِ گفتگو.
+    if (trimmed.startsWith(BTN_FILL_PREFIX)) {
+      const started = await this.startFillByTitle(
+        bot,
+        chatId,
+        trimmed.slice(BTN_FILL_PREFIX.length).trim(),
+      );
+      if (started) return started;
+      return 'این فرم دیگر در دسترس نیست. دوباره «📝 فرم‌ها» را بزنید.';
     }
     if (command === '/me' || command === '/من' || trimmed === BTN_ME) {
       return this.status(bot, chatId);
@@ -222,36 +251,102 @@ export class StaffBotService {
       return 'فعلاً فرمی برای شما در ربات منتشر نشده است.';
     }
 
-    const buttons: Array<Array<Record<string, unknown>>> = [];
+    const inBot: Array<Array<{ text: string }>> = [];
     const lines = ['📝 <b>فرم‌های شما</b>', ''];
+    let any = false;
     for (const form of published) {
       const pub = await this.publications.findOne({
         where: { formId: form.id, type: PublicationType.LINK, isActive: true },
       });
       if (!pub) continue; // منتشرشده ولی لینکِ عمومی ندارد؛ از فهرست کنار می‌رود.
+      any = true;
 
-      const token = this.jwt.sign(
-        { publicationId: pub.id, respondentKey: person.mobile ?? '', mode: 'bot' },
-        { expiresIn: BOT_FORM_TOKEN_TTL },
-      );
-      // قطعه‌ی آدرس (#rt=) توکن را حمل می‌کند؛ به سرور/لاگ نمی‌رود.
-      const url = `${base}/f/${pub.slug ?? pub.token}#rt=${token}`;
-
-      lines.push(`• <b>${escapeHtml(form.title)}</b>`);
-      lines.push(url);
+      /*
+       * اگر همه‌ی فیلدهای فرم با پیام/دکمه قابل پاسخ‌اند و فرم منطقِ شرطی
+       * ندارد، کلاً داخلِ خودِ ربات پر می‌شود و نیازی به باز کردنِ مینی‌اپ
+       * نیست. وگرنه (آپلود، امضا، موقعیت، ماتریس و …) لینکِ مینی‌اپ می‌دهیم.
+       */
+      const { questions, logic } = await this.fill.structureOf(form.id);
+      if (isBotFillable(questions, logic)) {
+        lines.push(`• <b>${escapeHtml(form.title)}</b> — همین‌جا پر می‌شود`);
+        inBot.push([{ text: `${BTN_FILL_PREFIX}${form.title}`.slice(0, 60) }]);
+      } else {
+        const token = this.jwt.sign(
+          {
+            publicationId: pub.id,
+            respondentKey: person.mobile ?? '',
+            mode: 'bot',
+          },
+          { expiresIn: BOT_FORM_TOKEN_TTL },
+        );
+        // قطعه‌ی آدرس (#rt=) توکن را حمل می‌کند؛ به سرور/لاگ نمی‌رود.
+        const url = `${base}/f/${pub.slug ?? pub.token}#rt=${token}`;
+        lines.push(`• <b>${escapeHtml(form.title)}</b> — با لینکِ زیر:`);
+        lines.push(url);
+      }
       lines.push('');
-      // دکمه‌ی مینی‌اپِ بله؛ اگر کلاینت مینی‌اپ را باز نکرد، همان لینکِ بالا کار می‌کند.
-      buttons.push([{ text: `📝 ${form.title}`.slice(0, 40), web_app: { url } }]);
     }
 
-    if (buttons.length === 0) {
+    if (!any) {
       return 'فعلاً فرمی برای شما در ربات منتشر نشده است.';
     }
 
-    return {
-      text: lines.join('\n').trim(),
-      keyboard: { inline_keyboard: buttons },
-    };
+    if (inBot.length > 0) {
+      lines.push('برای شروع، نامِ فرم را از دکمه‌های پایین بزنید.');
+      inBot.push([{ text: BTN_BACK }]);
+      return {
+        text: lines.join('\n').trim(),
+        keyboard: { keyboard: inBot, resize_keyboard: true },
+      };
+    }
+    return { text: lines.join('\n').trim(), keyboard: STAFF_KEYBOARD };
+  }
+
+  /**
+   * کاربر نامِ یکی از فرم‌های قابلِ پر شدن در گفتگو را زده است.
+   *
+   * `null` یعنی این متن نامِ فرم نبود و باید به بقیه‌ی منو برود.
+   */
+  private async startFillByTitle(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    title: string,
+  ): Promise<BotReply | null> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) return null;
+
+    const candidates = await this.forms
+      .createQueryBuilder('form')
+      .innerJoin('form.workspace', 'workspace')
+      .where('workspace.organizationId = :org', { org: person.organizationId })
+      .andWhere('form.status = :status', { status: FormStatus.ACTIVE })
+      .andWhere('form.title = :title', { title })
+      .getMany();
+
+    for (const form of candidates) {
+      const on =
+        (form.settings as { botPublish?: unknown })?.botPublish === true;
+      const dept = form.departmentId;
+      if (!on || (dept && dept !== person.departmentId)) continue;
+
+      const pub = await this.publications.findOne({
+        where: { formId: form.id, type: PublicationType.LINK, isActive: true },
+      });
+      if (!pub) continue;
+
+      const { questions, logic } = await this.fill.structureOf(form.id);
+      if (!isBotFillable(questions, logic)) continue;
+
+      return this.fill.start({
+        chatId,
+        platform: bot.platform,
+        formId: form.id,
+        publicationId: pub.id,
+        respondentKey: person.mobile ?? '',
+        formTitle: form.title,
+      });
+    }
+    return null;
   }
 
   /**

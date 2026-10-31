@@ -14,6 +14,16 @@ interface GeneratedForm {
   hints?: string[];
 }
 
+/** نتیجه‌ی ساختِ خودکارِ داشبورد/پرتال برای فرمِ تازه. */
+interface BuildReport {
+  dashboardId?: string;
+  portalSlug?: string | null;
+  /** علتِ نساختنِ پرتال (معمولاً سقفِ پلن). */
+  portalError?: string | null;
+  /** کلِ ساختِ گزارش شکست خورد. */
+  failed?: string;
+}
+
 const KIND_LABELS: Record<string, string> = {
   survey: 'نظرسنجی',
   request: 'درخواست (نیازمندِ تأیید)',
@@ -29,6 +39,11 @@ export function AiPage() {
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<GeneratedForm | null>(null);
   const [autoReport, setAutoReport] = useState(true);
+  // نتیجه‌ی ساختِ فرم + داشبورد/پرتال، تا کاربر ببیند واقعاً چه ساخته شد.
+  const [built, setBuilt] = useState<{
+    formId: string;
+    report: BuildReport;
+  } | null>(null);
 
   const generate = useMutation({
     mutationFn: () => aiApi.createSurvey(goal),
@@ -58,18 +73,31 @@ export function AiPage() {
           ? { settings: generated.settings }
           : {}),
       });
-      // ساختِ خودکارِ داشبورد + پرتالِ همین فرم؛ بهترین‌تلاش، مانع ساختِ فرم نشود.
+
+      /*
+       * ساختِ خودکارِ داشبورد + پرتال؛ بهترین‌تلاش است و مانعِ ساختِ فرم
+       * نمی‌شود، ولی نتیجه‌اش دیگر بی‌صدا دور ریخته نمی‌شود: پیش از این حتی
+       * وقتی سقفِ پرتالِ پلن پر بود کاربر هیچ نشانه‌ای نمی‌دید و گمان می‌کرد
+       * داشبوردساز کار نمی‌کند.
+       */
+      let report: BuildReport | null = null;
       if (autoReport) {
         try {
-          await hotelSetupApi.formReport(form.id);
-        } catch {
-          /* نادیده */
+          report = (await hotelSetupApi.formReport(form.id)) as BuildReport;
+        } catch (err) {
+          report = { failed: describeError(err) };
         }
       }
-      return form;
+      return { form, report };
     },
-    onSuccess: async (form) => {
+    onSuccess: async ({ form, report }) => {
       await queryClient.invalidateQueries({ queryKey: ['forms'] });
+      // اگر چیزی برای گفتن هست (ساخته شد یا نشد) نشان بده و صبر کن؛ وگرنه
+      // مثل قبل مستقیم به فرم‌ساز برو.
+      if (report) {
+        setBuilt({ formId: form.id, report });
+        return;
+      }
       navigate(`/forms/${form.id}`);
     },
     onError: (err) =>
@@ -83,6 +111,40 @@ export function AiPage() {
       </header>
 
       {error && <p className="error">{error}</p>}
+
+      {built && (
+        <section className="card">
+          <h3>فرم ساخته شد</h3>
+          <ul>
+            <li>✅ فرم و سوال‌هایش ساخته شد.</li>
+            {built.report.failed ? (
+              <li>
+                ⚠️ داشبورد و پرتالِ خودکار ساخته نشد: {built.report.failed}
+              </li>
+            ) : (
+              <>
+                <li>
+                  {built.report.dashboardId
+                    ? '✅ داشبوردِ گزارشِ این فرم ساخته شد (بخشِ «داشبوردها»).'
+                    : '⚠️ داشبورد ساخته نشد.'}
+                </li>
+                <li>
+                  {built.report.portalSlug
+                    ? `✅ پرتالِ این فرم ساخته شد (نشانی: ${built.report.portalSlug}).`
+                    : `⚠️ پرتال ساخته نشد${
+                        built.report.portalError
+                          ? `: ${built.report.portalError}`
+                          : '.'
+                      }`}
+                </li>
+              </>
+            )}
+          </ul>
+          <button type="button" onClick={() => navigate(`/forms/${built.formId}`)}>
+            رفتن به فرم‌ساز
+          </button>
+        </section>
+      )}
 
       <section className="card">
         <label>

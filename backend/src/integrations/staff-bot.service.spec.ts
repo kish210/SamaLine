@@ -73,6 +73,16 @@ describe('StaffBotService', () => {
         sign: (payload: Record<string, unknown>) =>
           `tok.${Buffer.from(JSON.stringify(payload)).toString('base64url')}`,
       } as never,
+      /*
+       * سرویسِ پر کردنِ فرم در گفتگو: این تست‌ها مسیرِ منو را می‌سنجند، پس
+       * «گفتگوی باز» ندارد (null) و ساختارِ فرم‌ها خالی است تا همه با مینی‌اپ
+       * فهرست شوند.
+       */
+      {
+        handleMessage: async () => null,
+        structureOf: async () => ({ questions: [], logic: null }),
+        start: async () => ({ text: 'شروع' }),
+      } as never,
     );
   });
 
@@ -316,11 +326,11 @@ describe('StaffBotService', () => {
       const reply = await service.tryHandle(BOT, 'chat-40', '📝 فرم‌ها');
       expect(replyText(reply)).toContain('گزارش روزانه');
       expect(replyText(reply)).not.toContain('فرمِ خصوصی');
-      // لینک حاملِ توکنِ هویت (rt) است و دکمه‌ی مینی‌اپ دارد.
+      // فرمِ بی‌سوال در گفتگو پر نمی‌شود، پس لینکِ مینی‌اپ با توکنِ هویت می‌آید.
       expect(replyText(reply)).toContain('#rt=');
-      const kb = (reply as { keyboard?: { inline_keyboard?: unknown[] } })
-        .keyboard;
-      expect(Array.isArray(kb?.inline_keyboard)).toBe(true);
+      expect(
+        (reply as { keyboard?: Record<string, unknown> }).keyboard,
+      ).toBeTruthy();
     });
 
     it('فرمِ منتشرشده ولی بدونِ لینکِ عمومی را کنار می‌گذارد', async () => {

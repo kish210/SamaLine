@@ -154,6 +154,20 @@ export class OpenAiCompatibleProvider implements AiProvider {
       };
       return extractJson(payload.choices?.[0]?.message?.content ?? '{}');
     } catch (error) {
+      /*
+       * مهلتِ تمام‌شده، DOMExceptionِ خام («This operation was aborted») می‌داد
+       * که به کاربر ۵۰۰ و پیامِ نامفهوم نشان می‌داد. مدل‌های استدلالی و
+       * دروازه‌های کند طبیعتاً دیر جواب می‌دهند، پس پیامِ روشن با راهِ چاره
+       * می‌دهیم نه خطای فنی.
+       */
+      if (isAbortError(error)) {
+        const seconds = Math.round(this.timeoutMs / 1000);
+        this.logger.error(`مدل در ${seconds} ثانیه پاسخ نداد (مهلت تمام شد)`);
+        throw new Error(
+          `مدل در ${seconds} ثانیه پاسخ نداد. دوباره تلاش کنید، ` +
+            'یا در «تنظیماتِ هوش مصنوعی» مدلِ سبک‌ترِ سریع‌تری انتخاب کنید.',
+        );
+      }
       this.logger.error(
         error instanceof Error ? error.message : 'خطای نامشخص هوش مصنوعی',
       );
@@ -179,6 +193,20 @@ export class OpenAiCompatibleProvider implements AiProvider {
       clearTimeout(timer);
     }
   }
+}
+
+/**
+ * آیا خطا از تمام‌شدنِ مهلت است؟
+ *
+ * `AbortController` بسته به نسخه‌ی Node یا `DOMException` با نامِ `AbortError`
+ * می‌دهد یا خطایی با همان نام؛ هر دو حالت بررسی می‌شود.
+ */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: string }).name === 'AbortError'
+  );
 }
 
 /**

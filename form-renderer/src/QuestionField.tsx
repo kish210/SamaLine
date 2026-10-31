@@ -20,8 +20,11 @@ interface Props {
   /**
    * پس از انتخاب یک گزینه‌ی قطعی (تک‌انتخابی، بله/خیر، امتیاز) صدا زده
    * می‌شود تا فرم خودکار به سوال بعد برود. اگر داده نشود، رفتار عوض نمی‌شود.
+   *
+   * مقدارِ انتخاب‌شده را هم می‌دهد: گیرنده نمی‌تواند روی `answers` حساب کند،
+   * چون `onChange` هنوز در صفِ به‌روزرسانیِ React است و مقدارِ کهنه می‌بیند.
    */
-  onCommit?: () => void;
+  onCommit?: (value: unknown) => void;
 }
 
 const asText = (value: unknown) => (value == null ? '' : String(value));
@@ -64,7 +67,8 @@ export function QuestionField({
   // انتخاب قطعی: مقدار را می‌نویسد و در صورت نیاز به سوال بعد می‌رود.
   const commit = (next: unknown) => {
     onChange(next);
-    onCommit?.();
+    // مقدار تازه را مستقیم می‌دهیم؛ مقدارِ داخلِ closure هنوز کهنه است.
+    onCommit?.(next);
   };
 
   const toggleChoice = (option: string, checked: boolean) => {
@@ -402,9 +406,20 @@ export function QuestionField({
       step={q.meta?.step}
       dir={q.type === 'email' || q.type === 'url' ? 'ltr' : undefined}
       value={asText(value)}
-      onChange={(e) =>
-        onChange(q.type === 'number' ? Number(e.target.value) : e.target.value)
-      }
+      onChange={(e) => {
+        /*
+         * فیلدِ عددیِ خالی باید خالی بماند.
+         *
+         * `Number('')` صفر است، پس پاک‌کردنِ فیلد مقدار را به ۰ برمی‌گرداند:
+         * کاربر نمی‌توانست خالیش کند و سوالِ اجباریِ بی‌پاسخ با صفر ثبت می‌شد.
+         */
+        const raw = e.target.value;
+        if (q.type !== 'number') {
+          onChange(raw);
+          return;
+        }
+        onChange(raw === '' ? '' : Number(raw));
+      }}
     />
   );
 

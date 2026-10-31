@@ -13,6 +13,7 @@ import { InterviewerQuotaEntity } from './interviewer-quota.entity';
 import { InvitationEntity } from './invitation.entity';
 import { MenuEntity } from './menu.entity';
 import { InvoiceEntity } from './invoice.entity';
+import { BotFormSessionEntity } from './bot-form-session.entity';
 import { KioskSessionEntity } from './kiosk-session.entity';
 import { OnPremLicenseEntity } from './onprem-license.entity';
 import { OtpChallengeEntity } from './otp-challenge.entity';
@@ -64,6 +65,7 @@ export const ALL_ENTITIES = [
   ApiKeyEntity,
   IdentityProviderEntity,
   KioskSessionEntity,
+  BotFormSessionEntity,
   InterviewerQuotaEntity,
   InvoiceEntity,
   InvitationEntity,
