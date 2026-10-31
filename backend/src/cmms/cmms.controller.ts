@@ -35,6 +35,20 @@ import {
 export class CmmsController {
   constructor(private readonly cmms: CmmsService) {}
 
+  /**
+   * داشبوردِ عملیاتیِ بخشِ فنی: سطل‌های قابلِ‌اقدام، بارِ تکنسین‌ها، فعالیتِ
+   * اخیر و هزینه. هر سطل `filter` خودش را همراه دارد تا پنل بتواند همان
+   * فهرست را باز کند (drill-down).
+   */
+  @Get('dashboard')
+  @MinRole(OrganizationRole.ANALYST)
+  dashboard(
+    @CurrentUser() user: JwtUser,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    return this.cmms.operationalSummary(user.organizationId, { departmentId });
+  }
+
   // ── دارایی ────────────────────────────────────────────────────────────
 
   @Get('assets')

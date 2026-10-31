@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { lazyPage, PageFallback } from "./lazy-page";
 import { FormsPage } from "./pages/FormsPage";
 import { RoomsPage } from "./pages/RoomsPage";
+import { OperationsPage } from "./pages/OperationsPage";
 import { PersonnelPage } from "./pages/PersonnelPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { UnitsPage } from "./pages/UnitsPage";
@@ -84,6 +85,7 @@ function App() {
         <Route path="/overview" element={page(<OverviewPage />)} />
         <Route path="/units" element={page(<UnitsPage />)} />
         <Route path="/rooms" element={page(<RoomsPage />)} />
+        <Route path="/operations" element={page(<OperationsPage />)} />
         <Route path="/personnel" element={page(<PersonnelPage />)} />
         <Route path="/approvals" element={page(<ApprovalsPage />)} />
         <Route path="/settings" element={page(<SettingsPage />)} />

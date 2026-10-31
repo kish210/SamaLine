@@ -1224,3 +1224,129 @@ export interface AuditEntry {
 export const auditApi = {
   list: () => api.get<AuditEntry[]>('/audit').then((r) => r.data),
 };
+
+// ── دامنهٔ فنی (CMMS) ────────────────────────────────────────────────────
+
+/** یک سطلِ قابلِ‌اقدام روی داشبوردِ عملیاتی. */
+export interface OpsBucket {
+  key: string;
+  label: string;
+  count: number;
+  /** روی کدام فهرست drill-down می‌کند. */
+  kind: 'request' | 'workOrder' | 'asset';
+  /** فیلتری که همان فهرست را بازمی‌سازد. */
+  filter: Record<string, unknown>;
+  tone: 'info' | 'warn' | 'danger';
+}
+
+export interface OpsActivity {
+  kind: 'request' | 'workOrder';
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  at: string;
+}
+
+export interface OpsDashboard {
+  buckets: OpsBucket[];
+  workload: Array<{ personnelId: string; openCount: number }>;
+  recent: OpsActivity[];
+  cost: {
+    internal: number;
+    contractor: number;
+    laborMinutes: number;
+    days: number;
+  };
+  generatedAt: string;
+}
+
+export interface CmmsPage<T> {
+  rows: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface MaintenanceRequest {
+  id: string;
+  number: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  departmentId: string | null;
+  roomId: string | null;
+  assetId: string | null;
+  location: string;
+  dueDate: string;
+  guestRelated: boolean;
+  createdAt: string;
+}
+
+export interface WorkOrder {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  priority: string;
+  category: string;
+  dueDate: string;
+  laborMinutes: number;
+  internalCost: number;
+  contractorCost: number;
+  createdAt: string;
+}
+
+export interface Asset {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  status: string;
+  criticality: string;
+  location: string;
+  createdAt: string;
+}
+
+/** پارامترهای فهرست؛ همان چیزی که سطل‌ها در `filter` می‌دهند. */
+export type CmmsQuery = Record<string, unknown>;
+
+export const cmmsApi = {
+  dashboard: (departmentId?: string) =>
+    api
+      .get<OpsDashboard>('/cmms/dashboard', {
+        params: departmentId ? { departmentId } : {},
+      })
+      .then((r) => r.data),
+
+  requests: (query: CmmsQuery = {}) =>
+    api
+      .get<CmmsPage<MaintenanceRequest>>('/cmms/requests', { params: query })
+      .then((r) => r.data),
+
+  workOrders: (query: CmmsQuery = {}) =>
+    api
+      .get<CmmsPage<WorkOrder>>('/cmms/work-orders', { params: query })
+      .then((r) => r.data),
+
+  assets: (query: CmmsQuery = {}) =>
+    api.get<CmmsPage<Asset>>('/cmms/assets', { params: query }).then((r) => r.data),
+
+  createRequest: (body: Partial<MaintenanceRequest>) =>
+    api.post<MaintenanceRequest>('/cmms/requests', body).then((r) => r.data),
+
+  setRequestStatus: (id: string, status: string, note?: string) =>
+    api
+      .patch<MaintenanceRequest>(`/cmms/requests/${id}/status`, { status, note })
+      .then((r) => r.data),
+
+  createWorkOrder: (body: Record<string, unknown>) =>
+    api.post<WorkOrder>('/cmms/work-orders', body).then((r) => r.data),
+
+  setWorkOrderStatus: (id: string, status: string, note?: string) =>
+    api
+      .patch<WorkOrder>(`/cmms/work-orders/${id}/status`, { status, note })
+      .then((r) => r.data),
+};

@@ -6,6 +6,7 @@ import type { DataSource } from 'typeorm';
 import { createTestDataSource } from '../testing/test-database';
 import { AssetEntity, AssetStatus } from '../database/entities/asset.entity';
 import {
+  MaintenancePriority,
   MaintenanceRequestEntity,
   MaintenanceRequestStatus,
 } from '../database/entities/maintenance-request.entity';
@@ -165,6 +166,115 @@ describe('CmmsService', () => {
     await expect(
       service.updateAsset(ORG, a.id, { parentId: a.id }),
     ).rejects.toThrow('والدِ خودش');
+  });
+
+  describe('داشبوردِ عملیاتی', () => {
+    /** دیروز و فردا به‌شکلِ ISO، برای آزمونِ «معوق». */
+    const dayOffset = (d: number) =>
+      new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
+
+    it('سطل‌ها شمارشِ درست و فیلترِ متناظر می‌دهند', async () => {
+      await service.createRequest(ORG, { title: 'جدید ۱' });
+      await service.createRequest(ORG, { title: 'جدید ۲' });
+      await service.createWorkOrder(ORG, { title: 'بی‌متصدی' });
+      await service.createWorkOrder(ORG, {
+        title: 'اضطراری',
+        priority: MaintenancePriority.EMERGENCY,
+        technicianIds: ['p1'],
+      });
+      // سازمانِ دیگر نباید در شمارش بیاید.
+      await service.createRequest(OTHER_ORG, { title: 'غریبه' });
+
+      const sum = await service.operationalSummary(ORG);
+      const byKey = Object.fromEntries(sum.buckets.map((b) => [b.key, b]));
+
+      expect(byKey.newRequests.count).toBe(2);
+      expect(byKey.unassigned.count).toBe(1);
+      expect(byKey.emergency.count).toBe(1);
+
+      // هر سطل فیلترِ خودش را دارد و همان فهرست را بازمی‌سازد.
+      const drill = await service.listRequests(
+        ORG,
+        byKey.newRequests.filter as never,
+      );
+      expect(drill.total).toBe(byKey.newRequests.count);
+    });
+
+    it('«معوق» فقط موعدِ گذشته‌ی هنوزباز را می‌شمارد', async () => {
+      await service.createWorkOrder(ORG, {
+        title: 'عقب‌افتاده',
+        dueDate: dayOffset(-3),
+        technicianIds: ['p1'],
+      });
+      await service.createWorkOrder(ORG, {
+        title: 'هنوز وقت دارد',
+        dueDate: dayOffset(3),
+        technicianIds: ['p1'],
+      });
+      // بی‌موعد نباید معوق شمرده شود.
+      await service.createWorkOrder(ORG, { title: 'بی‌موعد' });
+
+      const sum = await service.operationalSummary(ORG);
+      const overdue = sum.buckets.find((b) => b.key === 'overdue');
+      expect(overdue?.count).toBe(1);
+
+      const drill = await service.listWorkOrders(ORG, { overdue: true });
+      expect(drill.total).toBe(1);
+      expect(drill.rows[0].title).toBe('عقب‌افتاده');
+    });
+
+    it('کارِ بسته‌شده دیگر معوق نیست', async () => {
+      const wo = await service.createWorkOrder(ORG, {
+        title: 'تمام‌شده',
+        dueDate: dayOffset(-5),
+        technicianIds: ['p1'],
+      });
+      await service.changeWorkOrderStatus(
+        ORG,
+        wo.id,
+        WorkOrderStatus.IN_PROGRESS,
+      );
+      await service.changeWorkOrderStatus(
+        ORG,
+        wo.id,
+        WorkOrderStatus.COMPLETED,
+      );
+      const drill = await service.listWorkOrders(ORG, { overdue: true });
+      expect(drill.total).toBe(0);
+    });
+
+    it('بارِ تکنسین فقط کارِ باز را می‌شمارد', async () => {
+      await service.createWorkOrder(ORG, {
+        title: 'کارِ باز',
+        technicianIds: ['tech-a'],
+      });
+      const done = await service.createWorkOrder(ORG, {
+        title: 'کارِ بسته',
+        technicianIds: ['tech-a'],
+      });
+      await service.changeWorkOrderStatus(
+        ORG,
+        done.id,
+        WorkOrderStatus.CANCELLED,
+      );
+
+      const load = await service.technicianWorkload(ORG);
+      const a = load.find((l) => l.personnelId === 'tech-a');
+      expect(a?.openCount).toBe(1);
+    });
+
+    it('هزینه جمعِ داخلی و پیمانکار را می‌دهد', async () => {
+      await service.createWorkOrder(ORG, {
+        title: 'با هزینه',
+        internalCost: 500,
+        contractorCost: 1500,
+        laborMinutes: 90,
+      });
+      const sum = await service.operationalSummary(ORG);
+      expect(sum.cost.internal).toBe(500);
+      expect(sum.cost.contractor).toBe(1500);
+      expect(sum.cost.laborMinutes).toBe(90);
+    });
   });
 
   it('وضعیتِ دارایی قابلِ تغییر است', async () => {

@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { AssetEntity, AssetStatus } from '../database/entities/asset.entity';
 import {
+  MaintenancePriority,
   MaintenanceRequestEntity,
   MaintenanceRequestStatus,
   RequestHistoryStep,
@@ -144,8 +145,28 @@ export interface ListQuery {
   search?: string;
   from?: string;
   to?: string;
+  /** فقط کارهای عقب‌افتاده: موعد گذشته و هنوز بسته نشده. */
+  overdue?: boolean | string;
   page?: number;
   pageSize?: number;
+}
+
+/** وضعیت‌هایی که دیگر «کارِ باز» نیستند. */
+const CLOSED_REQUEST_STATUSES = [
+  MaintenanceRequestStatus.COMPLETED,
+  MaintenanceRequestStatus.REJECTED,
+  MaintenanceRequestStatus.CLOSED,
+];
+const CLOSED_WORK_ORDER_STATUSES = [
+  WorkOrderStatus.COMPLETED,
+  WorkOrderStatus.VERIFIED,
+  WorkOrderStatus.CLOSED,
+  WorkOrderStatus.CANCELLED,
+];
+
+/** امروز به‌شکلِ YYYY-MM-DD؛ ستونِ موعد هم رشته‌ی ISO است. */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 const MAX_PAGE_SIZE = 200;
@@ -518,6 +539,19 @@ export class CmmsService {
     if (query.to) {
       qb.andWhere(`${alias}.createdAt <= :to`, { to: new Date(query.to) });
     }
+    /*
+     * «معوق» یعنی موعد گذشته و کار هنوز باز است.
+     *
+     * موعدِ خالی معوق نیست؛ وگرنه هر رکوردِ بی‌موعد در فهرستِ عقب‌افتاده‌ها
+     * می‌نشست و عدد بی‌معنا می‌شد.
+     */
+    if (query.overdue === true || query.overdue === 'true') {
+      const closed =
+        alias === 'w' ? CLOSED_WORK_ORDER_STATUSES : CLOSED_REQUEST_STATUSES;
+      qb.andWhere(`${alias}.dueDate <> ''`)
+        .andWhere(`${alias}.dueDate < :today`, { today: todayIso() })
+        .andWhere(`${alias}.status NOT IN (:...closed)`, { closed });
+    }
   }
 
   /** صفحه‌بندیِ امن با سقف، تا یک کوئری کلِ جدول را نکشد. */
@@ -575,6 +609,290 @@ export class CmmsService {
         payload: { entityId, ...meta },
       })
       .catch(() => undefined);
+  }
+
+  // ── داشبوردِ عملیاتی ──────────────────────────────────────────────────
+
+  /**
+   * خلاصهٔ قابلِ‌اقدامِ بخشِ فنی.
+   *
+   * هر «سطل» هم عدد دارد هم `kind` و `filter` که همان فهرست را بازمی‌سازد؛
+   * پس هر KPI روی داشبورد به رکوردهای زیرینش drill-down می‌شود و عددِ
+   * تزئینی نمی‌ماند. محدودهٔ بخش (اختیاری) برای میزِ کارِ مدیرِ بخش است.
+   */
+  async operationalSummary(
+    organizationId: string,
+    opts: { departmentId?: string } = {},
+  ) {
+    const dep = opts.departmentId;
+    const scope = <T extends ObjectLiteral>(
+      qb: SelectQueryBuilder<T>,
+      alias: string,
+    ) => {
+      if (dep) qb.andWhere(`${alias}.departmentId = :dep`, { dep });
+      return qb;
+    };
+
+    const countRequests = (build: (qb: SelectQueryBuilder<MaintenanceRequestEntity>) => void) => {
+      const qb = this.requests
+        .createQueryBuilder('r')
+        .where('r.organizationId = :org', { org: organizationId });
+      scope(qb, 'r');
+      build(qb);
+      return qb.getCount();
+    };
+    const countOrders = (build: (qb: SelectQueryBuilder<WorkOrderEntity>) => void) => {
+      const qb = this.workOrders
+        .createQueryBuilder('w')
+        .where('w.organizationId = :org', { org: organizationId });
+      scope(qb, 'w');
+      build(qb);
+      return qb.getCount();
+    };
+
+    const today = todayIso();
+    const [
+      newRequests,
+      pendingApproval,
+      emergency,
+      unassigned,
+      inProgress,
+      overdue,
+      waitingParts,
+      waitingContractor,
+      assetsDown,
+    ] = await Promise.all([
+      countRequests((qb) =>
+        qb.andWhere('r.status = :s', { s: MaintenanceRequestStatus.NEW }),
+      ),
+      countRequests((qb) =>
+        qb.andWhere('r.status IN (:...s)', {
+          s: [
+            MaintenanceRequestStatus.NEW,
+            MaintenanceRequestStatus.UNDER_REVIEW,
+          ],
+        }),
+      ),
+      countOrders((qb) =>
+        qb
+          .andWhere('w.priority = :p', { p: MaintenancePriority.EMERGENCY })
+          .andWhere('w.status NOT IN (:...c)', {
+            c: CLOSED_WORK_ORDER_STATUSES,
+          }),
+      ),
+      countOrders((qb) =>
+        qb.andWhere('w.status = :s', { s: WorkOrderStatus.DRAFT }),
+      ),
+      countOrders((qb) =>
+        qb.andWhere('w.status = :s', { s: WorkOrderStatus.IN_PROGRESS }),
+      ),
+      countOrders((qb) =>
+        qb
+          .andWhere("w.dueDate <> ''")
+          .andWhere('w.dueDate < :today', { today })
+          .andWhere('w.status NOT IN (:...c)', {
+            c: CLOSED_WORK_ORDER_STATUSES,
+          }),
+      ),
+      countOrders((qb) =>
+        qb.andWhere('w.status = :s', { s: WorkOrderStatus.WAITING_PARTS }),
+      ),
+      countOrders((qb) =>
+        qb.andWhere('w.status = :s', { s: WorkOrderStatus.WAITING_CONTRACTOR }),
+      ),
+      (() => {
+        const qb = this.assets
+          .createQueryBuilder('a')
+          .where('a.organizationId = :org', { org: organizationId })
+          .andWhere('a.status IN (:...s)', {
+            s: [AssetStatus.OUT_OF_SERVICE, AssetStatus.UNDER_MAINTENANCE],
+          });
+        scope(qb, 'a');
+        return qb.getCount();
+      })(),
+    ]);
+
+    const buckets = [
+      {
+        key: 'newRequests',
+        label: 'درخواست‌های جدید',
+        count: newRequests,
+        kind: 'request' as const,
+        filter: { status: MaintenanceRequestStatus.NEW },
+        tone: 'info' as const,
+      },
+      {
+        key: 'pendingApproval',
+        label: 'منتظرِ تأیید',
+        count: pendingApproval,
+        kind: 'request' as const,
+        filter: { status: MaintenanceRequestStatus.UNDER_REVIEW },
+        tone: 'warn' as const,
+      },
+      {
+        key: 'emergency',
+        label: 'کارِ اضطراری',
+        count: emergency,
+        kind: 'workOrder' as const,
+        filter: { priority: MaintenancePriority.EMERGENCY },
+        tone: 'danger' as const,
+      },
+      {
+        key: 'unassigned',
+        label: 'بی‌متصدی',
+        count: unassigned,
+        kind: 'workOrder' as const,
+        filter: { status: WorkOrderStatus.DRAFT },
+        tone: 'warn' as const,
+      },
+      {
+        key: 'inProgress',
+        label: 'در حالِ انجام',
+        count: inProgress,
+        kind: 'workOrder' as const,
+        filter: { status: WorkOrderStatus.IN_PROGRESS },
+        tone: 'info' as const,
+      },
+      {
+        key: 'overdue',
+        label: 'عقب‌افتاده',
+        count: overdue,
+        kind: 'workOrder' as const,
+        filter: { overdue: true },
+        tone: 'danger' as const,
+      },
+      {
+        key: 'waitingParts',
+        label: 'منتظرِ قطعه',
+        count: waitingParts,
+        kind: 'workOrder' as const,
+        filter: { status: WorkOrderStatus.WAITING_PARTS },
+        tone: 'warn' as const,
+      },
+      {
+        key: 'waitingContractor',
+        label: 'منتظرِ پیمانکار',
+        count: waitingContractor,
+        kind: 'workOrder' as const,
+        filter: { status: WorkOrderStatus.WAITING_CONTRACTOR },
+        tone: 'warn' as const,
+      },
+      {
+        key: 'assetsDown',
+        label: 'تجهیزِ از کار افتاده',
+        count: assetsDown,
+        kind: 'asset' as const,
+        filter: { status: AssetStatus.OUT_OF_SERVICE },
+        tone: 'danger' as const,
+      },
+    ];
+
+    const [workload, recent, cost] = await Promise.all([
+      this.technicianWorkload(organizationId, dep),
+      this.recentActivity(organizationId, dep),
+      this.costSummary(organizationId, dep),
+    ]);
+
+    return { buckets, workload, recent, cost, generatedAt: new Date() };
+  }
+
+  /**
+   * بارِ کاریِ هر تکنسین: تعدادِ دستورِ کارِ بازِ منتسب به او.
+   *
+   * از جدولِ `work_order_technicians` با join می‌آید، نه از جست‌وجو در JSON؛
+   * برای همین ایندکس‌پذیر و قابلِ اتکاست.
+   */
+  async technicianWorkload(organizationId: string, departmentId?: string) {
+    const qb = this.technicians
+      .createQueryBuilder('t')
+      .innerJoin(WorkOrderEntity, 'w', 'w.id = t.workOrderId')
+      .select('t.personnelId', 'personnelId')
+      .addSelect('COUNT(t.id)', 'openCount')
+      .where('w.organizationId = :org', { org: organizationId })
+      .andWhere('w.status NOT IN (:...c)', { c: CLOSED_WORK_ORDER_STATUSES })
+      .groupBy('t.personnelId')
+      .orderBy('COUNT(t.id)', 'DESC')
+      .limit(20);
+    if (departmentId) {
+      qb.andWhere('w.departmentId = :dep', { dep: departmentId });
+    }
+    const rows = await qb.getRawMany<{
+      personnelId: string;
+      openCount: string;
+    }>();
+    return rows.map((r) => ({
+      personnelId: r.personnelId,
+      openCount: Number(r.openCount),
+    }));
+  }
+
+  /** آخرین رویدادهای بخشِ فنی برای ستونِ «فعالیتِ اخیر». */
+  async recentActivity(organizationId: string, departmentId?: string) {
+    const reqQb = this.requests
+      .createQueryBuilder('r')
+      .where('r.organizationId = :org', { org: organizationId })
+      .orderBy('r.updatedAt', 'DESC')
+      .take(8);
+    const woQb = this.workOrders
+      .createQueryBuilder('w')
+      .where('w.organizationId = :org', { org: organizationId })
+      .orderBy('w.updatedAt', 'DESC')
+      .take(8);
+    if (departmentId) {
+      reqQb.andWhere('r.departmentId = :dep', { dep: departmentId });
+      woQb.andWhere('w.departmentId = :dep', { dep: departmentId });
+    }
+    const [requests, orders] = await Promise.all([
+      reqQb.getMany(),
+      woQb.getMany(),
+    ]);
+
+    return [
+      ...requests.map((r) => ({
+        kind: 'request' as const,
+        id: r.id,
+        number: r.number,
+        title: r.title,
+        status: r.status as string,
+        at: r.updatedAt,
+      })),
+      ...orders.map((w) => ({
+        kind: 'workOrder' as const,
+        id: w.id,
+        number: w.number,
+        title: w.title,
+        status: w.status as string,
+        at: w.updatedAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 10);
+  }
+
+  /** هزینهٔ نگهداری در ۳۰ روزِ گذشته (ریال). */
+  async costSummary(organizationId: string, departmentId?: string) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const qb = this.workOrders
+      .createQueryBuilder('w')
+      .select('COALESCE(SUM(w.internalCost), 0)', 'internal')
+      .addSelect('COALESCE(SUM(w.contractorCost), 0)', 'contractor')
+      .addSelect('COALESCE(SUM(w.laborMinutes), 0)', 'minutes')
+      .where('w.organizationId = :org', { org: organizationId })
+      .andWhere('w.createdAt >= :since', { since });
+    if (departmentId) {
+      qb.andWhere('w.departmentId = :dep', { dep: departmentId });
+    }
+    const row = await qb.getRawOne<{
+      internal: string;
+      contractor: string;
+      minutes: string;
+    }>();
+    return {
+      internal: Number(row?.internal ?? 0),
+      contractor: Number(row?.contractor ?? 0),
+      laborMinutes: Number(row?.minutes ?? 0),
+      days: 30,
+    };
   }
 
   /** وضعیتِ دارایی را همگام با کارِ باز نگه می‌دارد. */
