@@ -10,6 +10,15 @@ interface WidgetData {
   value?: number | string;
   series?: Array<{ label: string; count: number }>;
   content?: string;
+  /** ویجتِ «پاسخ‌های اخیر». */
+  rows?: Array<{
+    responseId: string;
+    submittedAt: string | null;
+    score?: number | null;
+    summary: string;
+  }>;
+  /** ویجتِ «نظرهای متنی». */
+  quotes?: Array<{ responseId: string; text: string; at: string | null }>;
   error?: string;
 }
 
@@ -63,6 +72,32 @@ export function PublicDashboard() {
                 <p className="hint">{widget.error}</p>
               ) : widget.type === 'text' ? (
                 <p className="widget-text">{widget.content}</p>
+              ) : widget.rows ? (
+                /* نمای عمومی فقط می‌خواند؛ drill-down ندارد چون ورود ندارد. */
+                widget.rows.length === 0 ? (
+                  <p className="hint">پاسخی در این بازه نیست.</p>
+                ) : (
+                  <ul className="widget-rows">
+                    {widget.rows.map((r) => (
+                      <li key={r.responseId}>
+                        <span>{r.summary}</span>
+                        {r.score !== null && r.score !== undefined && (
+                          <strong> — {r.score}</strong>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              ) : widget.quotes ? (
+                widget.quotes.length === 0 ? (
+                  <p className="hint">نظری ثبت نشده است.</p>
+                ) : (
+                  <ul className="widget-quotes">
+                    {widget.quotes.map((q) => (
+                      <li key={q.responseId}>«{q.text}»</li>
+                    ))}
+                  </ul>
+                )
               ) : widget.series ? (
                 <>
                   {widget.value !== undefined && (

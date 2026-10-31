@@ -223,6 +223,89 @@ describe('DashboardService — داشبوردساز', () => {
       expect(result.widgets[0].content).toBe('سلام');
     });
 
+    it('ویجت جدول پاسخ‌های اخیر را با شناسه می‌دهد', async () => {
+      const result = await withWidgets([
+        { id: 'w1', type: 'table', title: 'پاسخ‌های اخیر', formId, layout },
+      ]);
+
+      const rows = result.widgets[0].rows ?? [];
+      expect(rows).toHaveLength(2);
+      // شناسه‌ی پاسخ لازم است تا بشود به خودِ پاسخ رفت (drill-down).
+      expect(rows[0].responseId).toBeTruthy();
+      expect(rows[0].score).toBeGreaterThan(0);
+    });
+
+    it('ویجت جدول به سقفِ ردیف احترام می‌گذارد', async () => {
+      const result = await withWidgets([
+        {
+          id: 'w1',
+          type: 'table',
+          title: 'یک ردیف',
+          formId,
+          limit: 1,
+          layout,
+        },
+      ]);
+
+      expect(result.widgets[0].rows).toHaveLength(1);
+    });
+
+    it('ویجت نظرها فقط پاسخ‌های متنیِ همان سوال را می‌آورد', async () => {
+      const result = await withWidgets([
+        {
+          id: 'w1',
+          type: 'verbatim',
+          title: 'نظرها',
+          formId,
+          questionId: 'q1',
+          layout,
+        },
+      ]);
+
+      const quotes = result.widgets[0].quotes ?? [];
+      expect(quotes).toHaveLength(2);
+      expect(quotes[0].text).toMatch(/4|8/);
+      expect(quotes[0].responseId).toBeTruthy();
+    });
+
+    it('ویجت نظرها بدونِ سوال خطا می‌دهد', async () => {
+      const result = await withWidgets([
+        { id: 'w1', type: 'verbatim', title: 'نظرها', formId, layout },
+      ]);
+
+      expect(result.widgets[0].error).toContain('سوال');
+    });
+
+    it('ویجت روند سری زمانی و تعداد کل می‌دهد', async () => {
+      const result = await withWidgets([
+        { id: 'w1', type: 'trend', title: 'روند', formId, layout },
+      ]);
+
+      const w = result.widgets[0];
+      expect(w.value).toBe(2);
+      expect((w.series ?? []).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('بازه‌ی زمانی پاسخ‌های بیرون از بازه را کنار می‌گذارد', async () => {
+      const dashboard = await service.create(organizationId, 'داشبورد');
+      await service.update(organizationId, dashboard.id, {
+        widgets: [
+          { id: 'w1', type: 'table', title: 'جدول', formId, layout },
+        ],
+      });
+
+      // بازه‌ای در گذشته که هیچ پاسخی در آن نیست.
+      const past = await service.render(organizationId, dashboard.id, {
+        from: '2020-01-01',
+        to: '2020-01-31',
+      });
+      expect(past.widgets[0].rows).toHaveLength(0);
+
+      // بدونِ بازه همه‌ی پاسخ‌ها می‌آیند.
+      const all = await service.render(organizationId, dashboard.id);
+      expect(all.widgets[0].rows).toHaveLength(2);
+    });
+
     it('ویجت ناقص خطا می‌دهد ولی بقیه را خراب نمی‌کند', async () => {
       const result = await withWidgets([
         {

@@ -10,6 +10,7 @@ import {
   workspaceApi,
 } from '../api';
 import type { DashboardWidget } from '../api';
+import { useNavigate } from 'react-router-dom';
 import { WidgetCard } from './dashboards/WidgetCard';
 
 type WidgetType = DashboardWidget['type'];
@@ -20,6 +21,9 @@ const WIDGET_LABELS: Record<WidgetType, string> = {
   nps: 'شاخص NPS',
   score: 'میانگین شاخص',
   text: 'متن',
+  trend: 'روندِ زمانی',
+  table: 'پاسخ‌های اخیر',
+  verbatim: 'نظرهای متنی',
 };
 
 const rendererBase =
@@ -28,12 +32,22 @@ const rendererBase =
 /** داشبوردساز با ویجت‌های قابل تنظیم (بند ۸ سند). */
 export function DashboardsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   // ‎?id=‎ از صفحه‌ی «واحدهای هتل» مستقیم داشبوردِ یک واحد را باز می‌کند.
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState(searchParams.get('id') ?? '');
   const [newName, setNewName] = useState('');
   const [newDept, setNewDept] = useState('');
   const [widgetType, setWidgetType] = useState<WidgetType>('stat');
+  const [widgetInterval, setWidgetInterval] = useState<'day' | 'week' | 'month'>(
+    'day',
+  );
+  const [widgetLimit, setWidgetLimit] = useState(10);
+  /** بازه‌ی داشبورد؛ خالی یعنی از ابتدا. */
+  const [range, setRange] = useState<{ from: string; to: string }>({
+    from: '',
+    to: '',
+  });
   const [widgetFormId, setWidgetFormId] = useState('');
   const [widgetQuestionId, setWidgetQuestionId] = useState('');
   const [widgetMetric, setWidgetMetric] = useState('completed');
@@ -59,8 +73,8 @@ export function DashboardsPage() {
   });
 
   const data = useQuery({
-    queryKey: ['dashboard-data', selectedId],
-    queryFn: () => dashboardsApi.data(selectedId),
+    queryKey: ['dashboard-data', selectedId, range.from, range.to],
+    queryFn: () => dashboardsApi.data(selectedId, range),
     enabled: Boolean(selectedId),
   });
 
@@ -69,7 +83,11 @@ export function DashboardsPage() {
   const responses = useQuery({
     queryKey: ['responses', widgetFormId],
     queryFn: () => reportsApi.responses(widgetFormId),
-    enabled: Boolean(widgetFormId) && (widgetType === 'bar' || widgetType === 'nps'),
+    enabled:
+      Boolean(widgetFormId) &&
+      (widgetType === 'bar' ||
+        widgetType === 'nps' ||
+        widgetType === 'verbatim'),
   });
 
   const questionIds = [
@@ -141,7 +159,13 @@ export function DashboardsPage() {
             ? `شاخص ${widgetScoreKey}`
             : widgetType === 'nps'
               ? 'شاخص NPS'
-              : `نمودار ${widgetQuestionId}`;
+              : widgetType === 'trend'
+                ? 'روندِ پاسخ‌ها'
+                : widgetType === 'table'
+                  ? 'پاسخ‌های اخیر'
+                  : widgetType === 'verbatim'
+                    ? 'نظرهای متنی'
+                    : `نمودار ${widgetQuestionId}`;
 
     widgets.push({
       id: `w${Date.now().toString(36)}`,
@@ -149,8 +173,15 @@ export function DashboardsPage() {
       title,
       formId: widgetType === 'text' ? undefined : widgetFormId || undefined,
       questionId:
-        widgetType === 'bar' || widgetType === 'nps'
+        widgetType === 'bar' ||
+        widgetType === 'nps' ||
+        widgetType === 'verbatim'
           ? widgetQuestionId || undefined
+          : undefined,
+      interval: widgetType === 'trend' ? widgetInterval : undefined,
+      limit:
+        widgetType === 'table' || widgetType === 'verbatim'
+          ? widgetLimit
           : undefined,
       metric: widgetType === 'stat' ? widgetMetric : undefined,
       scoreKey: widgetType === 'score' ? widgetScoreKey || undefined : undefined,
@@ -190,7 +221,9 @@ export function DashboardsPage() {
         ? Boolean(widgetFormId)
         : widgetType === 'score'
           ? Boolean(widgetFormId && widgetScoreKey)
-          : Boolean(widgetQuestionId);
+          : widgetType === 'trend' || widgetType === 'table'
+            ? Boolean(widgetFormId)
+            : Boolean(widgetFormId && widgetQuestionId);
 
   return (
     <div className="page">
@@ -290,6 +323,41 @@ export function DashboardsPage() {
                   )}
                 </div>
 
+                {widgetType === 'trend' && (
+                  <label>
+                    گامِ زمانی
+                    <select
+                      value={widgetInterval}
+                      onChange={(e) =>
+                        setWidgetInterval(
+                          e.target.value as 'day' | 'week' | 'month',
+                        )
+                      }
+                    >
+                      <option value="day">روزانه</option>
+                      <option value="week">هفتگی</option>
+                      <option value="month">ماهانه</option>
+                    </select>
+                  </label>
+                )}
+
+                {(widgetType === 'table' || widgetType === 'verbatim') && (
+                  <label>
+                    تعدادِ ردیف
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={widgetLimit}
+                      onChange={(e) =>
+                        setWidgetLimit(
+                          Math.min(50, Math.max(1, Number(e.target.value) || 1)),
+                        )
+                      }
+                    />
+                  </label>
+                )}
+
                 {widgetType === 'stat' && (
                   <label>
                     شاخص آماری
@@ -305,7 +373,9 @@ export function DashboardsPage() {
                   </label>
                 )}
 
-                {(widgetType === 'bar' || widgetType === 'nps') && (
+                {(widgetType === 'bar' ||
+                  widgetType === 'nps' ||
+                  widgetType === 'verbatim') && (
                   <label>
                     سوال
                     <select
@@ -357,6 +427,39 @@ export function DashboardsPage() {
                 <div className="section-head">
                   <h3>{data.data?.name}</h3>
                   <div className="inline-form">
+                    {/*
+                      بازه‌ی زمانی: بدونِ آن داشبورد همیشه «از ابتدا» بود و
+                      نمی‌شد پرسید «این ماه چطور بود؟».
+                    */}
+                    <label>
+                      از
+                      <input
+                        type="date"
+                        value={range.from}
+                        onChange={(e) =>
+                          setRange((p) => ({ ...p, from: e.target.value }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      تا
+                      <input
+                        type="date"
+                        value={range.to}
+                        onChange={(e) =>
+                          setRange((p) => ({ ...p, to: e.target.value }))
+                        }
+                      />
+                    </label>
+                    {(range.from || range.to) && (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => setRange({ from: '', to: '' })}
+                      >
+                        کلِ دوره
+                      </button>
+                    )}
                     <label className="checkbox">
                       <input
                         type="checkbox"
@@ -386,6 +489,14 @@ export function DashboardsPage() {
                     <WidgetCard
                       key={widget.id}
                       widget={widget}
+                      onOpenResponse={(responseId) => {
+                        // رفتن به نمای پاسخ‌های همان فرم؛ KPI دیگر بن‌بست نیست.
+                        if (widget.formId) {
+                          navigate(
+                            `/forms/${widget.formId}?tab=report&response=${responseId}`,
+                          );
+                        }
+                      }}
                       onRemove={() => removeWidget(widget.id)}
                       onResize={(delta) => resizeWidget(widget.id, delta)}
                     />

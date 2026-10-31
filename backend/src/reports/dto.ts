@@ -3,10 +3,13 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
+  Max,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -62,8 +65,25 @@ export class DashboardWidgetDto {
   @IsString()
   id: string;
 
-  @IsIn(['stat', 'bar', 'nps', 'text', 'score'])
-  type: 'stat' | 'bar' | 'nps' | 'text' | 'score';
+  @IsIn([
+    'stat',
+    'bar',
+    'nps',
+    'text',
+    'score',
+    'trend',
+    'table',
+    'verbatim',
+  ])
+  type:
+    | 'stat'
+    | 'bar'
+    | 'nps'
+    | 'text'
+    | 'score'
+    | 'trend'
+    | 'table'
+    | 'verbatim';
 
   @IsString()
   title: string;
@@ -87,6 +107,18 @@ export class DashboardWidgetDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  /** گامِ زمانیِ ویجتِ روند. */
+  @IsOptional()
+  @IsIn(['day', 'week', 'month'])
+  interval?: 'day' | 'week' | 'month';
+
+  /** سقفِ ردیف در جدول/نظرها. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 
   /** جای ویجت در شبکه‌ی ۱۲ ستونی. */
   @IsObject()

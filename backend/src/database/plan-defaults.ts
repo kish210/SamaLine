@@ -82,29 +82,30 @@ export const DEFAULT_PLAN_LIMITS: Record<PlanCode, Record<string, unknown>> = {
     aiReview: true,
     aiAnalyze: false,
   },
+  /*
+   * enterprise سقفِ عددی ندارد.
+   *
+   * این پلنِ مدیرِ کلِ سامانه است و باید همه‌چیزش باز باشد. سقف‌های قبلی در
+   * عمل فقط مانع می‌شدند: تنوعِ نوعِ سوال جلوی ساختِ فرمِ کامل را می‌گرفت، و
+   * سقفِ پرتال/داشبورد باعث می‌شد ساختِ خودکارِ AI بی‌صدا رد شود. `-1` یعنی
+   * نامحدود (در PlanService بررسی می‌شود).
+   */
   [PlanCode.ENTERPRISE]: {
     activeForms: -1,
     responsesPerMonth: -1,
-    maxQuestionTypes: 24,
-    workspaceUsers: 5,
+    maxQuestionTypes: -1,
+    workspaceUsers: -1,
     logicDisplay: true,
     logicSkip: true,
-    indices: 5,
+    indices: -1,
     multiLanguage: true,
     smsPanel: true,
     emailPanel: true,
     embed: true,
-    kiosk: 5,
-    interviewer: 5,
-    /*
-     * پرتال و داشبورد در enterprise نامحدودند.
-     *
-     * ساختِ فرم با AI برای هر فرم یک داشبورد و یک پرتال می‌سازد، پس سقفِ ۵
-     * خیلی زود پر می‌شد و از آن به بعد ساختِ خودکار بی‌صدا رد می‌شد — کاربر
-     * گمان می‌کرد داشبوردساز کار نمی‌کند. فرم و پاسخ هم در همین پلن نامحدودند.
-     */
+    kiosk: -1,
+    interviewer: -1,
     portal: -1,
-    webhooks: 5,
+    webhooks: -1,
     dashboards: -1,
     api: true,
     advancedExcel: true,

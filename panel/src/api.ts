@@ -692,13 +692,25 @@ export const aiApi = {
 
 export interface DashboardWidget {
   id: string;
-  type: "stat" | "bar" | "nps" | "text" | "score";
+  type:
+    | "stat"
+    | "bar"
+    | "nps"
+    | "text"
+    | "score"
+    | "trend"
+    | "table"
+    | "verbatim";
   title: string;
   formId?: string;
   questionId?: string;
   metric?: string;
   scoreKey?: string;
   content?: string;
+  /** گامِ زمانیِ ویجتِ روند. */
+  interval?: "day" | "week" | "month";
+  /** سقفِ ردیف در جدول/نظرها. */
+  limit?: number;
   layout: { x: number; y: number; w: number; h: number };
 }
 
@@ -706,6 +718,17 @@ export interface WidgetData extends DashboardWidget {
   value?: number | string;
   series?: Array<{ label: string; count: number }>;
   error?: string;
+  /** ردیف‌های ویجتِ جدول؛ هر کدام به خودِ پاسخ می‌رسد. */
+  rows?: Array<{
+    responseId: string;
+    submittedAt: string | null;
+    score?: number | null;
+    summary: string;
+  }>;
+  /** نظرهای متنیِ اخیر. */
+  quotes?: Array<{ responseId: string; text: string; at: string | null }>;
+  /** درصدِ تغییر نسبت به نیمهٔ اولِ بازه. */
+  changePercent?: number | null;
 }
 
 export interface Dashboard {
@@ -729,7 +752,7 @@ export const dashboardsApi = {
   get: (id: string) =>
     api.get<Dashboard>(`/dashboards/${id}`).then((r) => r.data),
 
-  data: (id: string) =>
+  data: (id: string, range: { from?: string; to?: string } = {}) =>
     api
       .get<{
         id: string;
@@ -737,7 +760,13 @@ export const dashboardsApi = {
         isPublic: boolean;
         publicToken: string | null;
         widgets: WidgetData[];
-      }>(`/dashboards/${id}/data`)
+      }>(`/dashboards/${id}/data`, {
+        // بازه‌ی خالی فرستاده نمی‌شود تا «از ابتدا» معنای خودش را بدهد.
+        params: {
+          ...(range.from ? { from: range.from } : {}),
+          ...(range.to ? { to: range.to } : {}),
+        },
+      })
       .then((r) => r.data),
 
   update: (id: string, body: { name?: string; widgets?: DashboardWidget[] }) =>

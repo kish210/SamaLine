@@ -1,5 +1,6 @@
 import {
   Body,
+  Query,
   Controller,
   Delete,
   Get,
@@ -63,8 +64,13 @@ export class DashboardController {
 
   /** داده‌ی محاسبه‌شده‌ی همه‌ی ویجت‌ها. */
   @Get(':id/data')
-  render(@Param('id') id: string, @OrganizationId() organizationId: string) {
-    return this.dashboards.render(organizationId, id);
+  render(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.dashboards.render(organizationId, id, { from, to });
   }
 
   @MinRole(OrganizationRole.ANALYST)
@@ -100,7 +106,11 @@ export class PublicDashboardController {
   constructor(private readonly dashboards: DashboardService) {}
 
   @Get(':publicToken')
-  render(@Param('publicToken') publicToken: string) {
-    return this.dashboards.renderPublic(publicToken);
+  render(
+    @Param('publicToken') publicToken: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.dashboards.renderPublic(publicToken, { from, to });
   }
 }

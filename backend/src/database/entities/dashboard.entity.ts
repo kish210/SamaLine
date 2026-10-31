@@ -11,11 +11,20 @@ import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
 /** یک ویجت روی داشبورد. */
 export interface DashboardWidget {
   id: string;
-  type: 'stat' | 'bar' | 'nps' | 'text' | 'score';
+  /**
+   * نوعِ ویجت.
+   *
+   * سه نوعِ تازه، شکافی را پر می‌کنند که داشبورد را بی‌استفاده کرده بود:
+   * `trend` جهتِ حرکت را نشان می‌دهد (بالا می‌رویم یا پایین؟)، `table`
+   * پاسخ‌های اخیر را با امکانِ رفتن به خودِ پاسخ می‌آورد، و `verbatim`
+   * نظرهای متنی را — ارزشمندترین محتوای نظرسنجی که تا الان اصلاً دیده
+   * نمی‌شد.
+   */
+  type: 'stat' | 'bar' | 'nps' | 'text' | 'score' | 'trend' | 'table' | 'verbatim';
   title: string;
   /** فرم مرجع داده‌ی ویجت. */
   formId?: string;
-  /** برای نمودار سوال. */
+  /** برای نمودار سوال و نظرهای متنی. */
   questionId?: string;
   /** برای ویجت آماری: visits | started | completed | completionRate. */
   metric?: string;
@@ -23,6 +32,10 @@ export interface DashboardWidget {
   scoreKey?: string;
   /** متن ثابت. */
   content?: string;
+  /** گامِ زمانیِ ویجتِ روند. */
+  interval?: 'day' | 'week' | 'month';
+  /** چند ردیف در جدول/نظرها (پیش‌فرض ۱۰، سقف ۵۰). */
+  limit?: number;
   /** جای ویجت در شبکه؛ عرض بر حسب ستون از ۱۲. */
   layout: { x: number; y: number; w: number; h: number };
 }

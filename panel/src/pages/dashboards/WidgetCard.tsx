@@ -4,6 +4,8 @@ interface Props {
   widget: WidgetData;
   onRemove?: () => void;
   onResize?: (delta: -1 | 1) => void;
+  /** رفتن به خودِ پاسخ (drill-down) از ردیفِ جدول یا نظر. */
+  onOpenResponse?: (responseId: string) => void;
 }
 
 const METRIC_LABELS: Record<string, string> = {
@@ -14,7 +16,12 @@ const METRIC_LABELS: Record<string, string> = {
 };
 
 /** یک ویجت روی داشبورد؛ نمودار با SVG بومی رسم می‌شود. */
-export function WidgetCard({ widget, onRemove, onResize }: Props) {
+export function WidgetCard({
+  widget,
+  onRemove,
+  onResize,
+  onOpenResponse,
+}: Props) {
   const maxCount = Math.max(1, ...(widget.series ?? []).map((s) => s.count));
 
   return (
@@ -69,6 +76,33 @@ export function WidgetCard({ widget, onRemove, onResize }: Props) {
           </div>
           <Bars series={widget.series ?? []} max={maxCount} />
         </div>
+      ) : widget.type === 'trend' ? (
+        <div>
+          <div className="widget-stat">
+            <span className="stat-value">{widget.value ?? 0}</span>
+            <span className="stat-label">
+              پاسخ در بازه
+              {/* جهتِ حرکت؛ همان چیزی که مدیر می‌پرسد. */}
+              {typeof widget.changePercent === 'number' && (
+                <strong
+                  style={{
+                    marginInlineStart: 8,
+                    color:
+                      widget.changePercent >= 0 ? '#15803d' : '#b91c1c',
+                  }}
+                >
+                  {widget.changePercent >= 0 ? '▲' : '▼'}{' '}
+                  {Math.abs(widget.changePercent)}٪
+                </strong>
+              )}
+            </span>
+          </div>
+          <Bars series={widget.series ?? []} max={maxCount} />
+        </div>
+      ) : widget.type === 'table' ? (
+        <TableRows rows={widget.rows ?? []} onOpen={onOpenResponse} />
+      ) : widget.type === 'verbatim' ? (
+        <Quotes quotes={widget.quotes ?? []} onOpen={onOpenResponse} />
       ) : (
         <Bars series={widget.series ?? []} max={maxCount} />
       )}
@@ -100,5 +134,82 @@ function Bars({
         </div>
       ))}
     </div>
+  );
+}
+
+
+/** تاریخِ کوتاهِ شمسی؛ خالی یعنی هنوز ثبت نشده. */
+function shortDate(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString('fa-IR') : '—';
+}
+
+/** ردیف‌های پاسخِ اخیر؛ هر ردیف به خودِ پاسخ می‌رسد. */
+function TableRows({
+  rows,
+  onOpen,
+}: {
+  rows: NonNullable<WidgetData['rows']>;
+  onOpen?: (responseId: string) => void;
+}) {
+  if (!rows.length) return <p className="empty">پاسخی در این بازه نیست.</p>;
+
+  return (
+    <div className="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>تاریخ</th>
+            <th>خلاصه</th>
+            <th>امتیاز</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr
+              key={r.responseId}
+              onClick={() => onOpen?.(r.responseId)}
+              style={{ cursor: onOpen ? 'pointer' : 'default' }}
+              title={onOpen ? 'نمایشِ پاسخ' : undefined}
+            >
+              <td>{shortDate(r.submittedAt)}</td>
+              <td>{r.summary}</td>
+              <td>{r.score ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** نظرهای متنیِ اخیر؛ ارزشمندترین محتوای نظرسنجی. */
+function Quotes({
+  quotes,
+  onOpen,
+}: {
+  quotes: NonNullable<WidgetData['quotes']>;
+  onOpen?: (responseId: string) => void;
+}) {
+  if (!quotes.length) return <p className="empty">نظری ثبت نشده است.</p>;
+
+  return (
+    <ul className="widget-quotes">
+      {quotes.map((q) => (
+        <li
+          key={q.responseId}
+          onClick={() => onOpen?.(q.responseId)}
+          style={{
+            cursor: onOpen ? 'pointer' : 'default',
+            padding: '0.4rem 0',
+            borderBottom: '1px solid var(--border, #e5e7eb)',
+          }}
+        >
+          <span>«{q.text}»</span>
+          <small style={{ opacity: 0.7, marginInlineStart: 8 }}>
+            {shortDate(q.at)}
+          </small>
+        </li>
+      ))}
+    </ul>
   );
 }
