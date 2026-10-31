@@ -67,7 +67,34 @@ export function PortalPage() {
             {portal.forms.map((form) => (
               <li key={form.formId}>
                 <a className="portal-card" href={form.url}>
-                  <span className="portal-card-title">{form.title}</span>
+                  <span className="portal-card-body">
+                    <span className="portal-card-title">{form.title}</span>
+                    {form.description && (
+                      <span className="portal-card-desc">
+                        {form.description}
+                      </span>
+                    )}
+                    {/*
+                      نشانه‌های کوتاه: مخاطب پیش از کلیک بداند چقدر طول
+                      می‌کشد و آیا باید وارد شود.
+                    */}
+                    <span className="portal-card-meta">
+                      {typeof form.questionCount === 'number' &&
+                        form.questionCount > 0 && (
+                          <span>
+                            {form.questionCount.toLocaleString('fa-IR')} سوال
+                          </span>
+                        )}
+                      {typeof form.estimatedMinutes === 'number' &&
+                        form.estimatedMinutes > 0 && (
+                          <span>
+                            حدود {form.estimatedMinutes.toLocaleString('fa-IR')}{' '}
+                            دقیقه
+                          </span>
+                        )}
+                      {form.requiresAuth && <span>نیازمندِ ورود</span>}
+                    </span>
+                  </span>
                   <span className="portal-card-go" aria-hidden="true">
                     ←
                   </span>

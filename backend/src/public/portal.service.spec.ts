@@ -70,11 +70,14 @@ describe('PortalService', () => {
       portal?: Row | null;
       forms?: Row[];
       publications?: Row[];
+      versions?: Row[];
     }) =>
       new PortalService(
         repo(over.portal === null ? [] : [over.portal ?? PORTAL]),
         repo(over.forms ?? []),
         repo(over.publications ?? []),
+        // نسخه‌های فرم؛ برای تعدادِ سوالِ کارتِ پرتال.
+        repo(over.versions ?? []),
         platform,
         tenant,
         plans,
@@ -101,6 +104,70 @@ describe('PortalService', () => {
       // فرم دو منتشر نشده؛ کارتی که به هیچ‌جا نمی‌رود نباید ساخته شود.
       expect(result.forms.map((f) => f.formId)).toEqual(['f1']);
       expect(result.forms[0].url).toBe('/f/tok1');
+    });
+
+    it('کارت توضیح، تعداد سوال، زمانِ تخمینی و نشانِ ورود می‌دهد', async () => {
+      const service = build({
+        forms: [
+          {
+            id: 'f1',
+            title: 'نظرسنجی',
+            status: FormStatus.ACTIVE,
+            settings: { startPageText: 'نظرتان را بگویید' },
+          },
+        ],
+        publications: [
+          {
+            formId: 'f1',
+            token: 'tok1',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+            authMode: 'otp',
+          },
+        ],
+        versions: [
+          {
+            formId: 'f1',
+            version: 1,
+            structure: {
+              pages: [
+                { questions: [{ id: 'q1' }, { id: 'q2' }] },
+                { questions: [{ id: 'q3' }, { id: 'q4' }] },
+              ],
+            },
+          },
+        ],
+      });
+
+      const card = (await service.publicBySlug('hotel')).forms[0];
+      expect(card.description).toBe('نظرتان را بگویید');
+      expect(card.questionCount).toBe(4);
+      // ۴ سوال × ۱۵ ثانیه = ۱ دقیقه
+      expect(card.estimatedMinutes).toBe(1);
+      // فرمِ OTP ورود می‌خواهد؛ مخاطب باید از قبل بداند.
+      expect(card.requiresAuth).toBe(true);
+    });
+
+    it('فرمِ بی‌احراز نشانِ ورود نمی‌گیرد', async () => {
+      const service = build({
+        forms: [{ id: 'f1', title: 'ساده', status: FormStatus.ACTIVE }],
+        publications: [
+          {
+            formId: 'f1',
+            token: 'tok1',
+            slug: null,
+            type: PublicationType.LINK,
+            isActive: true,
+            authMode: 'none',
+          },
+        ],
+      });
+
+      const card = (await service.publicBySlug('hotel')).forms[0];
+      expect(card.requiresAuth).toBe(false);
+      // بدونِ نسخه، تعدادِ سوال صفر است ولی کارت نمی‌شکند.
+      expect(card.questionCount).toBe(0);
     });
 
     it('ترتیب انتخاب کاربر حفظ می‌شود', async () => {
@@ -174,6 +241,7 @@ describe('PortalService', () => {
         repo([]),
         repo([{ id: 'mine', workspaceId: 'w1' }]),
         repo([]),
+        repo([]),
         platform,
         tenant,
         plans,
@@ -193,6 +261,7 @@ describe('PortalService', () => {
         repo([]),
         repo([]),
         repo([]),
+        repo([]),
         platform,
         tenant,
         plans,
@@ -205,6 +274,7 @@ describe('PortalService', () => {
     it('نشانک تکراری رد می‌شود', async () => {
       const service = new PortalService(
         repo([{ id: 'other', slug: 'hotel' }]),
+        repo([]),
         repo([]),
         repo([]),
         platform,

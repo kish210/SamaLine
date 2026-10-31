@@ -1331,6 +1331,34 @@ body {
   line-height: 1.7;
 }
 
+/* بدنه‌ی کارت ستونی است تا توضیح و نشانه‌ها زیر عنوان بنشینند. */
+.portal-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.portal-card-desc {
+  font-size: 0.88em;
+  opacity: 0.75;
+  line-height: 1.6;
+}
+
+/* نشانه‌های کوتاه؛ با نقطه از هم جدا می‌شوند. */
+.portal-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8em;
+  opacity: 0.65;
+}
+
+.portal-card-meta span + span::before {
+  content: '·';
+  margin-inline-end: 10px;
+}
+
 /* فلش سمت شروع خط است، پس در RTL به چپ اشاره می‌کند. */
 .portal-card-go {
   color: var(--form-primary);

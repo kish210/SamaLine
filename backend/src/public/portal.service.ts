@@ -8,9 +8,11 @@ import { In, Not, Repository } from 'typeorm';
 import { PortalEntity } from '../database/entities/portal.entity';
 import { FormEntity, FormStatus } from '../database/entities/form.entity';
 import {
+  PublicationAuthMode,
   PublicationEntity,
   PublicationType,
 } from '../database/entities/publication.entity';
+import { FormVersionEntity } from '../database/entities/form-version.entity';
 import { TenantAccessService } from '../common/tenant-access.service';
 import { PlanService } from '../plans/plan.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
@@ -43,6 +45,8 @@ export class PortalService {
     private readonly formRepo: Repository<FormEntity>,
     @InjectRepository(PublicationEntity)
     private readonly publicationRepo: Repository<PublicationEntity>,
+    @InjectRepository(FormVersionEntity)
+    private readonly versionRepo: Repository<FormVersionEntity>,
     private readonly platformSettings: PlatformSettingsService,
     private readonly tenant: TenantAccessService,
     private readonly plans: PlanService,
@@ -181,6 +185,32 @@ export class PortalService {
     const tokenOf = new Map(publications.map((p) => [p.formId, p]));
     const byId = new Map(forms.map((f) => [f.id, f]));
 
+    /*
+     * تعدادِ سوالِ هر فرم از آخرین نسخه‌اش.
+     *
+     * کارتِ پرتال تا الان فقط عنوان و یک فلش بود؛ مخاطب نمی‌دانست این فرم
+     * چیست و چقدر طول می‌کشد، و همین باعث می‌شد پرتال بی‌استفاده بماند.
+     */
+    const versions = await this.versionRepo.find({
+      where: { formId: In(forms.length ? forms.map((f) => f.id) : ['-']) },
+      order: { version: 'DESC' },
+    });
+    const questionCount = new Map<string, number>();
+    for (const v of versions) {
+      // فهرست از نسخه‌ی بزرگ‌تر شروع می‌شود، پس اولینِ هر فرم تازه‌ترین است.
+      if (questionCount.has(v.formId)) continue;
+      const structure = (v.structure ?? {}) as {
+        pages?: Array<{ questions?: unknown[] }>;
+      };
+      questionCount.set(
+        v.formId,
+        (structure.pages ?? []).reduce(
+          (sum, p) => sum + (p.questions?.length ?? 0),
+          0,
+        ),
+      );
+    }
+
     const items = portal.formIds
       .map((id) => ({ form: byId.get(id), publication: tokenOf.get(id) }))
       .filter(
@@ -189,13 +219,28 @@ export class PortalService {
         ): entry is { form: FormEntity; publication: PublicationEntity } =>
           Boolean(entry.form && entry.publication),
       )
-      .map(({ form, publication }) => ({
-        formId: form.id,
-        title: form.title,
-        token: publication.token,
-        slug: publication.slug,
-        url: `/f/${publication.slug ?? publication.token}`,
-      }));
+      .map(({ form, publication }) => {
+        const settings = (form.settings ?? {}) as { startPageText?: string };
+        const questions = questionCount.get(form.id) ?? 0;
+        return {
+          formId: form.id,
+          title: form.title,
+          token: publication.token,
+          slug: publication.slug,
+          url: `/f/${publication.slug ?? publication.token}`,
+          /** توضیحِ کوتاه از صفحه‌ی شروعِ خودِ فرم. */
+          description: (settings.startPageText ?? '').slice(0, 160),
+          questionCount: questions,
+          /*
+           * زمانِ تخمینی: حدودِ ۱۵ ثانیه برای هر سوال، گِردشده به دقیقه و
+           * دست‌کم یک دقیقه. تخمین است نه وعده، ولی همین هم به مخاطب کمک
+           * می‌کند تصمیم بگیرد الان وقتش را دارد یا نه.
+           */
+          estimatedMinutes: Math.max(1, Math.round((questions * 15) / 60)),
+          /** فرمِ نیازمندِ ورود، تا مخاطب غافلگیر نشود. */
+          requiresAuth: publication.authMode !== PublicationAuthMode.NONE,
+        };
+      });
 
     return {
       title: portal.title,

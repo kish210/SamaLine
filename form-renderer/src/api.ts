@@ -29,6 +29,13 @@ export interface PortalPayload {
     token: string;
     slug: string | null;
     url: string;
+    /** توضیحِ کوتاه از صفحه‌ی شروعِ فرم. */
+    description?: string;
+    questionCount?: number;
+    /** زمانِ تخمینیِ پاسخ‌دهی (دقیقه). */
+    estimatedMinutes?: number;
+    /** فرم ورود می‌خواهد. */
+    requiresAuth?: boolean;
   }>;
   footer?: { enabled: boolean; text: string; url: string };
 }
