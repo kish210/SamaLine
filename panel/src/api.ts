@@ -1250,7 +1250,7 @@ export interface OpsActivity {
 
 export interface OpsDashboard {
   buckets: OpsBucket[];
-  workload: Array<{ personnelId: string; openCount: number }>;
+  workload: Array<{ personnelId: string; name: string; openCount: number }>;
   recent: OpsActivity[];
   cost: {
     internal: number;
@@ -1333,6 +1333,19 @@ export const cmmsApi = {
 
   assets: (query: CmmsQuery = {}) =>
     api.get<CmmsPage<Asset>>('/cmms/assets', { params: query }).then((r) => r.data),
+
+  createAsset: (body: Record<string, unknown>) =>
+    api.post<Asset>('/cmms/assets', body).then((r) => r.data),
+
+  request: (id: string) =>
+    api.get<MaintenanceRequest>(`/cmms/requests/${id}`).then((r) => r.data),
+
+  workOrder: (id: string) =>
+    api
+      .get<WorkOrder & { technicians: Array<{ personnelId: string; isPrimary: boolean }> }>(
+        `/cmms/work-orders/${id}`,
+      )
+      .then((r) => r.data),
 
   createRequest: (body: Partial<MaintenanceRequest>) =>
     api.post<MaintenanceRequest>('/cmms/requests', body).then((r) => r.data),

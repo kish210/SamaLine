@@ -15,6 +15,7 @@ import {
   WorkOrderStatus,
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { CmmsService } from './cmms.service';
 
 const ORG = 'org-1';
@@ -31,6 +32,7 @@ describe('CmmsService', () => {
       ds.getRepository(MaintenanceRequestEntity),
       ds.getRepository(WorkOrderEntity),
       ds.getRepository(WorkOrderTechnicianEntity),
+      ds.getRepository(PersonnelEntity),
       ds,
     );
   });
@@ -198,6 +200,31 @@ describe('CmmsService', () => {
         byKey.newRequests.filter as never,
       );
       expect(drill.total).toBe(byKey.newRequests.count);
+    });
+
+    it('درخواستِ تأییدشده تا ساختِ دستورِ کار در صف می‌ماند', async () => {
+      const req = await service.createRequest(ORG, { title: 'تأییدشده' });
+      await service.changeRequestStatus(
+        ORG,
+        req.id,
+        MaintenanceRequestStatus.APPROVED,
+      );
+
+      let sum = await service.operationalSummary(ORG);
+      expect(
+        sum.buckets.find((b) => b.key === 'awaitingWorkOrder')?.count,
+      ).toBe(1);
+
+      // با ساختِ دستورِ کار، درخواست «ارجاع‌شده» می‌شود و صف خالی می‌شود.
+      await service.createWorkOrder(ORG, {
+        title: 'کارِ همان درخواست',
+        requestId: req.id,
+        technicianIds: ['p1'],
+      });
+      sum = await service.operationalSummary(ORG);
+      expect(
+        sum.buckets.find((b) => b.key === 'awaitingWorkOrder')?.count,
+      ).toBe(0);
     });
 
     it('«معوق» فقط موعدِ گذشته‌ی هنوزباز را می‌شمارد', async () => {

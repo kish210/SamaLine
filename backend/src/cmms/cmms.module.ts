@@ -6,6 +6,7 @@ import {
   WorkOrderEntity,
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { CmmsController } from './cmms.controller';
 import { CmmsService } from './cmms.service';
 
@@ -23,6 +24,8 @@ import { CmmsService } from './cmms.service';
       MaintenanceRequestEntity,
       WorkOrderEntity,
       WorkOrderTechnicianEntity,
+      // فقط برای نشان‌دادنِ نامِ تکنسین در بارِ کاری؛ دفترچهٔ پرسنل مالِ HR است.
+      PersonnelEntity,
     ]),
   ],
   controllers: [CmmsController],

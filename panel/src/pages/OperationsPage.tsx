@@ -1,5 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import {
+  NewAssetForm,
+  NewRequestForm,
+  NewWorkOrderForm,
+} from './operations/CmmsForms';
 import {
   cmmsApi,
   type Asset,
@@ -67,10 +72,66 @@ const shortDate = (iso: string) =>
  * عدد یک صفِ کارِ واقعی است و با کلیک همان رکوردها را باز می‌کند؛ یعنی
  * داشبورد به «الان چه چیزی توجه می‌خواهد؟» جواب می‌دهد، نه فقط آمار.
  */
+/** گذارهای مجازی که از روی جدول در دسترس‌اند (آینهٔ قواعدِ سرور). */
+const REQUEST_ACTIONS: Record<string, Array<{ to: string; label: string }>> = {
+  new: [
+    { to: 'under_review', label: 'بررسی' },
+    { to: 'approved', label: 'تأیید' },
+    { to: 'rejected', label: 'رد' },
+  ],
+  under_review: [
+    { to: 'approved', label: 'تأیید' },
+    { to: 'rejected', label: 'رد' },
+  ],
+  in_progress: [{ to: 'completed', label: 'تکمیل' }],
+  completed: [{ to: 'closed', label: 'بستن' }],
+};
+
+const WORK_ORDER_ACTIONS: Record<string, Array<{ to: string; label: string }>> =
+  {
+    assigned: [{ to: 'in_progress', label: 'شروع' }],
+    in_progress: [
+      { to: 'waiting_parts', label: 'منتظرِ قطعه' },
+      { to: 'completed', label: 'تکمیل' },
+    ],
+    waiting_parts: [{ to: 'in_progress', label: 'ادامه' }],
+    waiting_contractor: [{ to: 'in_progress', label: 'ادامه' }],
+    completed: [{ to: 'verified', label: 'تأییدِ مدیر' }],
+    verified: [{ to: 'closed', label: 'بستن' }],
+  };
+
 export function OperationsPage() {
+  const qc = useQueryClient();
   const [active, setActive] = useState<OpsBucket | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  /** کدام فرمِ ثبت باز است. */
+  const [creating, setCreating] = useState<
+    null | 'request' | 'workOrder' | 'asset'
+  >(null);
+  /** ساختِ دستورِ کار از روی یک درخواستِ مشخص. */
+  const [fromRequest, setFromRequest] = useState<OpsRow | null>(null);
+
+  const changeStatus = useMutation({
+    // خروجیِ دو مسیر شکلِ یکسان ندارد و اینجا لازم هم نیست؛ فقط باطل‌کردنِ
+    // کوئری‌ها مهم است.
+    mutationFn: async ({
+      kind,
+      id,
+      to,
+    }: {
+      kind: OpsBucket['kind'];
+      id: string;
+      to: string;
+    }): Promise<void> => {
+      if (kind === 'request') await cmmsApi.setRequestStatus(id, to);
+      else await cmmsApi.setWorkOrderStatus(id, to);
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['cmms-dashboard'] });
+      await qc.invalidateQueries({ queryKey: ['cmms-records'] });
+    },
+  });
 
   const dashboard = useQuery({
     queryKey: ['cmms-dashboard'],
@@ -114,6 +175,23 @@ export function OperationsPage() {
       <header className="page-header">
         <h1>عملیاتِ فنی</h1>
         <div className="header-actions">
+          <button type="button" onClick={() => setCreating('request')}>
+            + درخواستِ تعمیر
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setCreating('workOrder')}
+          >
+            + دستورِ کار
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setCreating('asset')}
+          >
+            + تجهیز
+          </button>
           <button
             type="button"
             className="secondary"
@@ -124,6 +202,27 @@ export function OperationsPage() {
           </button>
         </div>
       </header>
+
+      {creating === 'request' && (
+        <NewRequestForm onClose={() => setCreating(null)} />
+      )}
+      {creating === 'asset' && (
+        <NewAssetForm onClose={() => setCreating(null)} />
+      )}
+      {creating === 'workOrder' && (
+        <NewWorkOrderForm onClose={() => setCreating(null)} />
+      )}
+      {fromRequest && (
+        <NewWorkOrderForm
+          fromRequestId={fromRequest.id}
+          defaults={{
+            title: fromRequest.title,
+            category: fromRequest.category,
+            priority: fromRequest.priority,
+          }}
+          onClose={() => setFromRequest(null)}
+        />
+      )}
 
       {dashboard.isLoading && <p>در حال بارگذاری…</p>}
       {dashboard.isError && (
@@ -241,6 +340,7 @@ export function OperationsPage() {
                                 {active.kind !== 'asset' && <th>اولویت</th>}
                                 {active.kind !== 'asset' && <th>موعد</th>}
                                 <th>ثبت</th>
+                                {active.kind !== 'asset' && <th>اقدام</th>}
                               </tr>
                             </thead>
                             <tbody>
@@ -263,6 +363,44 @@ export function OperationsPage() {
                                       <td>{r.dueDate || '—'}</td>
                                     )}
                                     <td>{shortDate(r.createdAt ?? '')}</td>
+                                    {active.kind !== 'asset' && (
+                                      <td>
+                                        <span className="question-actions">
+                                          {(active.kind === 'request'
+                                            ? REQUEST_ACTIONS
+                                            : WORK_ORDER_ACTIONS)[
+                                            r.status ?? ''
+                                          ]?.map((act) => (
+                                            <button
+                                              key={act.to}
+                                              type="button"
+                                              disabled={changeStatus.isPending}
+                                              onClick={() =>
+                                                changeStatus.mutate({
+                                                  kind: active.kind,
+                                                  id: r.id,
+                                                  to: act.to,
+                                                })
+                                              }
+                                            >
+                                              {act.label}
+                                            </button>
+                                          ))}
+                                          {/* از درخواستِ تأییدشده مستقیم دستورِ کار بساز. */}
+                                          {active.kind === 'request' &&
+                                            r.status === 'approved' && (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setFromRequest(r)
+                                                }
+                                              >
+                                                دستورِ کار
+                                              </button>
+                                            )}
+                                        </span>
+                                      </td>
+                                    )}
                                   </tr>
                                 );
                               })}
@@ -330,7 +468,7 @@ export function OperationsPage() {
                   <ul>
                     {data.workload.map((w) => (
                       <li key={w.personnelId}>
-                        {w.personnelId} — {fa(w.openCount)} کارِ باز
+                        {w.name} — {fa(w.openCount)} کارِ باز
                       </li>
                     ))}
                   </ul>

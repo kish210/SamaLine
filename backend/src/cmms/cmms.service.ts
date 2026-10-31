@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   Brackets,
   DataSource,
+  In,
   ObjectLiteral,
   Repository,
   SelectQueryBuilder,
@@ -24,6 +25,7 @@ import {
   WorkOrderStatus,
   WorkOrderTechnicianEntity,
 } from '../database/entities/work-order.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { AuditService } from '../common/audit.service';
 import { LIKE_OPERATOR } from '../database/column-types';
 
@@ -188,6 +190,8 @@ export class CmmsService {
     private readonly workOrders: Repository<WorkOrderEntity>,
     @InjectRepository(WorkOrderTechnicianEntity)
     private readonly technicians: Repository<WorkOrderTechnicianEntity>,
+    @InjectRepository(PersonnelEntity)
+    private readonly personnel: Repository<PersonnelEntity>,
     private readonly dataSource: DataSource,
     @Optional() private readonly audit?: AuditService,
   ) {}
@@ -656,6 +660,7 @@ export class CmmsService {
       pendingApproval,
       emergency,
       unassigned,
+      awaitingWorkOrder,
       inProgress,
       overdue,
       waitingParts,
@@ -682,6 +687,15 @@ export class CmmsService {
       ),
       countOrders((qb) =>
         qb.andWhere('w.status = :s', { s: WorkOrderStatus.DRAFT }),
+      ),
+      /*
+       * تأییدشده ولی هنوز بی‌دستورِکار.
+       *
+       * بدونِ این سطل، درخواستی که مدیر تأیید کرده از همه‌ی صف‌ها بیرون
+       * می‌افتاد و کسی نمی‌دید که منتظرِ ساختِ دستورِ کار است.
+       */
+      countRequests((qb) =>
+        qb.andWhere('r.status = :s', { s: MaintenanceRequestStatus.APPROVED }),
       ),
       countOrders((qb) =>
         qb.andWhere('w.status = :s', { s: WorkOrderStatus.IN_PROGRESS }),
@@ -743,6 +757,14 @@ export class CmmsService {
         count: unassigned,
         kind: 'workOrder' as const,
         filter: { status: WorkOrderStatus.DRAFT },
+        tone: 'warn' as const,
+      },
+      {
+        key: 'awaitingWorkOrder',
+        label: 'تأییدشده، بی‌دستورِکار',
+        count: awaitingWorkOrder,
+        kind: 'request' as const,
+        filter: { status: MaintenanceRequestStatus.APPROVED },
         tone: 'warn' as const,
       },
       {
@@ -820,8 +842,28 @@ export class CmmsService {
       personnelId: string;
       openCount: string;
     }>();
+
+    /*
+     * نامِ پرسنل هم برمی‌گردد.
+     *
+     * بدونِ آن پنل شناسه‌ی خامِ UUID نشان می‌داد که برای مدیر بی‌معناست.
+     * نام جداگانه خوانده می‌شود تا این کوئریِ تجمیعی ساده بماند.
+     */
+    const ids = rows.map((r) => r.personnelId);
+    const names = new Map<string, string>();
+    if (ids.length > 0) {
+      const people = await this.personnel.find({
+        where: { id: In(ids) },
+        select: { id: true, fullName: true, position: true },
+      });
+      for (const p of people) {
+        names.set(p.id, p.position ? `${p.fullName} — ${p.position}` : p.fullName);
+      }
+    }
+
     return rows.map((r) => ({
       personnelId: r.personnelId,
+      name: names.get(r.personnelId) ?? 'نامشخص',
       openCount: Number(r.openCount),
     }));
   }
