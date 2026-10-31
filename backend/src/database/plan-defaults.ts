@@ -96,9 +96,16 @@ export const DEFAULT_PLAN_LIMITS: Record<PlanCode, Record<string, unknown>> = {
     embed: true,
     kiosk: 5,
     interviewer: 5,
-    portal: 5,
+    /*
+     * پرتال و داشبورد در enterprise نامحدودند.
+     *
+     * ساختِ فرم با AI برای هر فرم یک داشبورد و یک پرتال می‌سازد، پس سقفِ ۵
+     * خیلی زود پر می‌شد و از آن به بعد ساختِ خودکار بی‌صدا رد می‌شد — کاربر
+     * گمان می‌کرد داشبوردساز کار نمی‌کند. فرم و پاسخ هم در همین پلن نامحدودند.
+     */
+    portal: -1,
     webhooks: 5,
-    dashboards: 5,
+    dashboards: -1,
     api: true,
     advancedExcel: true,
     powerpointExport: true,
