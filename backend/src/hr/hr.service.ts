@@ -8,6 +8,8 @@ import { IsNull, Not, Repository } from 'typeorm';
 import {
   PersonnelEntity,
   type PersonnelDocument,
+  ContractType,
+  EmploymentStatus,
 } from '../database/entities/personnel.entity';
 
 export interface PersonnelInput {
@@ -20,6 +22,11 @@ export interface PersonnelInput {
   documents?: PersonnelDocument[];
   notes?: string;
   isActive?: boolean;
+  /** وضعیتِ اشتغال و قرارداد (فاز HR). */
+  employmentStatus?: EmploymentStatus;
+  contractType?: ContractType;
+  contractEndsAt?: string;
+  terminatedAt?: string;
 }
 
 /** فقط رقم‌های موبایل را نگه می‌دارد تا یکتاییِ موبایل به نگارش حساس نباشد. */
@@ -94,6 +101,22 @@ export class HrService {
     if (input.documents !== undefined) person.documents = input.documents;
     if (input.notes !== undefined) person.notes = input.notes;
     if (input.isActive !== undefined) person.isActive = input.isActive;
+    if (input.employmentStatus !== undefined)
+      person.employmentStatus = input.employmentStatus;
+    if (input.contractType !== undefined)
+      person.contractType = input.contractType;
+    if (input.contractEndsAt !== undefined)
+      person.contractEndsAt = sanitizeDate(input.contractEndsAt);
+    /*
+     * ثبتِ تاریخِ پایانِ همکاری، وضعیت را هم «قطعِ همکاری» می‌کند تا این دو
+     * از هم واگرا نشوند و گزارشِ نیروی فعال درست بماند.
+     */
+    if (input.terminatedAt !== undefined) {
+      person.terminatedAt = sanitizeDate(input.terminatedAt);
+      if (person.terminatedAt) {
+        person.employmentStatus = EmploymentStatus.TERMINATED;
+      }
+    }
     return this.people.save(person);
   }
 

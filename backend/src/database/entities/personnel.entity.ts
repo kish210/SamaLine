@@ -6,7 +6,29 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { JSON_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
+
+/** وضعیتِ اشتغالِ کارمند. */
+export enum EmploymentStatus {
+  ACTIVE = 'active',
+  ON_LEAVE = 'on_leave',
+  SUSPENDED = 'suspended',
+  TERMINATED = 'terminated',
+}
+
+/** نوعِ قرارداد. */
+export enum ContractType {
+  FULL_TIME = 'full_time',
+  PART_TIME = 'part_time',
+  CONTRACT = 'contract',
+  TEMPORARY = 'temporary',
+  PROBATION = 'probation',
+}
 
 /** یک مدرک/فایلِ پیوستِ پروندهٔ پرسنل (قرارداد، کارت ملی، گواهی …). */
 export interface PersonnelDocument {
@@ -84,6 +106,36 @@ export class PersonnelEntity {
    */
   @Column({ type: UUID_COLUMN, nullable: true })
   botWorkspaceId: string | null;
+
+  /**
+   * وضعیتِ اشتغال.
+   *
+   * جدا از `isActive` است: `isActive` یعنی رکورد در فهرست‌ها دیده شود، ولی
+   * وضعیت می‌گوید کارمند سرِ کار است، در مرخصی است یا قطعِ همکاری کرده —
+   * چیزی که گزارشِ نیروی انسانی و کارتابل لازم دارند.
+   */
+  @Column({
+    type: ENUM_COLUMN,
+    enum: EmploymentStatus,
+    default: EmploymentStatus.ACTIVE,
+  })
+  employmentStatus: EmploymentStatus;
+
+  /** نوعِ قرارداد (تمام‌وقت، پاره‌وقت، پیمانی، آزمایشی …). */
+  @Column({
+    type: ENUM_COLUMN,
+    enum: ContractType,
+    default: ContractType.FULL_TIME,
+  })
+  contractType: ContractType;
+
+  /** پایانِ قرارداد (ISO)؛ خالی یعنی نامحدود. مبنای هشدارِ انقضا. */
+  @Column({ type: 'varchar', length: 10, default: '' })
+  contractEndsAt: string;
+
+  /** تاریخِ پایانِ همکاری (ISO)؛ خالی یعنی هنوز شاغل است. */
+  @Column({ type: 'varchar', length: 10, default: '' })
+  terminatedAt: string;
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

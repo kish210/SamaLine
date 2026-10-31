@@ -11,6 +11,7 @@ import {
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -19,6 +20,10 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { OrganizationId } from '../common/current-user.decorator';
 import { MinRole } from '../common/roles';
 import { OrganizationRole } from '../database/entities/organization-user.entity';
+import {
+  ContractType,
+  EmploymentStatus,
+} from '../database/entities/personnel.entity';
 import type { PersonnelDocument } from '../database/entities/personnel.entity';
 import { HrService } from './hr.service';
 import { HrStatsService } from './hr-stats.service';
@@ -33,6 +38,18 @@ class PersonnelDto {
   @IsOptional() @IsArray() documents?: PersonnelDocument[];
   @IsOptional() @IsString() @MaxLength(4000) notes?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
+
+  /** وضعیتِ اشتغال و قرارداد (فاز HR). */
+  @IsOptional()
+  @IsIn(Object.values(EmploymentStatus))
+  employmentStatus?: EmploymentStatus;
+
+  @IsOptional()
+  @IsIn(Object.values(ContractType))
+  contractType?: ContractType;
+
+  @IsOptional() @IsString() @MaxLength(10) contractEndsAt?: string;
+  @IsOptional() @IsString() @MaxLength(10) terminatedAt?: string;
 }
 
 /**
