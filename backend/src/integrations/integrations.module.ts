@@ -32,6 +32,10 @@ import { AnnouncementService } from './announcement.service';
 import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { HrModule } from '../hr/hr.module';
+import { CmmsModule } from '../cmms/cmms.module';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { StaffReminderLogEntity } from '../database/entities/work-shift.entity';
+import { StaffReminderService } from './staff-reminder.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
 import { EmailReportController } from './email-report.controller';
@@ -48,6 +52,11 @@ import { EmailReportService } from './email-report.service';
     PlanModule,
     // رباتِ پرسنل (فاز F) پرونده‌ها را با موبایل وصل می‌کند.
     HrModule,
+    /*
+     * «کارهای من» در ربات و یادآوریِ روزانه از همان سرویسِ CMMS می‌آیند که
+     * پنل استفاده می‌کند، پس قاعده‌ی گذارِ وضعیت یک جا می‌ماند.
+     */
+    CmmsModule,
     // توکنِ هویتِ مینی‌اپ با همان رازِ سرور امضا می‌شود (payloadِ mode='bot').
     JwtModule.register({ secret: process.env.JWT_SECRET ?? 'change-me' }),
     /*
@@ -72,6 +81,9 @@ import { EmailReportService } from './email-report.service';
       // پر کردنِ فرم داخلِ گفتگو: وضعیتِ گفتگو + ساختارِ نسخه‌ی فرم.
       BotFormSessionEntity,
       FormVersionEntity,
+      // یادآوریِ کار و شیفت: مقصدها + دفترِ «قبلاً فرستاده شد».
+      PersonnelEntity,
+      StaffReminderLogEntity,
     ]),
   ],
   controllers: [
@@ -90,6 +102,7 @@ import { EmailReportService } from './email-report.service';
     StaffBotService,
     BotFormFillService,
     StaffNotifyService,
+    StaffReminderService,
     AnnouncementService,
     EmailReportService,
     WebhookDeliveryService,

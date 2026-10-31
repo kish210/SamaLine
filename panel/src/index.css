@@ -175,6 +175,35 @@ body {
   flex: 1;
 }
 
+/* ---- گروه‌های منو ---- */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* فاصله‌ی گروه‌ها با یک خطِ کم‌رنگ، نه با فاصله‌ی خالیِ زیاد. */
+.nav-group + .nav-group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.nav-group-title {
+  padding: 0 18px var(--space-1);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--blue-200);
+  opacity: 0.6;
+}
+
+/*
+ * در حالتِ جمع، عنوانِ گروه جا نمی‌شود و به شکلِ متنِ بریده درمی‌آمد؛ پس
+ * پنهان می‌شود و فقط خطِ جداکننده‌ی گروه می‌ماند.
+ */
+.app-shell.collapsed .sidebar:not(:hover) .nav-group-title {
+  visibility: hidden;
+}
+
 .nav-item {
   position: relative;
   display: flex;

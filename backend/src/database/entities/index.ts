@@ -21,6 +21,12 @@ import {
   StockMovementEntity,
 } from './spare-part.entity';
 import {
+  AttendanceRecordEntity,
+  ShiftAssignmentEntity,
+  ShiftTemplateEntity,
+  StaffReminderLogEntity,
+} from './work-shift.entity';
+import {
   LeaveBalanceEntity,
   LeaveRequestEntity,
 } from './leave-request.entity';
@@ -85,6 +91,10 @@ export const ALL_ENTITIES = [
   PmScheduleEntity,
   SparePartEntity,
   StockMovementEntity,
+  ShiftTemplateEntity,
+  ShiftAssignmentEntity,
+  AttendanceRecordEntity,
+  StaffReminderLogEntity,
   LeaveRequestEntity,
   LeaveBalanceEntity,
   MaintenanceRequestEntity,

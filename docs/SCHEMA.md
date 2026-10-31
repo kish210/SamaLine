@@ -208,6 +208,9 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
     hotel_rooms.
 27. `AddInventory` — spare_parts، stock_movements (انبارِ قطعات؛ موجودی فقط
     از مسیرِ دفترِ گردش عوض می‌شود).
+28. `AddShiftsAndAttendance` — shift_templates، shift_assignments،
+    attendance_records، staff_reminder_log (برنامهٔ کار، حضور، و دفترِ
+    یادآوری‌های رفته به ربات).
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

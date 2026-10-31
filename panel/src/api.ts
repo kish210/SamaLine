@@ -1547,3 +1547,131 @@ export const leavesApi = {
     entitledDays: number;
   }) => api.post('/hr/leaves/balance', body).then((r) => r.data),
 };
+
+// ── برنامهٔ کار و حضور ──────────────────────────────────────────────────
+
+/** الگوی شیفت: «صبح ۰۷:۰۰–۱۵:۰۰». */
+export interface ShiftTemplate {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  departmentId: string | null;
+  color: string;
+  isActive: boolean;
+}
+
+/** شیفتِ یک پرسنل در یک روز. */
+export interface ShiftAssignment {
+  id: string;
+  personnelId: string;
+  fullName?: string;
+  departmentId?: string | null;
+  templateId: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  label: string;
+  note: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  personnelId: string;
+  date: string;
+  status: string;
+  checkIn: string;
+  checkOut: string;
+  minutesWorked: number;
+  source: string;
+  note: string;
+}
+
+/** یک ردیفِ «امروز چه کسی کار می‌کند». */
+export interface DayBoardRow {
+  personnelId: string;
+  fullName: string;
+  position: string;
+  departmentId: string | null;
+  shifts: Array<{
+    id: string;
+    label: string;
+    startTime: string;
+    endTime: string;
+    note: string;
+  }>;
+  attendance: {
+    status: string;
+    checkIn: string;
+    checkOut: string;
+    minutesWorked: number;
+    note: string;
+  } | null;
+  onLeave: boolean;
+}
+
+export interface DayBoard {
+  date: string;
+  rows: DayBoardRow[];
+  totals: {
+    people: number;
+    scheduled: number;
+    present: number;
+    late: number;
+    absent: number;
+    onLeave: number;
+    unrecorded: number;
+  };
+}
+
+export const shiftsApi = {
+  day: (date?: string, departmentId?: string) =>
+    api
+      .get<DayBoard>('/shifts/day', {
+        params: {
+          ...(date ? { date } : {}),
+          ...(departmentId ? { departmentId } : {}),
+        },
+      })
+      .then((r) => r.data),
+
+  roster: (from: string, to: string, personnelId?: string) =>
+    api
+      .get<ShiftAssignment[]>('/shifts/roster', {
+        params: { from, to, ...(personnelId ? { personnelId } : {}) },
+      })
+      .then((r) => r.data),
+
+  templates: () =>
+    api.get<ShiftTemplate[]>('/shifts/templates').then((r) => r.data),
+
+  createTemplate: (body: Record<string, unknown>) =>
+    api.post<ShiftTemplate>('/shifts/templates', body).then((r) => r.data),
+
+  updateTemplate: (id: string, body: Record<string, unknown>) =>
+    api
+      .patch<ShiftTemplate>(`/shifts/templates/${id}`, body)
+      .then((r) => r.data),
+
+  assign: (body: Record<string, unknown>) =>
+    api.post<ShiftAssignment>('/shifts/assign', body).then((r) => r.data),
+
+  removeAssignment: (id: string) =>
+    api.delete<{ ok: boolean }>(`/shifts/assign/${id}`).then((r) => r.data),
+
+  setAttendance: (body: Record<string, unknown>) =>
+    api.post<AttendanceRecord>('/shifts/attendance', body).then((r) => r.data),
+
+  attendanceOf: (personnelId: string, from?: string, to?: string) =>
+    api
+      .get<{
+        from: string;
+        to: string;
+        rows: AttendanceRecord[];
+        byStatus: Record<string, number>;
+        minutesWorked: number;
+      }>(`/shifts/attendance/${personnelId}`, {
+        params: { ...(from ? { from } : {}), ...(to ? { to } : {}) },
+      })
+      .then((r) => r.data),
+};

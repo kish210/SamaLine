@@ -16,6 +16,10 @@ import { HrService } from '../hr/hr.service';
 import { AnnouncementService } from './announcement.service';
 import { BotFormFillService, isBotFillable } from './bot-form-fill.service';
 import { isoToJalaliText } from '../common/jalali';
+import { CmmsService } from '../cmms/cmms.service';
+import { ShiftService, shiftDate, todayIso } from '../hr/shift.service';
+import { WorkOrderStatus } from '../database/entities/work-order.entity';
+import { MaintenancePriority } from '../database/entities/maintenance-request.entity';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 
 /** عمرِ توکنِ هویتِ مینی‌اپ (ثانیه)؛ با توکنِ پاسخ‌دهنده هم‌تراز. */
@@ -44,6 +48,27 @@ const BTN_BACK = '↩️ بازگشت';
 /** پیشوندِ دکمه‌ی «این فرم را همین‌جا پر کن». */
 const BTN_FILL_PREFIX = '▶️ ';
 
+const BTN_TASKS = '🔧 کارهای من';
+const BTN_SHIFT = '🗓 شیفتِ من';
+const BTN_IN = '🟢 ثبتِ ورود';
+const BTN_OUT = '🔴 ثبتِ خروج';
+/** پیشوندهای اقدام روی یک دستورِ کار؛ شمارهٔ کار داخلِ خودِ دکمه است. */
+const BTN_START_PREFIX = '🚀 ';
+const BTN_DONE_PREFIX = '✅ ';
+
+/** برچسبِ فارسیِ وضعیتِ دستورِ کار، برای متنِ ربات. */
+const WORK_ORDER_LABELS: Record<string, string> = {
+  draft: 'بی‌متصدی',
+  assigned: 'ارجاع‌شده به شما',
+  in_progress: 'در حالِ انجام',
+  waiting_parts: 'منتظرِ قطعه',
+  waiting_contractor: 'منتظرِ پیمانکار',
+  completed: 'تکمیل‌شده، منتظرِ تأیید',
+  verified: 'تأییدشده',
+  closed: 'بسته',
+  cancelled: 'لغوشده',
+};
+
 /** کیبوردِ انتخابِ نوعِ کاربر هنگامِ شروع (برای کسی که هنوز وصل نیست). */
 const TYPE_KEYBOARD = {
   keyboard: [[{ text: BTN_STAFF }], [{ text: BTN_MANAGER }]],
@@ -53,6 +78,8 @@ const TYPE_KEYBOARD = {
 /** کیبوردِ پرسنلِ وصل‌شده. */
 const STAFF_KEYBOARD = {
   keyboard: [
+    [{ text: BTN_TASKS }, { text: BTN_SHIFT }],
+    [{ text: BTN_IN }, { text: BTN_OUT }],
     [{ text: BTN_FORMS }],
     [{ text: BTN_REQUESTS }, { text: BTN_NEWS }],
     [{ text: BTN_ME }, { text: BTN_LOGOUT }],
@@ -84,6 +111,13 @@ export class StaffBotService {
     private readonly publications: Repository<PublicationEntity>,
     private readonly jwt: JwtService,
     private readonly fill: BotFormFillService,
+    /*
+     * کارهای سپرده‌شده و برنامهٔ شیفت از همان سرویس‌هایی می‌آیند که پنل
+     * استفاده می‌کند، نه از کوئریِ موازی؛ پس قاعده‌ی گذارِ وضعیت و دامنهٔ
+     * سازمان یکی می‌ماند.
+     */
+    private readonly cmms: CmmsService,
+    private readonly shifts: ShiftService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -188,10 +222,234 @@ export class StaffBotService {
     ) {
       return this.myRequests(bot, chatId);
     }
+    if (
+      command === '/کارها' ||
+      command === '/tasks' ||
+      trimmed === BTN_TASKS
+    ) {
+      return this.myTasks(bot, chatId);
+    }
+    if (
+      command === '/شیفت' ||
+      command === '/shift' ||
+      trimmed === BTN_SHIFT
+    ) {
+      return this.myShift(bot, chatId);
+    }
+    if (trimmed === BTN_IN || command === '/ورود') {
+      return this.punch(bot, chatId, 'in');
+    }
+    if (trimmed === BTN_OUT || command === '/خروج-کار') {
+      return this.punch(bot, chatId, 'out');
+    }
+    // «🚀 WO-00012» و «✅ WO-00012» یعنی اقدام روی همان دستورِ کار.
+    if (
+      trimmed.startsWith(BTN_START_PREFIX) ||
+      trimmed.startsWith(BTN_DONE_PREFIX)
+    ) {
+      const start = trimmed.startsWith(BTN_START_PREFIX);
+      const number = trimmed
+        .slice((start ? BTN_START_PREFIX : BTN_DONE_PREFIX).length)
+        .trim();
+      return this.advanceTask(bot, chatId, number, start);
+    }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
     return null;
+  }
+
+  /**
+   * «🔧 کارهای من»: دستورِ کارهای بازِ سپرده‌شده به همین پرسنل.
+   *
+   * هر کارِ قابلِ‌اقدام دکمه‌ی خودش را می‌گیرد، پس تکنسین بدونِ باز کردنِ
+   * پنل کار را شروع یا تکمیل می‌کند. وبهوک فقط رویدادِ `message` می‌گیرد،
+   * پس اقدام با کیبوردِ پاسخ است نه دکمه‌ی شیشه‌ای.
+   */
+  private async myTasks(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+    const organizationId = await this.orgIdOf(bot);
+    if (!organizationId) return 'ربات به سازمانی وصل نیست.';
+
+    const orders = await this.cmms.workOrdersOfTechnician(
+      organizationId,
+      person.id,
+    );
+    if (orders.length === 0) {
+      return {
+        text: '✅ کارِ بازی به شما سپرده نشده است.',
+        keyboard: STAFF_KEYBOARD,
+      };
+    }
+
+    const today = todayIso();
+    const lines = ['🔧 <b>کارهای شما</b>', ''];
+    const rows: Array<Array<{ text: string }>> = [];
+
+    for (const o of orders) {
+      const late = o.dueDate && o.dueDate < today;
+      const marks = [
+        o.priority === MaintenancePriority.EMERGENCY ? '🚨 اضطراری' : '',
+        late ? '⏰ عقب‌افتاده' : '',
+      ].filter(Boolean);
+      lines.push(
+        `• <b>${o.number}</b> — ${escapeHtml(o.title)}`,
+        `  وضعیت: ${WORK_ORDER_LABELS[o.status] ?? o.status}${
+          o.dueDate ? ` · موعد: ${isoToJalaliText(o.dueDate)}` : ''
+        }${marks.length > 0 ? ` · ${marks.join(' · ')}` : ''}`,
+      );
+
+      if (o.status === WorkOrderStatus.ASSIGNED) {
+        rows.push([{ text: `${BTN_START_PREFIX}${o.number}` }]);
+      } else if (o.status === WorkOrderStatus.IN_PROGRESS) {
+        rows.push([{ text: `${BTN_DONE_PREFIX}${o.number}` }]);
+      }
+    }
+
+    lines.push('', 'دکمهٔ هر کار، آن را شروع یا تکمیل می‌کند.');
+    rows.push([{ text: BTN_BACK }]);
+    return {
+      text: lines.join('\n'),
+      keyboard: { keyboard: rows, resize_keyboard: true },
+    };
+  }
+
+  /**
+   * شروع یا تکمیلِ یک کار از داخلِ ربات.
+   *
+   * گذار از همان `CmmsService` می‌رود، پس قاعده‌ی وضعیت (و همگامیِ آمادگیِ
+   * اتاق) همان چیزی است که در پنل اعمال می‌شود. کارِ سپرده‌نشده به این
+   * پرسنل پذیرفته نمی‌شود.
+   */
+  private async advanceTask(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    number: string,
+    start: boolean,
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) return 'شما هنوز وصل نشده‌اید.';
+    const organizationId = await this.orgIdOf(bot);
+    if (!organizationId) return 'ربات به سازمانی وصل نیست.';
+
+    const mine = await this.cmms.workOrdersOfTechnician(
+      organizationId,
+      person.id,
+      { limit: 50 },
+    );
+    const order = mine.find((o) => o.number === number);
+    if (!order) {
+      return 'این کار به شما سپرده نشده یا بسته شده است. «🔧 کارهای من» را بزنید.';
+    }
+
+    try {
+      await this.cmms.changeWorkOrderStatus(
+        organizationId,
+        order.id,
+        start ? WorkOrderStatus.IN_PROGRESS : WorkOrderStatus.COMPLETED,
+        { note: 'از ربات', actorId: undefined },
+      );
+    } catch (error) {
+      const message =
+        (error as { response?: { message?: string } })?.response?.message ??
+        (error as Error).message;
+      return `❌ ${message}`;
+    }
+
+    const headline = start
+      ? `🚀 کارِ ${order.number} شروع شد.`
+      : `✅ کارِ ${order.number} تکمیل شد و برای تأییدِ مدیر رفت.`;
+    const rest = await this.myTasks(bot, chatId);
+    const restText = typeof rest === 'string' ? rest : rest.text;
+    return {
+      text: `${headline}\n\n${restText}`,
+      keyboard: typeof rest === 'string' ? STAFF_KEYBOARD : rest.keyboard,
+    };
+  }
+
+  /** «🗓 شیفتِ من»: برنامهٔ هفتهٔ پیشِ‌رو. */
+  private async myShift(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+
+    const today = todayIso();
+    const rows = await this.shifts.myShifts(
+      person.id,
+      today,
+      shiftDate(today, 6),
+    );
+    if (rows.length === 0) {
+      return {
+        text: 'برنامهٔ شیفتی برای هفتهٔ پیشِ‌رو برای شما ثبت نشده است.',
+        keyboard: STAFF_KEYBOARD,
+      };
+    }
+
+    const lines = ['🗓 <b>برنامهٔ شیفتِ شما</b>', ''];
+    for (const s of rows) {
+      const when = s.date === today ? 'امروز' : isoToJalaliText(s.date);
+      lines.push(
+        `• ${when} — ${s.startTime} تا ${s.endTime}${
+          s.label ? ` (${escapeHtml(s.label)})` : ''
+        }${s.note ? `\n  ${escapeHtml(s.note)}` : ''}`,
+      );
+    }
+    return { text: lines.join('\n'), keyboard: STAFF_KEYBOARD };
+  }
+
+  /** ثبتِ ورود/خروجِ خودِ پرسنل از ربات. */
+  private async punch(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    kind: 'in' | 'out',
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+    const organizationId = await this.orgIdOf(bot);
+    if (!organizationId) return 'ربات به سازمانی وصل نیست.';
+
+    try {
+      const record = await this.shifts.botPunch(
+        organizationId,
+        person.id,
+        kind,
+      );
+      const text =
+        kind === 'in'
+          ? [
+              `🟢 ورودِ شما ساعتِ ${record.checkIn} ثبت شد.`,
+              record.status === 'late'
+                ? '⚠️ این ورود با تأخیر ثبت شد.'
+                : '',
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : [
+              `🔴 خروجِ شما ساعتِ ${record.checkOut} ثبت شد.`,
+              `کارکردِ امروز: ${Math.floor(record.minutesWorked / 60)} ساعت و ${
+                record.minutesWorked % 60
+              } دقیقه.`,
+            ].join('\n');
+      return { text, keyboard: STAFF_KEYBOARD };
+    } catch (error) {
+      const message =
+        (error as { response?: { message?: string } })?.response?.message ??
+        (error as Error).message;
+      return { text: `❌ ${message}`, keyboard: STAFF_KEYBOARD };
+    }
   }
 
   /** متنِ منوی پرسنلِ وصل‌شده. */
@@ -201,6 +459,7 @@ export class StaffBotService {
       person.position ? `سمت: ${escapeHtml(person.position)}` : '',
       '',
       'از دکمه‌های پایین استفاده کنید یا فرمان بزنید:',
+      'کارهای من · شیفتِ من · ثبتِ ورود/خروج',
       'فرم‌ها · درخواست‌های من · اطلاعیه‌ها · پرونده‌ی من · خروج',
     ]
       .filter((l) => l !== '')

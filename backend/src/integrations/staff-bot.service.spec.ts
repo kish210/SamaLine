@@ -34,8 +34,19 @@ describe('StaffBotService', () => {
   let ds: DataSource;
   let hr: HrService;
   let service: StaffBotService;
+  /** کارها و شیفت‌هایی که استابِ CMMS/شیفت برمی‌گرداند. */
+  let tasks: Array<Record<string, unknown>>;
+  let shiftRows: Array<Record<string, unknown>>;
+  let statusCalls: Array<{ id: string; to: string }>;
+  let statusError: unknown;
+  let punchError: unknown;
 
   beforeEach(async () => {
+    tasks = [];
+    shiftRows = [];
+    statusCalls = [];
+    statusError = null;
+    punchError = null;
     ds = await createTestDataSource();
     hr = new HrService(ds.getRepository(PersonnelEntity));
     // فضای کاری همیشه به سازمانِ تست وصل است.
@@ -82,6 +93,34 @@ describe('StaffBotService', () => {
         handleMessage: async () => null,
         structureOf: async () => ({ questions: [], logic: null }),
         start: async () => ({ text: 'شروع' }),
+      } as never,
+      /*
+       * CMMS و برنامهٔ کار با استابِ قابل‌تنظیم می‌آیند.
+       *
+       * هر تست مقدارِ `tasks` و `shiftRows` را عوض می‌کند، پس مسیرِ ربات
+       * بدونِ ساختنِ کلِ دامنهٔ فنی سنجیده می‌شود، ولی تماس‌ها ثبت می‌شوند
+       * تا بشود دید ربات واقعاً چه خواسته است.
+       */
+      {
+        workOrdersOfTechnician: async () => tasks,
+        changeWorkOrderStatus: async (
+          _org: string,
+          id: string,
+          to: string,
+        ) => {
+          statusCalls.push({ id, to });
+          if (statusError) throw statusError;
+          return {};
+        },
+      } as never,
+      {
+        myShifts: async () => shiftRows,
+        botPunch: async (_org: string, _p: string, kind: 'in' | 'out') => {
+          if (punchError) throw punchError;
+          return kind === 'in'
+            ? { checkIn: '07:05', status: 'present', minutesWorked: 0 }
+            : { checkOut: '15:00', status: 'present', minutesWorked: 480 };
+        },
       } as never,
     );
   });
@@ -348,6 +387,200 @@ describe('StaffBotService', () => {
     it('برای کاربرِ وصل‌نشده راهنماییِ اتصال می‌دهد', async () => {
       const reply = await service.tryHandle(BOT, 'chat-99', '/فرم‌ها');
       expect(replyText(reply)).toContain('وصل نشده');
+    });
+  });
+
+  describe('کارهای من', () => {
+    /** پرسنلِ وصل‌شده‌ی آماده، روی سازمانِ ثابتِ ربات. */
+    const linked = async (chatId: string) => {
+      await hr.create(ORG, { fullName: 'تکنسین', mobile: '09120000100' });
+      await service.tryHandle(BOT, chatId, '09120000100');
+    };
+
+    const buttons = (reply: unknown): string[] => {
+      if (!reply || typeof reply !== 'object' || !('keyboard' in reply)) {
+        return [];
+      }
+      const rows = ((reply as { keyboard?: { keyboard?: unknown } }).keyboard
+        ?.keyboard ?? []) as Array<Array<{ text: string }>>;
+      return rows.flat().map((b) => b.text);
+    };
+
+    it('بی‌کار، پیامِ روشن می‌دهد', async () => {
+      await linked('chat-50');
+      const reply = await service.tryHandle(BOT, 'chat-50', '🔧 کارهای من');
+      expect(replyText(reply)).toContain('کارِ بازی');
+    });
+
+    it('کارِ ارجاع‌شده دکمهٔ «شروع» می‌گیرد و در حالِ انجام دکمهٔ «تکمیل»', async () => {
+      await linked('chat-51');
+      tasks = [
+        {
+          id: 'wo-1',
+          number: 'WO-00001',
+          title: 'تعمیرِ کولر',
+          status: 'assigned',
+          priority: 'normal',
+          dueDate: '',
+        },
+        {
+          id: 'wo-2',
+          number: 'WO-00002',
+          title: 'نشتیِ لوله',
+          status: 'in_progress',
+          priority: 'emergency',
+          dueDate: '2020-01-01',
+        },
+      ];
+
+      const reply = await service.tryHandle(BOT, 'chat-51', '🔧 کارهای من');
+      const text = replyText(reply);
+      expect(text).toContain('WO-00001');
+      expect(text).toContain('تعمیرِ کولر');
+      expect(text).toContain('ارجاع‌شده به شما');
+      // اضطراری و عقب‌افتاده باید دیده شوند، وگرنه اولویت گم می‌شود.
+      expect(text).toContain('اضطراری');
+      expect(text).toContain('عقب‌افتاده');
+
+      expect(buttons(reply)).toContain('🚀 WO-00001');
+      expect(buttons(reply)).toContain('✅ WO-00002');
+    });
+
+    it('«شروع» گذارِ درست را روی همان کار می‌زند', async () => {
+      await linked('chat-52');
+      tasks = [
+        {
+          id: 'wo-1',
+          number: 'WO-00001',
+          title: 'کار',
+          status: 'assigned',
+          priority: 'normal',
+          dueDate: '',
+        },
+      ];
+      const reply = await service.tryHandle(BOT, 'chat-52', '🚀 WO-00001');
+      expect(statusCalls).toEqual([{ id: 'wo-1', to: 'in_progress' }]);
+      expect(replyText(reply)).toContain('شروع شد');
+    });
+
+    it('«تکمیل» می‌گوید منتظرِ تأییدِ مدیر است', async () => {
+      await linked('chat-53');
+      tasks = [
+        {
+          id: 'wo-9',
+          number: 'WO-00009',
+          title: 'کار',
+          status: 'in_progress',
+          priority: 'normal',
+          dueDate: '',
+        },
+      ];
+      const reply = await service.tryHandle(BOT, 'chat-53', '✅ WO-00009');
+      expect(statusCalls).toEqual([{ id: 'wo-9', to: 'completed' }]);
+      // تکمیل خودش تأیید نیست؛ پیام نباید چیزِ دیگری ادعا کند.
+      expect(replyText(reply)).toContain('تأییدِ مدیر');
+    });
+
+    it('کارِ سپرده‌نشده به این پرسنل پذیرفته نمی‌شود', async () => {
+      await linked('chat-54');
+      tasks = [];
+      const reply = await service.tryHandle(BOT, 'chat-54', '🚀 WO-00404');
+      expect(replyText(reply)).toContain('سپرده نشده');
+      expect(statusCalls).toHaveLength(0);
+    });
+
+    it('خطای گذار به زبانِ کاربر برمی‌گردد', async () => {
+      await linked('chat-55');
+      tasks = [
+        {
+          id: 'wo-1',
+          number: 'WO-00001',
+          title: 'کار',
+          status: 'assigned',
+          priority: 'normal',
+          dueDate: '',
+        },
+      ];
+      statusError = { response: { message: 'گذار مجاز نیست' } };
+      const reply = await service.tryHandle(BOT, 'chat-55', '🚀 WO-00001');
+      expect(replyText(reply)).toContain('گذار مجاز نیست');
+    });
+
+    it('کاربرِ وصل‌نشده کارِ کسی را نمی‌بیند', async () => {
+      const reply = await service.tryHandle(BOT, 'chat-56', '🔧 کارهای من');
+      expect(replyText(reply)).toContain('وصل نشده');
+    });
+  });
+
+  describe('شیفت و حضور', () => {
+    const linked = async (chatId: string) => {
+      await hr.create(ORG, { fullName: 'نگهبان', mobile: '09120000200' });
+      await service.tryHandle(BOT, chatId, '09120000200');
+    };
+
+    it('بی‌برنامه، صریح می‌گوید شیفتی ثبت نشده', async () => {
+      await linked('chat-60');
+      const reply = await service.tryHandle(BOT, 'chat-60', '🗓 شیفتِ من');
+      expect(replyText(reply)).toContain('ثبت نشده');
+    });
+
+    it('شیفت‌های هفته را با ساعت می‌گوید', async () => {
+      await linked('chat-61');
+      const today = new Date().toISOString().slice(0, 10);
+      shiftRows = [
+        {
+          date: today,
+          startTime: '07:00',
+          endTime: '15:00',
+          label: 'صبح',
+          note: 'تحویلِ کلید',
+        },
+      ];
+      const text = replyText(
+        await service.tryHandle(BOT, 'chat-61', '🗓 شیفتِ من'),
+      );
+      expect(text).toContain('07:00');
+      expect(text).toContain('صبح');
+      expect(text).toContain('تحویلِ کلید');
+      // شیفتِ همین امروز «امروز» خوانده می‌شود، نه تاریخِ خام.
+      expect(text).toContain('امروز');
+    });
+
+    it('ثبتِ ورود ساعت را تأیید می‌کند', async () => {
+      await linked('chat-62');
+      const text = replyText(
+        await service.tryHandle(BOT, 'chat-62', '🟢 ثبتِ ورود'),
+      );
+      expect(text).toContain('07:05');
+      expect(text).toContain('ثبت شد');
+    });
+
+    it('ثبتِ خروج کارکرد را می‌گوید', async () => {
+      await linked('chat-63');
+      const text = replyText(
+        await service.tryHandle(BOT, 'chat-63', '🔴 ثبتِ خروج'),
+      );
+      expect(text).toContain('15:00');
+      expect(text).toContain('8 ساعت');
+    });
+
+    it('خطای ثبتِ حضور به کاربر گفته می‌شود', async () => {
+      await linked('chat-64');
+      punchError = { response: { message: 'ابتدا ورود را ثبت کنید' } };
+      const text = replyText(
+        await service.tryHandle(BOT, 'chat-64', '🔴 ثبتِ خروج'),
+      );
+      expect(text).toContain('ابتدا ورود');
+    });
+
+    it('«خروج» منو با «ثبتِ خروج» قاطی نمی‌شود', async () => {
+      await linked('chat-65');
+      // دکمهٔ خروجِ منو باید اتصال را قطع کند، نه حضور ثبت کند.
+      const text = replyText(
+        await service.tryHandle(BOT, 'chat-65', '🚪 خروج'),
+      );
+      expect(text).toContain('قطع شد');
+      expect(await hr.findByChat('chat-65', 'bale')).toBeNull();
     });
   });
 });

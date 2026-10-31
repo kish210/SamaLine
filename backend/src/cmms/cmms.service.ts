@@ -933,6 +933,54 @@ export class CmmsService {
     }));
   }
 
+  /**
+   * کارهای سپرده‌شده به یک تکنسین.
+   *
+   * پاسخِ «کارهای من» در ربات و مبنای یادآوریِ روزانه. از جدولِ تکنسین‌ها
+   * join می‌شود، نه جست‌وجو در JSON، پس ایندکس‌پذیر است.
+   *
+   * مرتب‌سازی در حافظه انجام می‌شود (فهرست کوچک است): اضطراری اول، بعد
+   * موعدِ نزدیک‌تر. ستونِ موعد رشته است و موعدِ خالی در SQL پیش از همه
+   * می‌افتاد؛ یعنی کارِ بی‌موعد بالای کارِ امروز می‌نشست.
+   */
+  async workOrdersOfTechnician(
+    organizationId: string,
+    personnelId: string,
+    opts: { includeClosed?: boolean; limit?: number } = {},
+  ) {
+    const qb = this.workOrders
+      .createQueryBuilder('w')
+      .innerJoin(WorkOrderTechnicianEntity, 't', 't.workOrderId = w.id')
+      .where('w.organizationId = :org', { org: organizationId })
+      .andWhere('t.personnelId = :p', { p: personnelId })
+      .take(Math.min(opts.limit ?? 20, 50));
+    if (!opts.includeClosed) {
+      qb.andWhere('w.status NOT IN (:...c)', {
+        c: CLOSED_WORK_ORDER_STATUSES,
+      });
+    }
+    const rows = await qb.getMany();
+
+    const rank = (o: WorkOrderEntity) =>
+      o.priority === MaintenancePriority.EMERGENCY ? 0 : 1;
+    return rows.sort((a, b) => {
+      if (rank(a) !== rank(b)) return rank(a) - rank(b);
+      // موعدِ خالی آخر می‌آید.
+      const da = a.dueDate || '9999-12-31';
+      const db = b.dueDate || '9999-12-31';
+      return da.localeCompare(db);
+    });
+  }
+
+  /** یک دستورِ کار با شماره‌ی خوانا؛ ربات با همین شماره کار می‌کند. */
+  async workOrderByNumber(organizationId: string, number: string) {
+    const row = await this.workOrders.findOne({
+      where: { organizationId, number },
+    });
+    if (!row) throw new NotFoundException('دستورِ کار یافت نشد');
+    return row;
+  }
+
   /** آخرین رویدادهای بخشِ فنی برای ستونِ «فعالیتِ اخیر». */
   async recentActivity(organizationId: string, departmentId?: string) {
     const reqQb = this.requests

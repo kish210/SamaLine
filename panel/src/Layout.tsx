@@ -16,24 +16,66 @@ const SIDEBAR_KEY = "samaline.sidebar.collapsed";
  * سایدبار پیش‌فرض باز است (۲۲۰px) و در نمایشگر باریک جمع می‌شود؛ آنجا
  * فقط آیکون دیده می‌شود، پس هر آیتم آیکون اختصاصی دارد.
  */
-const NAV = [
-  { to: "/overview", label: "داشبوردِ مدیریت", icon: "overview" },
-  { to: "/forms", label: "فرم‌ها", icon: "forms" },
-  { to: "/dashboards", label: "داشبوردها", icon: "dashboards" },
-  { to: "/portals", label: "پرتال", icon: "portal" },
-  { to: "/menus", label: "منوی QR", icon: "menu" },
-  { to: "/contacts", label: "مخاطبان", icon: "contacts" },
-  { to: "/sources", label: "اتصال به CRM", icon: "crm" },
-  { to: "/campaigns", label: "ارسال گروهی", icon: "campaigns" },
-  { to: "/ai", label: "هوش مصنوعی", icon: "ai" },
-  { to: "/units", label: "واحدهای هتل", icon: "units" },
-  { to: "/rooms", label: "اتاق‌های هتل", icon: "rooms" },
-  { to: "/operations", label: "عملیاتِ فنی", icon: "rooms" },
-  { to: "/personnel", label: "پرسنل", icon: "personnel" },
-  { to: "/leaves", label: "مرخصی", icon: "personnel" },
-  { to: "/approvals", label: "کارتابلِ تأیید", icon: "approvals" },
-  { to: "/audit", label: "لاگِ ممیزی", icon: "approvals" },
-  { to: "/settings", label: "تنظیمات", icon: "settings" },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: string;
+}
+
+/**
+ * منو در گروه‌های کاری.
+ *
+ * پیش از این هفده آیتم در یک فهرستِ صاف بود و «مرخصی» لایِ آیتم‌های
+ * نامرتبط گم می‌شد؛ کسی که سرِ کارِ منابع انسانی است نمی‌دانست باید کجا را
+ * نگاه کند. گروه‌بندی همان آیتم‌ها را با عنوانِ کاری از هم جدا می‌کند.
+ */
+const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
+  {
+    title: "",
+    items: [{ to: "/overview", label: "داشبوردِ مدیریت", icon: "overview" }],
+  },
+  {
+    title: "نظرسنجی و فرم",
+    items: [
+      { to: "/forms", label: "فرم‌ها", icon: "forms" },
+      { to: "/dashboards", label: "داشبوردها", icon: "dashboards" },
+      { to: "/portals", label: "پرتال", icon: "portal" },
+      { to: "/menus", label: "منوی QR", icon: "menu" },
+      { to: "/approvals", label: "کارتابلِ تأیید", icon: "approvals" },
+    ],
+  },
+  {
+    title: "منابع انسانی",
+    items: [
+      { to: "/workforce", label: "میزِ کارِ پرسنل", icon: "personnel" },
+      { to: "/personnel", label: "پرونده‌ها", icon: "personnel" },
+      { to: "/leaves", label: "مرخصی", icon: "approvals" },
+    ],
+  },
+  {
+    title: "عملیاتِ هتل",
+    items: [
+      { to: "/operations", label: "عملیاتِ فنی", icon: "rooms" },
+      { to: "/rooms", label: "اتاق‌ها", icon: "rooms" },
+      { to: "/units", label: "واحدها", icon: "units" },
+    ],
+  },
+  {
+    title: "مخاطبان و ارسال",
+    items: [
+      { to: "/contacts", label: "مخاطبان", icon: "contacts" },
+      { to: "/campaigns", label: "ارسال گروهی", icon: "campaigns" },
+      { to: "/sources", label: "اتصال به CRM", icon: "crm" },
+      { to: "/ai", label: "هوش مصنوعی", icon: "ai" },
+    ],
+  },
+  {
+    title: "سامانه",
+    items: [
+      { to: "/settings", label: "تنظیمات", icon: "settings" },
+      { to: "/audit", label: "لاگِ ممیزی", icon: "approvals" },
+    ],
+  },
 ];
 
 /** آیتم ویژه‌ی سوپرادمین؛ فقط برای مدیر کل سامانه. */
@@ -151,7 +193,9 @@ export function Layout() {
   const menuOpen = narrow ? drawerOpen : !collapsed;
 
   const isSuperAdmin = platform.data?.isSuperAdmin === true;
-  const items = isSuperAdmin ? [...NAV, PLATFORM_NAV] : NAV;
+  const groups = isSuperAdmin
+    ? [...NAV_GROUPS, { title: "", items: [PLATFORM_NAV] }]
+    : NAV_GROUPS;
 
   return (
     <div
@@ -220,30 +264,39 @@ export function Layout() {
 
       <aside className="sidebar">
         <nav>
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              title={item.label}
-              className={({ isActive }) =>
-                [
-                  "nav-item",
-                  isActive ? "active" : "",
-                  // بخش سوپرادمین با یک خط از منوی عادی جدا می‌شود.
-                  item.to === PLATFORM_NAV.to ? "platform-item" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-            >
-              <span className="nav-icon">
-                <NavIcon name={item.icon} />
-              </span>
-              <span className="nav-label">{item.label}</span>
-              {item.to === "/approvals" && pendingBadge > 0 && (
-                <span className="nav-badge">{pendingBadge}</span>
+          {groups.map((group, index) => (
+            <div className="nav-group" key={group.title || `group-${index}`}>
+              {group.title && (
+                <div className="nav-group-title" aria-hidden="true">
+                  {group.title}
+                </div>
               )}
-            </NavLink>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  title={item.label}
+                  className={({ isActive }) =>
+                    [
+                      "nav-item",
+                      isActive ? "active" : "",
+                      // بخش سوپرادمین با یک خط از منوی عادی جدا می‌شود.
+                      item.to === PLATFORM_NAV.to ? "platform-item" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
+                  }
+                >
+                  <span className="nav-icon">
+                    <NavIcon name={item.icon} />
+                  </span>
+                  <span className="nav-label">{item.label}</span>
+                  {item.to === "/approvals" && pendingBadge > 0 && (
+                    <span className="nav-badge">{pendingBadge}</span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>
