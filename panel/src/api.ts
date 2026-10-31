@@ -1392,3 +1392,89 @@ export const cmmsApi = {
       .patch<WorkOrder>(`/cmms/work-orders/${id}/status`, { status, note })
       .then((r) => r.data),
 };
+
+// ── مرخصی و ماندهٔ آن (HR) ──────────────────────────────────────────────
+
+export interface LeaveRequest {
+  id: string;
+  number: string;
+  personnelId: string;
+  /** نامِ پرسنل؛ سرور آن را به ردیف می‌چسباند. */
+  personnelName?: string;
+  employeeNo?: string;
+  departmentId: string | null;
+  type: string;
+  fromDate: string;
+  toDate: string;
+  days: number;
+  reason: string;
+  status: string;
+  decisionNote: string;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+export interface LeaveBalanceRow {
+  type: string;
+  entitled: number;
+  used: number;
+  remaining: number;
+}
+
+export interface HrBucket {
+  key: string;
+  label: string;
+  count: number;
+  kind: 'leave' | 'personnel';
+  filter: Record<string, unknown>;
+  tone: 'info' | 'warn' | 'danger';
+}
+
+export interface HrSummary {
+  buckets: HrBucket[];
+  headcount: number;
+  terminated: number;
+  generatedAt: string;
+}
+
+export const leavesApi = {
+  summary: () => api.get<HrSummary>('/hr/leaves/summary').then((r) => r.data),
+
+  list: (query: Record<string, unknown> = {}) =>
+    api
+      .get<{
+        rows: LeaveRequest[];
+        total: number;
+        page: number;
+        pageSize: number;
+      }>('/hr/leaves', { params: query })
+      .then((r) => r.data),
+
+  create: (body: {
+    personnelId: string;
+    type?: string;
+    fromDate: string;
+    toDate: string;
+    reason?: string;
+    days?: number;
+  }) => api.post<LeaveRequest>('/hr/leaves', body).then((r) => r.data),
+
+  decide: (id: string, status: string, note?: string) =>
+    api
+      .patch<LeaveRequest>(`/hr/leaves/${id}/decision`, { status, note })
+      .then((r) => r.data),
+
+  balance: (personnelId: string, year: number) =>
+    api
+      .get<LeaveBalanceRow[]>(`/hr/leaves/balance/${personnelId}`, {
+        params: { year },
+      })
+      .then((r) => r.data),
+
+  setBalance: (body: {
+    personnelId: string;
+    year: number;
+    type?: string;
+    entitledDays: number;
+  }) => api.post('/hr/leaves/balance', body).then((r) => r.data),
+};
