@@ -170,7 +170,7 @@ describe('آمادگیِ اتاق', () => {
       number: '203',
       floor: 2,
     });
-    return (saved as { id: string }).id;
+    return (saved as unknown as { id: string }).id;
   };
 
   beforeEach(async () => {

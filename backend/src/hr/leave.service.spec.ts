@@ -33,7 +33,7 @@ describe('LeaveService', () => {
     fullName = 'علی رضایی',
   ): Promise<string> => {
     const saved = await people.save({ organizationId, fullName, mobile: '' });
-    return (saved as { id: string }).id;
+    return (saved as unknown as { id: string }).id;
   };
 
   beforeEach(async () => {

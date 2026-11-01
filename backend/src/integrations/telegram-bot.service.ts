@@ -201,13 +201,25 @@ export class TelegramBotService {
         // پاسخ یا فقط متن است یا متن + کیبورد (reply_markup).
         const asText = typeof reply === 'string' ? reply : reply.text;
         const keyboard = typeof reply === 'string' ? undefined : reply.keyboard;
-        await this.api.send(
+        const result = await this.api.send(
           bot.botToken,
           chatId,
           asText,
           platformApiBase(bot.platform),
           keyboard,
         );
+        /*
+         * شکستِ ارسال باید دیده شود.
+         *
+         * پیش از این نتیجه نادیده گرفته می‌شد، پس اگر پیام‌رسان پیام را رد
+         * می‌کرد (پیامِ خیلی بلند، کیبوردِ نامعتبر، توکنِ باطل) کاربر سکوت
+         * می‌دید و هیچ نشانی هم در لاگ نبود.
+         */
+        if (!result.ok) {
+          this.logger.warn(
+            `ارسالِ پاسخ به گفتگوی ${chatId} ناموفق بود: ${result.error}`,
+          );
+        }
       }
     } catch (error) {
       this.logger.warn(
@@ -287,6 +299,14 @@ export class TelegramBotService {
         if (/^[A-Za-z0-9]{6,16}$/.test(text)) {
           return this.link(bot, chatId, text, chat);
         }
+        /*
+         * کارمندِ وصل‌شده منوی خودش را می‌گیرد، نه راهنمای مدیریت.
+         *
+         * راهنمای مدیریت برای او بی‌معنا بود و امکاناتِ مدیریتی را هم
+         * بی‌دلیل نشان می‌داد.
+         */
+        const staffMenu = await this.staffBot.menuIfLinked(bot, chatId);
+        if (staffMenu) return staffMenu;
         return this.help(bot);
     }
   }

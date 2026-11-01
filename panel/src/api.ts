@@ -1597,7 +1597,131 @@ export const meApi = {
     api
       .delete<{ unlinked: boolean }>(`/me/bot-links/${platform}`)
       .then((r) => r.data),
+
+  desk: () => api.get<MyDesk>('/me/desk').then((r) => r.data),
+
+  /** ثبتِ مرخصیِ خودم؛ پرونده از توکن می‌آید، نه از بدنه. */
+  requestLeave: (body: Record<string, unknown>) =>
+    api.post('/me/leaves', body).then((r) => r.data),
 };
+
+// ── میزِ کارِ شخصی ──────────────────────────────────────────────────────
+
+export interface MyAttentionItem {
+  key: string;
+  text: string;
+  count: number;
+  tone: 'info' | 'warn' | 'danger';
+  href: string;
+}
+
+export interface MyDesk {
+  linked: boolean;
+  /** وقتی وصل نیست: دلیلِ روشن به‌جای عددهای صفر. */
+  reason?: string;
+  generatedAt: string;
+  date?: string;
+  me?: {
+    personnelId: string;
+    fullName: string;
+    position: string;
+    departmentId: string | null;
+  };
+  attention?: MyAttentionItem[];
+  tasks?: {
+    open: number;
+    toStart: number;
+    inProgress: number;
+    overdue: number;
+    rows: Array<{
+      id: string;
+      number: string;
+      title: string;
+      status: string;
+      priority: string;
+      dueDate: string;
+      isOverdue: boolean;
+    }>;
+  };
+  requests?: {
+    total: number;
+    rows: Array<{
+      id: string;
+      number: string;
+      title: string;
+      status: string;
+      priority: string;
+      createdAt: string;
+    }>;
+  };
+  leaves?: {
+    pending: number;
+    rows: Array<{
+      id: string;
+      number: string;
+      type: string;
+      status: string;
+      fromDate: string;
+      toDate: string;
+      days: number;
+    }>;
+    balance: Array<{
+      type: string;
+      entitledDays: number;
+      usedDays: number;
+      remainingDays: number;
+    }>;
+  };
+  shifts?: {
+    today: Array<{
+      id: string;
+      label: string;
+      startTime: string;
+      endTime: string;
+      note: string;
+    }>;
+    week: Array<{
+      id: string;
+      date: string;
+      label: string;
+      startTime: string;
+      endTime: string;
+    }>;
+  };
+  attendance?: {
+    today: {
+      status: string;
+      checkIn: string;
+      checkOut: string;
+      minutesWorked: number;
+    } | null;
+    month: {
+      from: string;
+      to: string;
+      byStatus: Record<string, number>;
+      minutesWorked: number;
+    };
+  };
+  letters?: {
+    unread: number;
+    rows: Array<{
+      id: string;
+      number: string;
+      subject: string;
+      senderName: string;
+      priority: string;
+      isUnread: boolean;
+      createdAt: string;
+    }>;
+  };
+  announcements?: Array<{
+    id: string;
+    title: string;
+    body: string;
+    createdAt: string;
+  }>;
+  degraded?: string[];
+}
 
 // ── نامهٔ داخلی ─────────────────────────────────────────────────────────
 

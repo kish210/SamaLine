@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { describeError, lettersApi, meApi, type BotLinkCode } from '../api';
 import { LettersPanel } from './me/LettersPanel';
+import { DeskSections } from './me/DeskSections';
 
 /** نامِ فارسیِ هر پیام‌رسان. */
 const PLATFORM_LABELS: Record<string, string> = {
@@ -26,6 +27,19 @@ export function MyDeskPage() {
   const [code, setCode] = useState<BotLinkCode | null>(null);
 
   const profile = useQuery({ queryKey: ['me-profile'], queryFn: meApi.profile });
+
+  /*
+   * میزِ کار جدا از پروفایل خوانده می‌شود.
+   *
+   * داده‌ی عملیاتی زود کهنه می‌شود (کارِ تازه، نامهٔ تازه)، پس با برگشتن
+   * به صفحه تازه می‌شود؛ ولی پروفایل و اتصالِ پیام‌رسان به‌ندرت عوض
+   * می‌شوند و نیازی به این تازه‌سازی ندارند.
+   */
+  const desk = useQuery({
+    queryKey: ['my-desk'],
+    queryFn: meApi.desk,
+    refetchOnWindowFocus: true,
+  });
 
   /*
    * شمارِ نخوانده‌ها جدا خوانده می‌شود.
@@ -216,6 +230,8 @@ export function MyDeskPage() {
               </>
             )}
           </section>
+
+          {desk.data?.linked && <DeskSections desk={desk.data} />}
 
           {data.linked && <LettersPanel />}
         </>

@@ -53,6 +53,8 @@ function harness(options: {
   recipients?: Array<Partial<TelegramRecipientEntity>>;
   /** `null` یعنی پروندهٔ پرسنلی فعال نیست و اتصال باید رد شود. */
   personnel?: { id: string; fullName: string } | null;
+  /** منوی پرسنل، برای آزمونِ «کارمندِ وصل‌شده راهنمای مدیریت نمی‌گیرد». */
+  staffMenu?: { text: string } | null;
 }): Harness {
   const sent: Harness['sent'] = [];
   const saved: Harness['saved'] = [];
@@ -121,7 +123,11 @@ function harness(options: {
       },
     } as never,
     // رباتِ پرسنل این تست‌ها را نمی‌گیرد؛ null یعنی ادامه با رباتِ مدیریتی.
-    { tryHandle: async () => null } as never,
+    {
+      tryHandle: async () => null,
+      // پیش‌فرض: این گفتگو به پرسنلی وصل نیست، پس راهنمای مدیریت می‌آید.
+      menuIfLinked: async () => options.staffMenu ?? null,
+    } as never,
     /*
      * سرویسِ HR: فقط برای کدِ اتصالِ پرسنلی صدا زده می‌شود. تماس‌ها ثبت
      * می‌شوند تا بشود دید ربات واقعاً گفتگو را به کدام پرونده وصل کرده.
@@ -402,5 +408,27 @@ describe('کدِ اتصالِ پرسنلی', () => {
     expect(h.sent[0].text).toContain('فعال نیست');
     // کد سوخته نمی‌شود، تا بعد از فعال شدنِ پرونده همان کد کار کند.
     expect(h.codeUpdates).toHaveLength(0);
+  });
+});
+describe('پیامِ ناشناخته', () => {
+  it('کارمندِ وصل‌شده منوی خودش را می‌گیرد، نه راهنمای مدیریت', async () => {
+    const h = harness({
+      code: null,
+      recipients: [],
+      staffMenu: { text: 'این پیام را نشناختم. منوی پرسنل' },
+    });
+    await h.service.handleUpdate('hook-abc', message('یک چیزِ نامربوط'));
+
+    expect(h.sent[0].text).toContain('نشناختم');
+    // راهنمای مدیریت نباید به کارمند نشان داده شود.
+    expect(h.sent[0].text).not.toContain('کدِ اتصال');
+  });
+
+  it('گفتگوی وصل‌نشده همان راهنمای مدیریت را می‌گیرد', async () => {
+    const h = harness({ code: null, recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('یک چیزِ نامربوط'));
+    // رفتارِ قبلی برای مدیران دست‌نخورده می‌ماند.
+    expect(h.sent).toHaveLength(1);
+    expect(h.sent[0].text.length).toBeGreaterThan(0);
   });
 });

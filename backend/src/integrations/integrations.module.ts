@@ -117,6 +117,8 @@ import { EmailReportService } from './email-report.service';
     StaffNotifyService,
     // «داشبورد من» کدِ اتصالِ پیام‌رسان را از همین سرویس می‌گیرد.
     TelegramBotService,
+    // میزِ کارِ شخصی اطلاعیه‌های بخشِ خودِ کاربر را نشان می‌دهد.
+    AnnouncementService,
   ],
 })
 export class IntegrationsModule {}

@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -6,9 +7,35 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { LeaveType } from '../database/entities/leave-request.entity';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { MeService } from './me.service';
+import { DeskService } from './desk.service';
+
+/**
+ * درخواستِ مرخصیِ خودسرویس.
+ *
+ * عمداً `personnelId` ندارد: هر چه کلاینت بفرستد نادیده گرفته می‌شود و
+ * پرونده از توکن می‌آید، پس کسی نمی‌تواند به نامِ همکارش مرخصی ثبت کند.
+ */
+class MyLeaveDto {
+  @IsNotEmpty() @IsString() @MaxLength(10) fromDate: string;
+  @IsNotEmpty() @IsString() @MaxLength(10) toDate: string;
+
+  @IsOptional() @IsIn(Object.values(LeaveType)) type?: LeaveType;
+  @IsOptional() @IsString() @MaxLength(500) reason?: string;
+  @IsOptional() @IsInt() @Min(1) days?: number;
+}
 
 /**
  * APIهای «خودم».
@@ -21,7 +48,28 @@ import { MeService } from './me.service';
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class MeController {
-  constructor(private readonly me: MeService) {}
+  constructor(
+    private readonly me: MeService,
+    private readonly desk: DeskService,
+  ) {}
+
+  /** میزِ کارِ شخصی: کارها، درخواست‌ها، مرخصی، شیفت، حضور، نامه، اطلاعیه. */
+  @Get('desk')
+  deskOf(@CurrentUser() user: JwtUser) {
+    return this.desk.desk(user.organizationId, user.sub);
+  }
+
+  /**
+   * ثبتِ مرخصیِ خودم.
+   *
+   * مسیرِ مدیریتیِ `POST /hr/leaves` دست‌نخورده می‌ماند (HR به‌نامِ دیگران
+   * ثبت می‌کند)؛ این یکی فقط برای خودِ کاربر است و پرونده را از توکن
+   * می‌گیرد.
+   */
+  @Post('leaves')
+  requestLeave(@CurrentUser() user: JwtUser, @Body() dto: MyLeaveDto) {
+    return this.me.requestLeave(user.organizationId, user.sub, dto);
+  }
 
   @Get('profile')
   profile(@CurrentUser() user: JwtUser) {

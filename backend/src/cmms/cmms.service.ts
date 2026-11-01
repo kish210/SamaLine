@@ -153,6 +153,8 @@ export interface ListQuery {
   to?: string;
   /** فقط کارهای عقب‌افتاده: موعد گذشته و هنوز بسته نشده. */
   overdue?: boolean | string;
+  /** فقط درخواست‌هایی که همین کاربر ثبت کرده («درخواست‌های من»). */
+  requestedByUserId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -289,6 +291,11 @@ export class CmmsService {
       .where('r.organizationId = :org', { org: organizationId });
     this.applyCommonFilters(qb, 'r', query);
     if (query.assetId) qb.andWhere('r.assetId = :a', { a: query.assetId });
+    if (query.requestedByUserId) {
+      qb.andWhere('r.requestedByUserId = :by', {
+        by: query.requestedByUserId,
+      });
+    }
     if (query.search) {
       const like = `%${query.search}%`;
       qb.andWhere(

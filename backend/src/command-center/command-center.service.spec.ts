@@ -175,7 +175,7 @@ describe('CommandCenterService', () => {
     const person = await hr.create(ORG, { fullName: 'متقاضی' });
     await leaves.create(ORG, {
       personnelId: person.id,
-      type: LeaveType.PAID,
+      type: LeaveType.ANNUAL,
       fromDate: '2026-04-01',
       toDate: '2026-04-02',
     });

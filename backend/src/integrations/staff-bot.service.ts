@@ -452,6 +452,25 @@ export class StaffBotService {
     }
   }
 
+  /**
+   * منوی پرسنل، اگر این گفتگو به پرونده‌ای وصل باشد؛ وگرنه `null`.
+   *
+   * پاسخِ پیامِ ناشناختهٔ یک کارمند است. پیش از این، چنین پیامی به
+   * «راهنمای مدیریت» می‌رسید: هم برای کارمند بی‌معنا بود و هم امکاناتِ
+   * مدیریتی را جلوی کسی می‌گذاشت که به آن‌ها کاری ندارد.
+   */
+  async menuIfLinked(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<BotReply | null> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) return null;
+    return {
+      text: ['این پیام را نشناختم.', '', this.menuText(person)].join('\n'),
+      keyboard: STAFF_KEYBOARD,
+    };
+  }
+
   /** متنِ منوی پرسنلِ وصل‌شده. */
   private menuText(person: { fullName: string; position?: string | null }): string {
     return [

@@ -446,7 +446,7 @@ describe('ShiftService', () => {
       // مرخصیِ تأییدشده.
       const req = await leave.create(ORG, {
         personnelId: resting.id,
-        type: LeaveType.PAID,
+        type: LeaveType.ANNUAL,
         fromDate: DATE,
         toDate: DATE,
         reason: 'کارِ شخصی',
@@ -486,7 +486,7 @@ describe('ShiftService', () => {
       });
       const req = await leave.create(ORG, {
         personnelId: person.id,
-        type: LeaveType.PAID,
+        type: LeaveType.ANNUAL,
         fromDate: DATE,
         toDate: DATE,
       });
@@ -501,7 +501,7 @@ describe('ShiftService', () => {
       const person = await addPerson('منتظرِ تأیید');
       await leave.create(ORG, {
         personnelId: person.id,
-        type: LeaveType.PAID,
+        type: LeaveType.ANNUAL,
         fromDate: DATE,
         toDate: DATE,
       });

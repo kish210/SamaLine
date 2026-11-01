@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { HrService } from '../hr/hr.service';
+import { LeaveService } from '../hr/leave.service';
+import type { LeaveType } from '../database/entities/leave-request.entity';
 import { TelegramBotService } from '../integrations/telegram-bot.service';
 
 /** پیام‌رسان‌هایی که همین حالا پشتیبانی می‌شوند. */
@@ -25,7 +27,35 @@ export class MeService {
     private readonly workspaces: Repository<WorkspaceEntity>,
     @InjectRepository(TelegramIntegrationEntity)
     private readonly bots: Repository<TelegramIntegrationEntity>,
+    private readonly leaves: LeaveService,
   ) {}
+
+  /**
+   * ثبتِ مرخصی برای خودِ کاربر.
+   *
+   * `personnelId` از پروندهٔ متصلِ همین کاربر می‌آید و هر مقداری که کلاینت
+   * بفرستد بی‌اثر است؛ پس کسی نمی‌تواند به نامِ همکارش مرخصی ثبت کند.
+   * قاعده‌های مرخصی (هم‌پوشانی، شمارشِ روز، گردشِ تأیید) همان قاعده‌های
+   * `LeaveService` است، چون همان سرویس صدا زده می‌شود.
+   */
+  async requestLeave(
+    organizationId: string,
+    userId: string,
+    input: {
+      fromDate: string;
+      toDate: string;
+      type?: LeaveType;
+      reason?: string;
+      days?: number;
+    },
+  ) {
+    const person = await this.requirePersonnel(organizationId, userId);
+    return this.leaves.create(
+      organizationId,
+      { ...input, personnelId: person.id },
+      userId,
+    );
+  }
 
   /**
    * پروندهٔ پرسنلیِ همین کاربر، یا `null`.
