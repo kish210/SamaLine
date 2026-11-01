@@ -50,6 +50,7 @@ export interface PersonnelDocument {
 @Index('IDX_personnel_org', ['organizationId'])
 @Index('IDX_personnel_mobile', ['organizationId', 'mobile'])
 @Index('IDX_personnel_chat', ['botPlatform', 'botChatId'])
+@Index('IDX_personnel_user', ['organizationId', 'userId'], { unique: true })
 export class PersonnelEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -87,13 +88,27 @@ export class PersonnelEntity {
   notes: string;
 
   /**
-   * شناسه‌ی گفتگوی رباتِ پرسنل (بله/تلگرام) پس از اتصال با موبایل — فاز F.
-   * خالی یعنی هنوز به ربات وصل نشده.
+   * حسابِ ورودِ پنلی که همین پرسنل است.
+   *
+   * بدونِ این ستون نمی‌شد از «کاربرِ واردشده» به «کارهای او» رسید: دستورِ
+   * کار و شیفت و مرخصی به `personnelId` بسته‌اند، نه به حسابِ کاربری. این
+   * اتصال را HR می‌زند (نه خودِ کاربر)، وگرنه هر کسی می‌توانست خودش را به
+   * پروندهٔ دیگری بچسباند و شیفت و نامه‌های او را ببیند.
+   */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  userId: string | null;
+
+  /**
+   * @deprecated جایش `personnel_bot_links` است.
+   *
+   * این سه ستون فقط یک پیام‌رسان به‌ازای هر نفر را نگه می‌داشتند، پس کسی که
+   * هم بله دارد هم تلگرام باید یکی را فدا می‌کرد. برای سازگاریِ نصب‌های
+   * موجود نگه داشته شده‌اند و دیگر خوانده نمی‌شوند.
    */
   @Column({ type: 'varchar', length: 40, nullable: true })
   botChatId: string | null;
 
-  /** پیام‌رسانِ گفتگوی متصل: 'bale' یا 'telegram'. */
+  /** @deprecated — جایش `personnel_bot_links.platform` است. */
   @Column({ type: 'varchar', length: 16, default: '' })
   botPlatform: string;
 

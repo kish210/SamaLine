@@ -7,6 +7,7 @@ import { FormEntity, FormStatus } from '../database/entities/form.entity';
 import { FormVersionEntity } from '../database/entities/form-version.entity';
 import { OrganizationEntity } from '../database/entities/organization.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import {
   PublicationEntity,
   PublicationType,
@@ -62,7 +63,10 @@ describe('HrStatsService', () => {
 
   beforeEach(async () => {
     ds = await createTestDataSource();
-    hr = new HrService(ds.getRepository(PersonnelEntity));
+    hr = new HrService(
+      ds.getRepository(PersonnelEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
+    );
     stats = new HrStatsService(
       ds.getRepository(PersonnelEntity),
       ds.getRepository(ResponseEntity),

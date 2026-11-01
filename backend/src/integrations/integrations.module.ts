@@ -35,6 +35,7 @@ import { HrModule } from '../hr/hr.module';
 import { CmmsModule } from '../cmms/cmms.module';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { StaffReminderLogEntity } from '../database/entities/work-shift.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { StaffReminderService } from './staff-reminder.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WebhookDeliveryService } from './webhook-delivery.service';
@@ -84,6 +85,8 @@ import { EmailReportService } from './email-report.service';
       // یادآوریِ کار و شیفت: مقصدها + دفترِ «قبلاً فرستاده شد».
       PersonnelEntity,
       StaffReminderLogEntity,
+      // یادآوری به همهٔ سکوهای وصل‌شدهٔ یک نفر می‌رود.
+      PersonnelBotLinkEntity,
     ]),
   ],
   controllers: [
@@ -108,6 +111,12 @@ import { EmailReportService } from './email-report.service';
     WebhookDeliveryService,
   ],
   // مسیر ثبت پاسخ عمومی هم به این سرویس نیاز دارد.
-  exports: [TelegramService, WebhookDeliveryService, StaffNotifyService],
+  exports: [
+    TelegramService,
+    WebhookDeliveryService,
+    StaffNotifyService,
+    // «داشبورد من» کدِ اتصالِ پیام‌رسان را از همین سرویس می‌گیرد.
+    TelegramBotService,
+  ],
 })
 export class IntegrationsModule {}

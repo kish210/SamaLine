@@ -270,8 +270,13 @@ export interface Personnel {
   documents: PersonnelDocument[];
   notes: string;
   isActive: boolean;
-  /** گفتگوی رباتِ پرسنل پس از اتصال با موبایل (فاز F)؛ خالی یعنی وصل‌نشده. */
+  /** حسابِ ورودِ پنلی که همین پرسنل است؛ null یعنی وصل‌نشده. */
+  userId: string | null;
+  /** سکوهای پیام‌رسانِ وصل‌شده؛ از `personnel_bot_links` می‌آید. */
+  botPlatforms?: string[];
+  /** @deprecated اتصال به `personnel_bot_links` منتقل شد. */
   botChatId: string | null;
+  /** @deprecated اتصال به `personnel_bot_links` منتقل شد. */
   botPlatform: string;
 }
 
@@ -287,6 +292,12 @@ export const hrApi = {
 
   remove: (id: string) =>
     api.delete<{ ok: boolean }>(`/hr/personnel/${id}`).then((r) => r.data),
+
+  /** اتصال/قطعِ حسابِ ورودِ پنل به پروندهٔ پرسنل (کارِ منابع انسانی). */
+  setUserLink: (id: string, userId: string | null) =>
+    api
+      .patch<Personnel>(`/hr/personnel/${id}/user-link`, { userId })
+      .then((r) => r.data),
 
   /** اطلاعیهٔ سازمانی به رباتِ پرسنلِ وصل‌شده (فاز F). */
   announce: (body: { title: string; body: string; departmentId?: string | null }) =>
@@ -1546,6 +1557,46 @@ export const leavesApi = {
     type?: string;
     entitledDays: number;
   }) => api.post('/hr/leaves/balance', body).then((r) => r.data),
+};
+
+// ── «خودم»: پروندهٔ متصل و پیام‌رسان‌ها ─────────────────────────────────
+
+export interface MyProfile {
+  linked: boolean;
+  personnel: {
+    id: string;
+    fullName: string;
+    position: string;
+    departmentId: string | null;
+    employeeNo: string;
+    mobile: string;
+    employmentStatus: string;
+  } | null;
+  botLinks: Array<{ platform: string; linkedAt: string }>;
+  /** سکوهایی که همین حالا پشتیبانی می‌شوند. */
+  platforms: string[];
+}
+
+export interface BotLinkCode {
+  code: string;
+  expiresAt: string;
+  expiresInMinutes: number;
+  botUsername: string | null;
+  platform: string | null;
+  /** لینکِ آماده؛ اگر نامِ کاربریِ ربات معلوم نباشد null است. */
+  deepLink: string | null;
+}
+
+export const meApi = {
+  profile: () => api.get<MyProfile>('/me/profile').then((r) => r.data),
+
+  createBotLinkCode: () =>
+    api.post<BotLinkCode>('/me/bot-links/code').then((r) => r.data),
+
+  removeBotLink: (platform: string) =>
+    api
+      .delete<{ unlinked: boolean }>(`/me/bot-links/${platform}`)
+      .then((r) => r.data),
 };
 
 // ── میزِ فرماندهیِ مدیریت ───────────────────────────────────────────────

@@ -13,6 +13,7 @@ import {
 } from '../database/entities/work-order.entity';
 import { MaintenancePriority } from '../database/entities/maintenance-request.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import {
   HotelRoomEntity,
   RoomReadiness,
@@ -94,7 +95,10 @@ describe('CommandCenterService', () => {
       ds.getRepository(LeaveBalanceEntity),
       ds.getRepository(PersonnelEntity),
     );
-    hr = new HrService(ds.getRepository(PersonnelEntity));
+    hr = new HrService(
+      ds.getRepository(PersonnelEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
+    );
 
     desk = new CommandCenterService(cmms, inventory, shifts, leaves, rooms);
   });

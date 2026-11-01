@@ -13,6 +13,7 @@ import {
   StaffReminderLogEntity,
 } from '../database/entities/work-shift.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { MaintenancePriority } from '../database/entities/maintenance-request.entity';
 import { CmmsService } from '../cmms/cmms.service';
 import { ShiftService, shiftDate, todayIso } from '../hr/shift.service';
@@ -56,6 +57,8 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
     private readonly bots: Repository<TelegramIntegrationEntity>,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaces: Repository<WorkspaceEntity>,
+    @InjectRepository(PersonnelBotLinkEntity)
+    private readonly botLinks: Repository<PersonnelBotLinkEntity>,
     private readonly shifts: ShiftService,
     private readonly cmms: CmmsService,
     private readonly api: TelegramApi,
@@ -108,11 +111,19 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
     const forDate =
       kind === StaffReminderKind.SHIFT ? shiftDate(today, 1) : today;
 
+    /*
+     * پرسنلِ فعالی که دست‌کم یک سکوی وصل‌شده دارند.
+     *
+     * از جدولِ اتصال join می‌شود نه از ستون‌های منسوخِ روی `personnel`؛
+     * `DISTINCT` لازم است چون کسی که هم بله دارد هم تلگرام دو سطرِ اتصال
+     * دارد و نباید دو بار در حلقه بیاید — یادآوری یکی است و به همهٔ
+     * سکوهایش فرستاده می‌شود.
+     */
     const people = await this.people
       .createQueryBuilder('p')
+      .innerJoin(PersonnelBotLinkEntity, 'l', 'l.personnelId = p.id')
       .where('p.isActive = :active', { active: true })
-      .andWhere('p.botChatId IS NOT NULL')
-      .andWhere("p.botChatId <> ''")
+      .distinct(true)
       .take(500)
       .getMany();
     if (people.length === 0) return 0;
@@ -128,11 +139,30 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
     });
     const done = new Set(already.map((r) => r.personnelId));
 
+    /*
+     * همهٔ اتصال‌ها در یک کوئری، نه یکی به‌ازای هر نفر.
+     *
+     * یک نفر می‌تواند هم بله داشته باشد هم تلگرام؛ یادآوری یکی است و به
+     * همهٔ سکوهایش می‌رود.
+     */
+    const links = await this.botLinks.find({
+      where: { personnelId: In(people.map((p) => p.id)) },
+    });
+    const linksBy = new Map<string, PersonnelBotLinkEntity[]>();
+    for (const link of links) {
+      linksBy.set(link.personnelId, [
+        ...(linksBy.get(link.personnelId) ?? []),
+        link,
+      ]);
+    }
+
     let sent = 0;
     const botCache = new Map<string, TelegramIntegrationEntity | null>();
 
     for (const person of people) {
       if (done.has(person.id)) continue;
+      const myLinks = linksBy.get(person.id) ?? [];
+      if (myLinks.length === 0) continue;
       try {
         const text =
           kind === StaffReminderKind.SHIFT
@@ -142,16 +172,25 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
         // اضافه شد، همان روز یادآوری برود.
         if (!text) continue;
 
-        const bot = await this.botOf(person, botCache);
-        if (!bot) continue;
-
-        const result = await this.api.send(
-          bot.botToken,
-          person.botChatId as string,
-          text,
-          platformApiBase(person.botPlatform || bot.platform),
-        );
-        if (!result.ok) continue;
+        let landed = false;
+        for (const link of myLinks) {
+          const bot = await this.botOf(person, link, botCache);
+          if (!bot) continue;
+          const result = await this.api.send(
+            bot.botToken,
+            link.chatId,
+            text,
+            platformApiBase(link.platform || bot.platform),
+          );
+          if (result.ok) landed = true;
+        }
+        /*
+         * «رفت» یعنی دست‌کم یک سکو تحویل گرفت.
+         *
+         * اگر هیچ‌کدام نرفت، دفتر نوشته نمی‌شود تا دورِ بعد دوباره تلاش
+         * شود؛ وگرنه یک خطای شبکه یادآوریِ آن روز را برای همیشه می‌خورد.
+         */
+        if (!landed) continue;
 
         /*
          * دفتر بعد از ارسالِ موفق نوشته می‌شود.
@@ -234,13 +273,14 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
   /** رباتِ همان فضای کاری که پرسنل از طریقش وصل شده. */
   private async botOf(
     person: PersonnelEntity,
+    link: PersonnelBotLinkEntity,
     cache: Map<string, TelegramIntegrationEntity | null>,
   ): Promise<TelegramIntegrationEntity | null> {
     /*
      * اگر فضای کاریِ اتصال ثبت نشده (اتصال‌های قدیمی)، از سازمانِ پرسنل
      * پیدا می‌شود؛ وگرنه آن پرسنل هیچ‌وقت یادآوری نمی‌گرفت.
      */
-    let wsId = person.botWorkspaceId;
+    let wsId = link.workspaceId;
     if (!wsId) {
       const ws = await this.workspaces.findOne({
         where: { organizationId: person.organizationId },

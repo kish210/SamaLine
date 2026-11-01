@@ -15,6 +15,16 @@ export function platformApiBase(platform?: string | null): string {
   return platform === 'bale' ? BALE_API : TELEGRAM_API;
 }
 
+/**
+ * نشانی صفحه‌ی ربات برای ساختنِ لینکِ `?start=<کد>`.
+ *
+ * جدا از نشانی API است: آن یکی برای فراخوانیِ سرور است و این یکی لینکی که
+ * کاربر رویش می‌زند و پیام‌رسانش باز می‌شود.
+ */
+export function botHome(platform?: string | null): string {
+  return platform === 'bale' ? 'https://ble.ir' : 'https://t.me';
+}
+
 /** حداکثر طول پیام تلگرام؛ پیام بلندتر رد می‌شود، پس بریده می‌شود. */
 export const MAX_MESSAGE = 4096;
 

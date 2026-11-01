@@ -44,11 +44,15 @@ interface Harness {
   deletes: Array<Record<string, unknown>>;
   codeUpdates: Array<Record<string, unknown>>;
   digestSends: Array<{ chatId: string }>;
+  /** اتصال‌های پرسنلی که ربات درخواست کرد. */
+  personnelLinks: Array<Record<string, string>>;
 }
 
 function harness(options: {
   code?: Partial<TelegramLinkCodeEntity> | null;
   recipients?: Array<Partial<TelegramRecipientEntity>>;
+  /** `null` یعنی پروندهٔ پرسنلی فعال نیست و اتصال باید رد شود. */
+  personnel?: { id: string; fullName: string } | null;
 }): Harness {
   const sent: Harness['sent'] = [];
   const saved: Harness['saved'] = [];
@@ -65,6 +69,7 @@ function harness(options: {
     },
   } as unknown as TelegramApi;
 
+  const personnelLinks: Array<Record<string, string>> = [];
   const service = new TelegramBotService(
     {
       // جست‌وجو واقعا بر اساس توکن انجام می‌شود؛ اگر مخزن هر توکنی را
@@ -104,6 +109,10 @@ function harness(options: {
       delete: async () => undefined,
     } as never,
     { findOne: async () => ({ id: 'form-1', title: 'نظرسنجی هتل' }) } as never,
+    // فضای کاری، برای پیدا کردنِ سازمانِ کدِ پرسنلی.
+    {
+      findOne: async () => ({ id: 'ws-1', organizationId: 'org-1' }),
+    } as never,
     api,
     {
       sendNow: async () => {
@@ -113,9 +122,35 @@ function harness(options: {
     } as never,
     // رباتِ پرسنل این تست‌ها را نمی‌گیرد؛ null یعنی ادامه با رباتِ مدیریتی.
     { tryHandle: async () => null } as never,
+    /*
+     * سرویسِ HR: فقط برای کدِ اتصالِ پرسنلی صدا زده می‌شود. تماس‌ها ثبت
+     * می‌شوند تا بشود دید ربات واقعاً گفتگو را به کدام پرونده وصل کرده.
+     */
+    {
+      linkChatToPersonnel: async (
+        organizationId: string,
+        personnelId: string,
+        platform: string,
+        chatId: string,
+      ) => {
+        personnelLinks.push({ organizationId, personnelId, platform, chatId });
+        return options.personnel === undefined
+          ? { id: personnelId, fullName: 'زهرا محمدی' }
+          : options.personnel;
+      },
+    } as never,
   );
 
-  return { service, sent, saved, updates, deletes, codeUpdates, digestSends };
+  return {
+    service,
+    sent,
+    saved,
+    updates,
+    deletes,
+    codeUpdates,
+    digestSends,
+    personnelLinks,
+  };
 }
 
 const message = (text: string, chatId = '555') => ({
@@ -293,5 +328,79 @@ describe('TelegramBotService — فرمان‌های ربات', () => {
       await h.service.handleUpdate('hook-abc', message(code.code!, '444'));
       expect(h.saved).toHaveLength(1);
     });
+  });
+});
+describe('کدِ اتصالِ پرسنلی', () => {
+  /** کدِ معتبرِ پرسنلی: `personnelId` دارد و فرم ندارد. */
+  const personnelCode = (over: Record<string, unknown> = {}) => ({
+    ...futureCode(),
+    formId: null,
+    personnelId: 'person-1',
+    ...over,
+  });
+
+  it('گفتگو را به پروندهٔ پرسنل وصل می‌کند، نه به گزارشِ فرم', async () => {
+    const h = harness({ code: personnelCode(), recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+
+    expect(h.personnelLinks).toHaveLength(1);
+    expect(h.personnelLinks[0]).toMatchObject({
+      organizationId: 'org-1',
+      personnelId: 'person-1',
+      chatId: '555',
+    });
+    // کدِ پرسنلی هیچ‌وقت مقصدِ گزارشِ فرم نمی‌سازد.
+    expect(h.saved).toHaveLength(0);
+    expect(h.sent[0].text).toContain('زهرا محمدی');
+    expect(h.sent[0].text).toContain('وصل شد');
+  });
+
+  it('کد را مصرف‌شده می‌کند تا بارِ دوم کار نکند', async () => {
+    const h = harness({ code: personnelCode(), recipients: [] });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.codeUpdates[0]).toMatchObject({ useCount: 1 });
+  });
+
+  it('کدِ منقضی وصل نمی‌کند', async () => {
+    const h = harness({
+      code: personnelCode({ expiresAt: new Date(Date.now() - 60_000) }),
+      recipients: [],
+    });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.personnelLinks).toHaveLength(0);
+    expect(h.sent[0].text).toContain('منقضی');
+  });
+
+  it('کدِ پرشده دوباره وصل نمی‌کند', async () => {
+    const h = harness({
+      code: personnelCode({ maxUses: 1, useCount: 1 }),
+      recipients: [],
+    });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.personnelLinks).toHaveLength(0);
+    expect(h.sent[0].text).toContain('ظرفیت');
+  });
+
+  it('کدِ رباتِ دیگر وصل نمی‌کند', async () => {
+    const h = harness({
+      code: personnelCode({ workspaceId: 'ws-other' }),
+      recipients: [],
+    });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.personnelLinks).toHaveLength(0);
+    expect(h.sent[0].text).toContain('ربات دیگری');
+  });
+
+  it('پروندهٔ غیرفعال، پیامِ روشن می‌گیرد و کد مصرف نمی‌شود', async () => {
+    const h = harness({
+      code: personnelCode(),
+      recipients: [],
+      // سرویسِ HR برای پرسنلِ غیرفعال null می‌دهد.
+      personnel: null,
+    });
+    await h.service.handleUpdate('hook-abc', message('/start ABCD2345'));
+    expect(h.sent[0].text).toContain('فعال نیست');
+    // کد سوخته نمی‌شود، تا بعد از فعال شدنِ پرونده همان کد کار کند.
+    expect(h.codeUpdates).toHaveLength(0);
   });
 });

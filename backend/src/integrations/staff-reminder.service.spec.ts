@@ -11,6 +11,7 @@ import {
 } from '../database/entities/work-shift.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { OrganizationEntity } from '../database/entities/organization.entity';
 import { StaffReminderService } from './staff-reminder.service';
 
@@ -34,16 +35,33 @@ describe('StaffReminderService', () => {
   let orgId: string;
   let workspaceId: string;
 
-  /** پرسنلِ وصل‌به‌ربات. */
-  const linkedPerson = async (fullName: string, chatId: string) =>
-    ds.getRepository(PersonnelEntity).save({
+  /**
+   * پرسنلِ وصل‌به‌ربات.
+   *
+   * اتصال سطرِ جدولِ `personnel_bot_links` است، نه ستونِ منسوخِ روی
+   * `personnel`؛ `platform` پارامتر است تا بتوان یک نفر را روی دو سکو
+   * وصل کرد.
+   */
+  const linkedPerson = async (
+    fullName: string,
+    chatId: string,
+    platform = 'bale',
+    ws: string | null | undefined = undefined,
+  ) => {
+    const person = await ds.getRepository(PersonnelEntity).save({
       organizationId: orgId,
       fullName,
-      botChatId: chatId,
-      botPlatform: 'bale',
-      botWorkspaceId: workspaceId,
       isActive: true,
     });
+    await ds.getRepository(PersonnelBotLinkEntity).save({
+      organizationId: orgId,
+      personnelId: person.id,
+      platform,
+      chatId,
+      workspaceId: ws === undefined ? workspaceId : ws,
+    });
+    return person;
+  };
 
   beforeEach(async () => {
     ds = await createTestDataSource();
@@ -72,6 +90,7 @@ describe('StaffReminderService', () => {
       ds.getRepository(StaffReminderLogEntity),
       ds.getRepository(TelegramIntegrationEntity),
       ds.getRepository(WorkspaceEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
       { myShifts: async () => shiftRows } as never,
       { workOrdersOfTechnician: async () => tasks } as never,
       {
@@ -192,13 +211,17 @@ describe('StaffReminderService', () => {
       isActive: true,
     });
     // وصل، ولی غیرفعال.
-    await ds.getRepository(PersonnelEntity).save({
+    const gone = await ds.getRepository(PersonnelEntity).save({
       organizationId: orgId,
       fullName: 'رفته',
-      botChatId: 'chat-8',
-      botPlatform: 'bale',
-      botWorkspaceId: workspaceId,
       isActive: false,
+    });
+    await ds.getRepository(PersonnelBotLinkEntity).save({
+      organizationId: orgId,
+      personnelId: gone.id,
+      platform: 'bale',
+      chatId: 'chat-8',
+      workspaceId,
     });
 
     expect(await service.run(at(TASKS_HOUR))).toBe(0);
@@ -216,15 +239,8 @@ describe('StaffReminderService', () => {
   });
 
   it('اتصالِ قدیمیِ بی‌فضای‌کاری هم یادآوری می‌گیرد', async () => {
-    await ds.getRepository(PersonnelEntity).save({
-      organizationId: orgId,
-      fullName: 'اتصالِ قدیمی',
-      botChatId: 'chat-10',
-      botPlatform: 'bale',
-      // botWorkspaceId ثبت نشده (اتصال‌های پیش از افزودنِ این ستون).
-      botWorkspaceId: null,
-      isActive: true,
-    });
+    // اتصالی که فضای کاری‌اش ثبت نشده (اتصال‌های قدیمیِ منتقل‌شده).
+    await linkedPerson('اتصالِ قدیمی', 'chat-10', 'bale', null);
     tasks = [{ number: 'WO-1', title: 'کار', priority: 'normal', dueDate: '' }];
 
     expect(await service.run(at(TASKS_HOUR))).toBe(1);

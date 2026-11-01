@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import {
   LeaveBalanceEntity,
@@ -29,6 +30,8 @@ import { ShiftService } from './shift.service';
   imports: [
     TypeOrmModule.forFeature([
       PersonnelEntity,
+      // اتصالِ چندسکوییِ پیام‌رسان؛ جای سه ستونِ منسوخِ روی personnel.
+      PersonnelBotLinkEntity,
       ResponseEntity,
       LeaveRequestEntity,
       LeaveBalanceEntity,

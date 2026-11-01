@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { departmentsApi, describeError, hrApi, telegramApi, workspaceApi } from "../api";
+import {
+  departmentsApi,
+  describeError,
+  hrApi,
+  teamApi,
+  telegramApi,
+  workspaceApi,
+} from "../api";
 import type { Personnel } from "../api";
+import type { TeamMember } from "../types";
 import { useAuth } from "../auth";
 import { hasRole } from "../types";
 
@@ -12,6 +20,54 @@ import { hasRole } from "../types";
  * شماره موبایل کلیدِ اتصال به ربات بله در فاز F است؛ وقتی اینجا ثبت شد، همان
  * پرسنل بعدا می‌تواند از بله واردِ پورتالِ خودش شود.
  */
+/** نامِ فارسیِ هر پیام‌رسان. */
+const PLATFORM_LABELS: Record<string, string> = {
+  bale: "بله",
+  telegram: "تلگرام",
+};
+
+/**
+ * اتصالِ حسابِ ورودِ پنل به یک پروندهٔ پرسنل.
+ *
+ * کارِ منابع انسانی است و نه خودِ کاربر: همین اتصال تعیین می‌کند «کدام
+ * پرسنل هستم»، و اگر خودسرویس بود هر کسی می‌توانست خودش را به پروندهٔ
+ * دیگری بچسباند و شیفت، مرخصی و نامه‌های او را ببیند.
+ */
+function UserLinkCell({
+  person,
+  members,
+}: {
+  person: Personnel;
+  members: TeamMember[];
+}) {
+  const qc = useQueryClient();
+  const save = useMutation({
+    mutationFn: (userId: string | null) =>
+      hrApi.setUserLink(person.id, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["personnel"] }),
+  });
+
+  return (
+    <>
+      <select
+        value={person.userId ?? ""}
+        disabled={save.isPending}
+        onChange={(e) => save.mutate(e.target.value || null)}
+      >
+        <option value="">— وصل نیست —</option>
+        {members.map((m) => (
+          <option key={m.userId} value={m.userId}>
+            {m.fullName || m.email}
+          </option>
+        ))}
+      </select>
+      {save.isError && (
+        <div className="error">{describeError(save.error)}</div>
+      )}
+    </>
+  );
+}
+
 export function PersonnelPage() {
   const queryClient = useQueryClient();
   const me = useAuth((s) => s.user);
@@ -32,6 +88,18 @@ export function PersonnelPage() {
   const [annResult, setAnnResult] = useState<string | null>(null);
 
   const people = useQuery({ queryKey: ["personnel"], queryFn: hrApi.list });
+  /*
+   * اعضای سازمان برای انتخابگرِ حسابِ کاربری.
+   *
+   * فقط «مدیر» به این مسیر دسترسی دارد، پس برای نقش‌های پایین‌تر خطا
+   * می‌دهد و بی‌صدا نادیده گرفته می‌شود — ستون هم برایشان فقط خواندنی است.
+   */
+  const members = useQuery({
+    queryKey: ["team-members"],
+    queryFn: teamApi.members,
+    enabled: canEdit,
+    retry: false,
+  });
   // وضعیتِ رباتِ پرسنلی (همان رباتِ بله/تلگرامِ فضای کاری).
   const workspaces = useQuery({ queryKey: ["workspaces"], queryFn: workspaceApi.list });
   const workspaceId = workspaces.data?.[0]?.id ?? "";
@@ -345,6 +413,7 @@ export function PersonnelPage() {
                 <th>سمت</th>
                 <th>بخش</th>
                 <th>ربات</th>
+                <th title="حسابِ ورودِ پنلی که این پرونده است">حسابِ کاربری</th>
                 <th title="کل / در انتظار / تأیید / رد">درخواست‌ها</th>
                 <th>وضعیت</th>
                 {canEdit && <th></th>}
@@ -360,10 +429,26 @@ export function PersonnelPage() {
                   <td>{p.position || "—"}</td>
                   <td>{p.departmentId ? deptName.get(p.departmentId) ?? "—" : "—"}</td>
                   <td>
-                    {p.botChatId ? (
-                      <span className="review-badge approved" title={p.botPlatform}>
-                        متصل
+                    {(p.botPlatforms ?? []).length > 0 ? (
+                      <span
+                        className="review-badge approved"
+                        title={(p.botPlatforms ?? [])
+                          .map((x) => PLATFORM_LABELS[x] ?? x)
+                          .join("، ")}
+                      >
+                        {(p.botPlatforms ?? [])
+                          .map((x) => PLATFORM_LABELS[x] ?? x)
+                          .join("، ")}
                       </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td>
+                    {canEdit ? (
+                      <UserLinkCell person={p} members={members.data ?? []} />
+                    ) : p.userId ? (
+                      "وصل"
                     ) : (
                       "—"
                     )}

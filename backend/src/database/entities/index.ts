@@ -20,6 +20,7 @@ import {
   SparePartEntity,
   StockMovementEntity,
 } from './spare-part.entity';
+import { PersonnelBotLinkEntity } from './personnel-bot-link.entity';
 import {
   AttendanceRecordEntity,
   ShiftAssignmentEntity,
@@ -95,6 +96,7 @@ export const ALL_ENTITIES = [
   ShiftAssignmentEntity,
   AttendanceRecordEntity,
   StaffReminderLogEntity,
+  PersonnelBotLinkEntity,
   LeaveRequestEntity,
   LeaveBalanceEntity,
   MaintenanceRequestEntity,

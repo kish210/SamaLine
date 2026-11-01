@@ -4,6 +4,7 @@ jest.mock('@nestjs/typeorm', () => ({
 
 import type { DataSource } from 'typeorm';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { createTestDataSource } from '../testing/test-database';
 import { HrService } from '../hr/hr.service';
 import { StaffNotifyService } from './staff-notify.service';
@@ -43,7 +44,10 @@ describe('StaffNotifyService', () => {
 
   beforeEach(async () => {
     ds = await createTestDataSource();
-    hr = new HrService(ds.getRepository(PersonnelEntity));
+    hr = new HrService(
+      ds.getRepository(PersonnelEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
+    );
     sends = [];
     bot = { botToken: 'TKN', isActive: true, platform: 'bale' };
   });

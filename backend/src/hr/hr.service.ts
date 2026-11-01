@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   PersonnelEntity,
   type PersonnelDocument,
   ContractType,
   EmploymentStatus,
 } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 
 export interface PersonnelInput {
   fullName?: string;
@@ -46,6 +47,8 @@ export class HrService {
   constructor(
     @InjectRepository(PersonnelEntity)
     private readonly people: Repository<PersonnelEntity>,
+    @InjectRepository(PersonnelBotLinkEntity)
+    private readonly botLinks: Repository<PersonnelBotLinkEntity>,
   ) {}
 
   list(organizationId: string) {
@@ -53,6 +56,31 @@ export class HrService {
       where: { organizationId },
       order: { fullName: 'ASC' },
     });
+  }
+
+  /**
+   * فهرستِ پرسنل با سکوهای وصل‌شدهٔ هر نفر.
+   *
+   * ستونِ «ربات» در پنل باید وضعیتِ واقعی را نشان دهد؛ پس از انتقال اتصال
+   * به `personnel_bot_links`، خواندنِ ستونِ منسوخِ `botChatId` همه را
+   * «وصل‌نشده» نشان می‌داد.
+   */
+  async listWithLinks(organizationId: string) {
+    const [people, links] = await Promise.all([
+      this.list(organizationId),
+      this.botLinks.find({ where: { organizationId } }),
+    ]);
+    const byPerson = new Map<string, string[]>();
+    for (const link of links) {
+      byPerson.set(link.personnelId, [
+        ...(byPerson.get(link.personnelId) ?? []),
+        link.platform,
+      ]);
+    }
+    return people.map((person) => ({
+      ...person,
+      botPlatforms: byPerson.get(person.id) ?? [],
+    }));
   }
 
   async create(organizationId: string, input: PersonnelInput) {
@@ -135,10 +163,92 @@ export class HrService {
     });
   }
 
-  /** پرسنلِ متصل به یک گفتگوی ربات — برای پاسخ‌دهی و اعلان (فاز F). */
-  findByChat(botChatId: string, botPlatform: string) {
-    if (!botChatId) return Promise.resolve(null);
-    return this.people.findOne({ where: { botChatId, botPlatform } });
+  /** پروندهٔ پرسنلِ یک حسابِ کاربریِ پنل؛ مبنای «میزِ کارِ من». */
+  findByUser(organizationId: string, userId: string) {
+    if (!userId) return Promise.resolve(null);
+    return this.people.findOne({ where: { organizationId, userId } });
+  }
+
+  /**
+   * اتصال/قطعِ حسابِ کاربری به پروندهٔ پرسنل — کارِ HR.
+   *
+   * `null` یعنی قطعِ اتصال. یکتاییِ `(organizationId, userId)` با ایندکسِ
+   * دیتابیس محافظت می‌شود؛ اینجا هم پیشاپیش بررسی می‌شود تا خطای فارسیِ
+   * روشن بدهد نه خطای محدودیتِ خام.
+   */
+  async setUserLink(
+    organizationId: string,
+    personnelId: string,
+    userId: string | null,
+  ) {
+    const person = await this.assertPerson(organizationId, personnelId);
+    if (userId) {
+      const clash = await this.people.findOne({
+        where: { organizationId, userId },
+      });
+      if (clash && clash.id !== person.id) {
+        throw new BadRequestException(
+          `این حسابِ کاربری به پروندهٔ «${clash.fullName}» وصل است`,
+        );
+      }
+    }
+    person.userId = userId;
+    return this.people.save(person);
+  }
+
+  /** پرسنلِ متصل به یک گفتگوی ربات — برای پاسخ‌دهی و اعلان. */
+  async findByChat(botChatId: string, botPlatform: string) {
+    if (!botChatId) return null;
+    const link = await this.botLinks.findOne({
+      where: { chatId: botChatId, platform: botPlatform },
+    });
+    if (!link) return null;
+    return this.people.findOne({ where: { id: link.personnelId } });
+  }
+
+  /** سکوهای وصل‌شدهٔ یک پرسنل؛ برای بخشِ «حساب‌های پیام‌رسانِ من». */
+  linksOf(organizationId: string, personnelId: string) {
+    return this.botLinks.find({
+      where: { organizationId, personnelId },
+      order: { platform: 'ASC' },
+    });
+  }
+
+  /**
+   * اتصالِ یک گفتگو به یک پروندهٔ پرسنلِ مشخص.
+   *
+   * مسیرِ کدِ یک‌بارمصرف از این استفاده می‌کند (هویت پیش از این احراز شده)،
+   * و مسیرِ موبایلی هم پس از پیدا کردنِ پرسنل به همین می‌رسد. گفتگو از هر
+   * پرسنلِ دیگری که قبلاً به آن وصل بوده جدا می‌شود، تا یک گفتگو تنها به یک
+   * نفر برسد و پیامِ شخصی به نفرِ اشتباه نرود.
+   */
+  async linkChatToPersonnel(
+    organizationId: string,
+    personnelId: string,
+    platform: string,
+    chatId: string,
+    workspaceId?: string | null,
+  ): Promise<PersonnelEntity | null> {
+    const person = await this.people.findOne({
+      where: { id: personnelId, organizationId },
+    });
+    if (!person || !person.isActive) return null;
+
+    // همین گفتگو، هر جا که بوده، آزاد می‌شود.
+    await this.botLinks.delete({ platform, chatId });
+    // و همین نفر در همین سکو فقط یک گفتگو دارد.
+    await this.botLinks.delete({ personnelId: person.id, platform });
+
+    await this.botLinks.save(
+      this.botLinks.create({
+        organizationId,
+        personnelId: person.id,
+        platform,
+        chatId,
+        workspaceId: workspaceId ?? null,
+      }),
+    );
+    return person;
   }
 
   /**
@@ -156,41 +266,71 @@ export class HrService {
     botWorkspaceId?: string,
   ): Promise<PersonnelEntity | null> {
     const person = await this.findByMobile(organizationId, mobile);
-    if (!person || !person.isActive) return null;
-
-    // گفتگو را از هر پرسنلِ دیگری که قبلا به آن وصل بوده جدا کن.
-    await this.people.update(
-      { botChatId, botPlatform },
-      { botChatId: null, botPlatform: '', botWorkspaceId: null },
+    if (!person) return null;
+    return this.linkChatToPersonnel(
+      organizationId,
+      person.id,
+      botPlatform,
+      botChatId,
+      botWorkspaceId,
     );
-
-    person.botChatId = botChatId;
-    person.botPlatform = botPlatform;
-    person.botWorkspaceId = botWorkspaceId ?? null;
-    return this.people.save(person);
   }
 
-  /** قطعِ اتصالِ یک گفتگوی ربات از پرونده (فاز F). */
+  /** قطعِ اتصالِ یک گفتگوی ربات از پرونده. */
   async unlinkBotChat(botChatId: string, botPlatform: string) {
-    const { affected } = await this.people.update(
-      { botChatId, botPlatform },
-      { botChatId: null, botPlatform: '', botWorkspaceId: null },
-    );
+    const { affected } = await this.botLinks.delete({
+      chatId: botChatId,
+      platform: botPlatform,
+    });
+    return { unlinked: Boolean(affected) };
+  }
+
+  /** قطعِ یک سکو از پروندهٔ خودِ کاربر («داشبورد من»). */
+  async unlinkPlatform(
+    organizationId: string,
+    personnelId: string,
+    platform: string,
+  ) {
+    const { affected } = await this.botLinks.delete({
+      organizationId,
+      personnelId,
+      platform,
+    });
     return { unlinked: Boolean(affected) };
   }
 
   /**
-   * پرسنلِ فعالِ وصل‌به‌ربات — مقصدِ اطلاعیه‌های سازمانی (فاز F).
-   * با بخش فیلتر می‌شود تا اطلاعیه فقط به یک بخش برود.
+   * مقصدهای پیامِ سازمانی: یک سطر به‌ازای هر گفتگوی وصل‌شده.
+   *
+   * به‌ازای هر **اتصال** برمی‌گردد نه هر پرسنل، چون یک نفر می‌تواند هم بله
+   * داشته باشد هم تلگرام و پیام باید به هر دو برسد. فقط پرسنلِ فعال؛ با
+   * بخش فیلتر می‌شود تا اطلاعیه به یک بخش محدود بماند.
    */
-  linkedPersonnel(organizationId: string, departmentId?: string | null) {
-    const where: Record<string, unknown> = {
-      organizationId,
-      isActive: true,
-      botChatId: Not(IsNull()),
-    };
-    if (departmentId) where.departmentId = departmentId;
-    return this.people.find({ where });
+  async linkedTargets(organizationId: string, departmentId?: string | null) {
+    const qb = this.botLinks
+      .createQueryBuilder('l')
+      .innerJoin(PersonnelEntity, 'p', 'p.id = l.personnelId')
+      .select('l.personnelId', 'personnelId')
+      .addSelect('l.platform', 'platform')
+      .addSelect('l.chatId', 'chatId')
+      .addSelect('l.workspaceId', 'workspaceId')
+      .addSelect('p.fullName', 'fullName')
+      .addSelect('p.organizationId', 'organizationId')
+      .addSelect('p.departmentId', 'departmentId')
+      .where('l.organizationId = :org', { org: organizationId })
+      .andWhere('p.isActive = :active', { active: true });
+    if (departmentId) {
+      qb.andWhere('p.departmentId = :dep', { dep: departmentId });
+    }
+    return qb.getRawMany<{
+      personnelId: string;
+      platform: string;
+      chatId: string;
+      workspaceId: string | null;
+      fullName: string;
+      organizationId: string;
+      departmentId: string | null;
+    }>();
   }
 
   private async assertMobileFree(organizationId: string, mobile: string) {

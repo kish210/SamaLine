@@ -5,8 +5,10 @@ import { randomBytes } from 'crypto';
 import { FormEntity } from '../database/entities/form.entity';
 import { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { TelegramLinkCodeEntity } from '../database/entities/telegram-link-code.entity';
+import { WorkspaceEntity } from '../database/entities/workspace.entity';
+import { HrService } from '../hr/hr.service';
 import { TelegramRecipientEntity } from '../database/entities/telegram-recipient.entity';
-import { TelegramApi, platformApiBase } from './telegram-api';
+import { TelegramApi, platformApiBase, botHome } from './telegram-api';
 import { TelegramDigestService } from './telegram-digest.service';
 import { StaffBotService, type BotReply } from './staff-bot.service';
 
@@ -63,9 +65,16 @@ export class TelegramBotService {
     private readonly codeRepo: Repository<TelegramLinkCodeEntity>,
     @InjectRepository(FormEntity)
     private readonly formRepo: Repository<FormEntity>,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepo: Repository<WorkspaceEntity>,
     private readonly api: TelegramApi,
     private readonly digest: TelegramDigestService,
     private readonly staffBot: StaffBotService,
+    /*
+     * اتصالِ کدِ پرسنلی از همان سرویسِ HR می‌رود، نه نوشتنِ مستقیمِ جدول؛
+     * پس قاعده‌ی «یک گفتگو برای یک نفر» یک جا اعمال می‌شود.
+     */
+    private readonly hr: HrService,
   ) {}
 
   // ── کد اتصال ──────────────────────────────────────────────────────────
@@ -111,6 +120,54 @@ export class TelegramBotService {
       expiresInMinutes: ttl,
       maxUses,
       botUsername: bot?.botUsername ?? null,
+    };
+  }
+
+  /**
+   * کدِ یک‌بارمصرفِ اتصالِ پرسنلی.
+   *
+   * کارمند این را از «داشبورد من» می‌گیرد و به ربات می‌فرستد؛ همان گفتگو به
+   * پروندهٔ خودش وصل می‌شود. چرا کد و نه موبایل: کد فقط داخلِ نشستِ
+   * احرازشدهٔ پنل ساخته می‌شود، در حالی که شماره موبایلِ یک همکار را هر کسی
+   * می‌تواند بداند و با آن گفتگوی خودش را به پروندهٔ او بچسباند.
+   */
+  async createPersonnelLinkCode(input: {
+    workspaceId: string;
+    personnelId: string;
+    label: string;
+  }) {
+    await this.codeRepo.delete({ expiresAt: LessThan(new Date()) });
+
+    const code = this.generateCode();
+    const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60_000);
+    await this.codeRepo.save(
+      this.codeRepo.create({
+        code,
+        workspaceId: input.workspaceId,
+        formId: null,
+        personnelId: input.personnelId,
+        label: input.label.trim().slice(0, 120),
+        expiresAt,
+        // یک‌بارمصرف: کدِ اتصالِ شخصی نباید به دستِ دو نفر کار کند.
+        maxUses: 1,
+        useCount: 0,
+        usedAt: null,
+      }),
+    );
+
+    const bot = await this.botRepo.findOne({
+      where: { workspaceId: input.workspaceId },
+    });
+    return {
+      code,
+      expiresAt,
+      expiresInMinutes: CODE_TTL_MINUTES,
+      botUsername: bot?.botUsername ?? null,
+      platform: bot?.platform ?? null,
+      /** لینکِ آماده؛ کاربر فقط روی آن می‌زند. */
+      deepLink: bot?.botUsername
+        ? `${botHome(bot.platform)}/${bot.botUsername}?start=${code}`
+        : null,
     };
   }
 
@@ -276,6 +333,40 @@ export class TelegramBotService {
      */
     if (row.workspaceId !== bot.workspaceId) {
       return '❌ این کد برای ربات دیگری ساخته شده است.';
+    }
+
+    /*
+     * کدِ پرسنلی: گفتگو به پروندهٔ پرسنل وصل می‌شود، نه به گزارشِ فرم.
+     *
+     * پیش از منطقِ مقصدِ گزارش می‌آید چون این دو کارِ متفاوتی‌اند و کدِ
+     * پرسنلی هیچ‌وقت نباید مقصدِ گزارشِ فرم بسازد.
+     */
+    if (row.personnelId) {
+      const ws = await this.workspaceRepo.findOne({
+        where: { id: row.workspaceId },
+        select: { id: true, organizationId: true },
+      });
+      if (!ws) return '❌ فضای کاریِ این کد پیدا نشد.';
+
+      const person = await this.hr.linkChatToPersonnel(
+        ws.organizationId,
+        row.personnelId,
+        bot.platform,
+        chatId,
+      );
+      if (!person) {
+        return '❌ پروندهٔ پرسنلیِ این کد فعال نیست. با منابع انسانی تماس بگیرید.';
+      }
+
+      await this.codeRepo.update(
+        { id: row.id },
+        { useCount: row.useCount + 1, usedAt: new Date() },
+      );
+      return [
+        `✅ این گفتگو به پروندهٔ <b>${escapeHtml(person.fullName)}</b> وصل شد.`,
+        'از این پس کارها، شیفت و نامه‌هایتان را از همین‌جا می‌بینید.',
+        'برای دیدنِ منو /start را بزنید.',
+      ].join('\n');
     }
 
     const existing = await this.recipientRepo.findOne({

@@ -31,6 +31,18 @@ export class TelegramLinkCodeEntity {
   @Column({ type: UUID_COLUMN, nullable: true })
   formId: string | null;
 
+  /**
+   * کدِ اتصالِ پرسنلی: گفتگو را به همین پروندهٔ پرسنل وصل می‌کند.
+   *
+   * پر بودنِ این ستون، کد را از کدِ گزارشِ فرم جدا می‌کند و هندلرِ
+   * `/start <کد>`ِ ربات بر همین اساس شاخه می‌گیرد. چرا کد و نه موبایل:
+   * کد فقط داخلِ نشستِ احرازشدهٔ پنل ساخته می‌شود، پس داشتنش یعنی کاربر
+   * واقعاً حسابِ همان پرسنل را دارد — در حالی که شماره موبایلِ یک همکار را
+   * هر کسی می‌تواند بداند.
+   */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  personnelId: string | null;
+
   /** نامی که هنگام ساخت کد گذاشته شده؛ مثلا «مدیران هتل کیش». */
   @Column({ type: 'varchar', length: 120, default: '' })
   label: string;

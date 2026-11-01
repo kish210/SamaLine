@@ -32,7 +32,11 @@ interface NavItem {
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "",
-    items: [{ to: "/overview", label: "داشبوردِ مدیریت", icon: "overview" }],
+    items: [
+      // هر کاربری این را دارد، پس بالای همه می‌نشیند.
+      { to: "/me", label: "داشبورد من", icon: "personnel" },
+      { to: "/overview", label: "داشبوردِ مدیریت", icon: "overview" },
+    ],
   },
   {
     title: "نظرسنجی و فرم",

@@ -5,6 +5,7 @@ jest.mock('@nestjs/typeorm', () => ({
 import type { DataSource } from 'typeorm';
 import { createTestDataSource } from '../testing/test-database';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import {
   LeaveBalanceEntity,
   LeaveRequestEntity,
@@ -72,7 +73,10 @@ describe('ShiftService', () => {
 
   beforeEach(async () => {
     ds = await createTestDataSource();
-    hr = new HrService(ds.getRepository(PersonnelEntity));
+    hr = new HrService(
+      ds.getRepository(PersonnelEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
+    );
     leave = new LeaveService(
       ds.getRepository(LeaveRequestEntity),
       ds.getRepository(LeaveBalanceEntity),

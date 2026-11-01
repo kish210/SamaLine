@@ -49,11 +49,18 @@ export class StaffNotifyService {
     body: string;
     departmentId?: string | null;
   }): Promise<{ sent: number; skipped: number }> {
-    const people = await this.hr.linkedPersonnel(
+    /*
+     * یک سطر به‌ازای هر گفتگو، نه هر نفر.
+     *
+     * کسی که هم بله دارد هم تلگرام باید اطلاعیه را در هر دو ببیند؛ پیش از
+     * جدولِ `personnel_bot_links` این ممکن نبود چون هر نفر فقط یک اتصال
+     * داشت.
+     */
+    const targets = await this.hr.linkedTargets(
       input.organizationId,
       input.departmentId,
     );
-    if (people.length === 0) return { sent: 0, skipped: 0 };
+    if (targets.length === 0) return { sent: 0, skipped: 0 };
 
     const text = [
       `📢 <b>${escapeHtml(input.title)}</b>`,
@@ -66,9 +73,9 @@ export class StaffNotifyService {
     // توکنِ هر فضای کاری یک‌بار خوانده می‌شود، نه به‌ازای هر پرسنل.
     const botCache = new Map<string, TelegramIntegrationEntity | null>();
 
-    for (const person of people) {
-      const wsId = person.botWorkspaceId;
-      if (!wsId || !person.botChatId) {
+    for (const target of targets) {
+      const wsId = target.workspaceId;
+      if (!wsId || !target.chatId) {
         skipped += 1;
         continue;
       }
@@ -86,9 +93,9 @@ export class StaffNotifyService {
 
       const result = await this.api.send(
         bot.botToken,
-        person.botChatId,
+        target.chatId,
         text,
-        platformApiBase(person.botPlatform || bot.platform),
+        platformApiBase(target.platform || bot.platform),
       );
       if (result.ok) sent += 1;
       else skipped += 1;
@@ -105,7 +112,11 @@ export class StaffNotifyService {
         input.organizationId,
         input.respondentKey,
       );
-      if (!person?.botChatId) return;
+      if (!person) return;
+
+      // نتیجه به همهٔ سکوهای وصل‌شدهٔ همان نفر می‌رود، نه فقط یکی.
+      const links = await this.hr.linksOf(input.organizationId, person.id);
+      if (links.length === 0) return;
 
       const bot = await this.botRepo.findOne({
         where: { workspaceId: input.workspaceId },
@@ -124,12 +135,14 @@ export class StaffNotifyService {
         .filter((line) => line !== '')
         .join('\n');
 
-      await this.api.send(
-        bot.botToken,
-        person.botChatId,
-        text,
-        platformApiBase(person.botPlatform || bot.platform),
-      );
+      for (const link of links) {
+        await this.api.send(
+          bot.botToken,
+          link.chatId,
+          text,
+          platformApiBase(link.platform || bot.platform),
+        );
+      }
     } catch (error) {
       this.logger.warn(
         `اعلانِ نتیجهٔ بررسی به پرسنل ناموفق بود: ${(error as Error).message}`,

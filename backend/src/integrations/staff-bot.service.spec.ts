@@ -7,6 +7,7 @@ jest.mock('@nestjs/jwt', () => ({ JwtService: class {} }));
 
 import type { DataSource } from 'typeorm';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import type { TelegramIntegrationEntity } from '../database/entities/telegram-integration.entity';
 import { createTestDataSource } from '../testing/test-database';
 import { HrService } from '../hr/hr.service';
@@ -48,7 +49,10 @@ describe('StaffBotService', () => {
     statusError = null;
     punchError = null;
     ds = await createTestDataSource();
-    hr = new HrService(ds.getRepository(PersonnelEntity));
+    hr = new HrService(
+      ds.getRepository(PersonnelEntity),
+      ds.getRepository(PersonnelBotLinkEntity),
+    );
     // فضای کاری همیشه به سازمانِ تست وصل است.
     const workspaces = {
       findOne: async () => ({ id: 'ws-1', organizationId: ORG }),
@@ -141,7 +145,10 @@ describe('StaffBotService', () => {
 
     const linked = await hr.findByChat('chat-7', 'bale');
     expect(linked?.fullName).toBe('زهرا محمدی');
-    expect(linked?.botPlatform).toBe('bale');
+    // اتصال سطرِ جدولِ اتصال است، نه ستونِ منسوخِ روی پرونده.
+    const links = await hr.linksOf(ORG, linked?.id ?? '');
+    expect(links.map((l) => l.platform)).toEqual(['bale']);
+    expect(links[0].chatId).toBe('chat-7');
   });
 
   it('موبایلِ ناشناخته وصل نمی‌شود', async () => {
