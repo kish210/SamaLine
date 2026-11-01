@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -24,13 +25,14 @@ import {
   OrganizationId,
   type JwtUser,
 } from '../common/current-user.decorator';
-import { MinRole } from '../common/roles';
+import { MinRole, ROLE_RANK } from '../common/roles';
 import { OrganizationRole } from '../database/entities/organization-user.entity';
 import {
   LeaveStatus,
   LeaveType,
 } from '../database/entities/leave-request.entity';
 import { LeaveService, type LeaveListQuery } from './leave.service';
+import { HrService } from './hr.service';
 
 class LeaveDto {
   @IsNotEmpty() @IsString() personnelId: string;
@@ -69,7 +71,11 @@ class BalanceDto {
 @Controller('hr/leaves')
 @UseGuards(JwtAuthGuard)
 export class LeaveController {
-  constructor(private readonly service: LeaveService) {}
+  constructor(
+    private readonly service: LeaveService,
+    /** برای فهمیدنِ «این پروندهٔ خودِ من است یا همکارم». */
+    private readonly hr: HrService,
+  ) {}
 
   @Get('summary')
   @MinRole(OrganizationRole.ANALYST)
@@ -90,12 +96,35 @@ export class LeaveController {
     return this.service.get(organizationId, id);
   }
 
+  /**
+   * ثبتِ مرخصی.
+   *
+   * مرخصیِ **خودم** برای هر کسی که به این مسیر می‌رسد باز است؛ مرخصی به نامِ
+   * **همکار** فقط از «مدیر» به بالا. پیش از این این مسیر `@MinRole` نداشت و
+   * پیش‌فرضِ نگهبان (ویرایشگر برای هر تغییر) اعمال می‌شد: یک ویرایشگر — که
+   * کارش فرم‌سازی است نه منابع انسانی — می‌توانست به نامِ همکارش مرخصی ثبت
+   * کند.
+   *
+   * قاعده به‌ازای «برای چه کسی» است و نه به‌ازای مسیر، چون HR واقعاً باید
+   * بتواند برای پرسنل ثبت کند و بستنِ کلِ مسیر کارِ او را می‌شکست.
+   */
   @Post()
-  create(
+  async create(
     @OrganizationId() organizationId: string,
     @Body() dto: LeaveDto,
     @CurrentUser() user: JwtUser,
   ) {
+    const mine = await this.hr.findByUser(organizationId, user.sub);
+    const forSelf = Boolean(mine) && mine?.id === dto.personnelId;
+    const isManager =
+      ROLE_RANK[user.role ?? OrganizationRole.VIEWER] >=
+      ROLE_RANK[OrganizationRole.ADMIN];
+
+    if (!forSelf && !isManager) {
+      throw new ForbiddenException(
+        'ثبتِ مرخصی به نامِ همکار فقط از «مدیر» به بالا ممکن است؛ مرخصیِ خودتان را از «داشبورد من» ثبت کنید.',
+      );
+    }
     return this.service.create(organizationId, dto, user.sub);
   }
 
