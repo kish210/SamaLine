@@ -52,6 +52,8 @@ import { AddShiftsAndAttendance1800000000022 } from './migrations/1800000000022-
 import { PgAddShiftsAndAttendance1800000000023 } from './migrations/1800000000023-PgAddShiftsAndAttendance';
 import { AddIdentityAndBotLinks1800000000024 } from './migrations/1800000000024-AddIdentityAndBotLinks';
 import { PgAddIdentityAndBotLinks1800000000025 } from './migrations/1800000000025-PgAddIdentityAndBotLinks';
+import { AddLetters1800000000026 } from './migrations/1800000000026-AddLetters';
+import { PgAddLetters1800000000027 } from './migrations/1800000000027-PgAddLetters';
 import { AddHrDomain1800000000016 } from './migrations/1800000000016-AddHrDomain';
 import { PgAddHrDomain1800000000017 } from './migrations/1800000000017-PgAddHrDomain';
 import { AddCmmsCore1800000000014 } from './migrations/1800000000014-AddCmmsCore';
@@ -101,6 +103,7 @@ export const SQLITE_MIGRATIONS = [
   AddInventory1800000000020,
   AddShiftsAndAttendance1800000000022,
   AddIdentityAndBotLinks1800000000024,
+  AddLetters1800000000026,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -131,6 +134,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddInventory1800000000021,
   PgAddShiftsAndAttendance1800000000023,
   PgAddIdentityAndBotLinks1800000000025,
+  PgAddLetters1800000000027,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

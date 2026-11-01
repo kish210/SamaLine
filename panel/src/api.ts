@@ -1599,6 +1599,82 @@ export const meApi = {
       .then((r) => r.data),
 };
 
+// ── نامهٔ داخلی ─────────────────────────────────────────────────────────
+
+export interface LetterRecipient {
+  personnelId: string;
+  name: string;
+  kind: 'to' | 'cc';
+  /** رسیدِ خواندن؛ null یعنی نخوانده. */
+  readAt: string | null;
+}
+
+export interface Letter {
+  id: string;
+  number: string;
+  subject: string;
+  body: string;
+  senderPersonnelId: string;
+  senderName: string;
+  priority: 'normal' | 'urgent';
+  parentLetterId: string | null;
+  threadId: string;
+  attachments: Array<{ name: string; url: string }>;
+  createdAt: string;
+  recipients: LetterRecipient[];
+  /** نامه را خودم فرستاده‌ام. */
+  isMine: boolean;
+  readAt: string | null;
+  isUnread: boolean;
+}
+
+export interface LetterPage {
+  rows: Letter[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** یک همکار در دفترِ نشانی. */
+export interface AddressBookEntry {
+  personnelId: string;
+  fullName: string;
+  position: string;
+  departmentId: string | null;
+}
+
+export const lettersApi = {
+  inbox: (query: Record<string, unknown> = {}) =>
+    api.get<LetterPage>('/me/letters', { params: query }).then((r) => r.data),
+
+  sent: (query: Record<string, unknown> = {}) =>
+    api
+      .get<LetterPage>('/me/letters/sent', { params: query })
+      .then((r) => r.data),
+
+  unreadCount: () =>
+    api
+      .get<{ count: number }>('/me/letters/unread-count')
+      .then((r) => r.data),
+
+  addressBook: () =>
+    api
+      .get<AddressBookEntry[]>('/me/letters/recipients')
+      .then((r) => r.data),
+
+  thread: (id: string) =>
+    api.get<Letter[]>(`/me/letters/${id}/thread`).then((r) => r.data),
+
+  send: (body: Record<string, unknown>) =>
+    api.post<Letter>('/me/letters', body).then((r) => r.data),
+
+  reply: (id: string, body: Record<string, unknown>) =>
+    api.post<Letter>(`/me/letters/${id}/reply`, body).then((r) => r.data),
+
+  markRead: (id: string) =>
+    api.post<{ read: boolean }>(`/me/letters/${id}/read`).then((r) => r.data),
+};
+
 // ── میزِ فرماندهیِ مدیریت ───────────────────────────────────────────────
 
 /** یک عددِ قابلِ‌اقدام روی میزِ کار؛ `href` مقصدِ drill-down است. */

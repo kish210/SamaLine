@@ -211,6 +211,11 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 28. `AddShiftsAndAttendance` — shift_templates، shift_assignments،
     attendance_records، staff_reminder_log (برنامهٔ کار، حضور، و دفترِ
     یادآوری‌های رفته به ربات).
+29. `AddIdentityAndBotLinks` — `personnel.userId`، personnel_bot_links
+    (اتصالِ چندسکوییِ پیام‌رسان، جای سه ستونِ منسوخِ `botChatId`…)، و
+    `telegram_link_codes.personnelId` برای کدِ اتصالِ پرسنلی.
+30. `AddLetters` — letters، letter_recipients (نامهٔ داخلی؛ وضعیتِ خوانده‌شدن
+    به‌ازای هر گیرنده، و `threadId` برای خواندنِ یک‌کوئریِ رشتهٔ مکاتبه).
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

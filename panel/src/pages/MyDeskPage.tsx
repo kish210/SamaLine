@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { describeError, meApi, type BotLinkCode } from '../api';
+import { describeError, lettersApi, meApi, type BotLinkCode } from '../api';
+import { LettersPanel } from './me/LettersPanel';
 
 /** نامِ فارسیِ هر پیام‌رسان. */
 const PLATFORM_LABELS: Record<string, string> = {
@@ -25,6 +26,18 @@ export function MyDeskPage() {
   const [code, setCode] = useState<BotLinkCode | null>(null);
 
   const profile = useQuery({ queryKey: ['me-profile'], queryFn: meApi.profile });
+
+  /*
+   * شمارِ نخوانده‌ها جدا خوانده می‌شود.
+   *
+   * سرور برای حسابِ وصل‌نشده صفر می‌دهد نه خطا، چون این عدد فقط یک نشان
+   * است و نباید صفحه را بشکند.
+   */
+  const unread = useQuery({
+    queryKey: ['letters-unread'],
+    queryFn: lettersApi.unreadCount,
+    retry: false,
+  });
 
   const makeCode = useMutation({
     mutationFn: meApi.createBotLinkCode,
@@ -65,6 +78,18 @@ export function MyDeskPage() {
 
       {data && (
         <>
+          {(unread.data?.count ?? 0) > 0 && (
+            <section className="card">
+              <h3>توجه</h3>
+              <p>
+                <strong style={{ color: '#b45309' }}>
+                  {(unread.data?.count ?? 0).toLocaleString('fa-IR')}
+                </strong>{' '}
+                نامهٔ نخوانده دارید.
+              </p>
+            </section>
+          )}
+
           <section className="card">
             <h3>پروندهٔ من</h3>
             {data.linked && data.personnel ? (
@@ -191,6 +216,8 @@ export function MyDeskPage() {
               </>
             )}
           </section>
+
+          {data.linked && <LettersPanel />}
         </>
       )}
     </div>

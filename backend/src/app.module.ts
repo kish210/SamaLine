@@ -31,6 +31,7 @@ import { HrModule } from './hr/hr.module';
 import { CmmsModule } from './cmms/cmms.module';
 import { CommandCenterModule } from './command-center/command-center.module';
 import { MeModule } from './me/me.module';
+import { LetterModule } from './letters/letter.module';
 import { HotelSetupModule } from './hotel-setup/hotel-setup.module';
 import { ApiKeyAuthModule } from './common/api-key-auth.module';
 import { AuditModule } from './common/audit.module';
@@ -76,6 +77,8 @@ import { buildDataSourceOptions } from './database/data-source';
     CommandCenterModule,
     // میزِ کارِ شخصیِ هر کاربر.
     MeModule,
+    // نامهٔ داخلیِ بینِ کارمندها.
+    LetterModule,
     HotelSetupModule,
   ],
 })

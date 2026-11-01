@@ -22,6 +22,10 @@ import {
 } from './spare-part.entity';
 import { PersonnelBotLinkEntity } from './personnel-bot-link.entity';
 import {
+  LetterEntity,
+  LetterRecipientEntity,
+} from './letter.entity';
+import {
   AttendanceRecordEntity,
   ShiftAssignmentEntity,
   ShiftTemplateEntity,
@@ -97,6 +101,8 @@ export const ALL_ENTITIES = [
   AttendanceRecordEntity,
   StaffReminderLogEntity,
   PersonnelBotLinkEntity,
+  LetterEntity,
+  LetterRecipientEntity,
   LeaveRequestEntity,
   LeaveBalanceEntity,
   MaintenanceRequestEntity,
