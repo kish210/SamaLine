@@ -155,6 +155,8 @@ export interface ListQuery {
   overdue?: boolean | string;
   /** فقط درخواست‌هایی که همین کاربر ثبت کرده («درخواست‌های من»). */
   requestedByUserId?: string;
+  /** همان، برای پرسنلی که از ربات ثبت کرده و حسابِ پنل ندارد. */
+  requestedByPersonnelId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -291,6 +293,11 @@ export class CmmsService {
       .where('r.organizationId = :org', { org: organizationId });
     this.applyCommonFilters(qb, 'r', query);
     if (query.assetId) qb.andWhere('r.assetId = :a', { a: query.assetId });
+    if (query.requestedByPersonnelId) {
+      qb.andWhere('r.requestedByPersonnelId = :byp', {
+        byp: query.requestedByPersonnelId,
+      });
+    }
     if (query.requestedByUserId) {
       qb.andWhere('r.requestedByUserId = :by', {
         by: query.requestedByUserId,

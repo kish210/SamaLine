@@ -19,6 +19,7 @@ import { isoToJalaliText } from '../common/jalali';
 import { CmmsService } from '../cmms/cmms.service';
 import { LetterService } from '../letters/letter.service';
 import { BotFlowService } from './bot-flow.service';
+import { LeaveService } from '../hr/leave.service';
 import { BotFlow } from '../database/entities/bot-flow-session.entity';
 import { ShiftService, shiftDate, todayIso } from '../hr/shift.service';
 import { WorkOrderStatus } from '../database/entities/work-order.entity';
@@ -65,6 +66,49 @@ const BTN_LEAVE = '🌴 درخواستِ مرخصی';
 /** «📬 L-00012» یعنی همان نامه را باز کن؛ «↩️ L-00012» یعنی پاسخ بده. */
 const BTN_OPEN_LETTER_PREFIX = '📬 ';
 const BTN_REPLY_LETTER_PREFIX = '↩️ ';
+
+/** حداکثرِ ردیفِ «📋 درخواست‌های من»؛ پیامِ ربات باید روی گوشی خوانا بماند. */
+const MY_REQUESTS_LIMIT = 8;
+
+const FAULT_STATUS: Record<string, string> = {
+  new: '🆕 ثبت‌شده',
+  under_review: '🔎 در بررسی',
+  approved: '👍 تأییدشده',
+  assigned: '👷 واگذار شد',
+  in_progress: '🔧 در حالِ انجام',
+  waiting_parts: '📦 منتظرِ قطعه',
+  waiting_contractor: '🏗 منتظرِ پیمانکار',
+  follow_up: '🔁 پیگیری',
+  completed: '✅ انجام شد',
+  rejected: '❌ رد شد',
+  closed: '📁 بسته شد',
+};
+
+const LEAVE_STATUS: Record<string, string> = {
+  pending: '⏳ در انتظارِ تأیید',
+  approved: '✅ تأیید شد',
+  rejected: '❌ رد شد',
+  cancelled: '↩️ لغو شد',
+};
+
+/** همان برچسب‌های قبلیِ درخواستِ فرمی؛ متنی که کارمند می‌شناسد عوض نمی‌شود. */
+const REVIEW_STATUS: Record<string, string> = {
+  pending: '⏳ در انتظار تأیید',
+  approved: '✅ تأییدشده',
+  rejected: '❌ ردشده',
+};
+
+/** «۱۴۰۴/۰۵/۱۲» از تاریخِ ISO یا Date؛ نامعتبر → خالی. */
+function jalaliOf(value: string | Date | null | undefined): string {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : isoToJalaliText(d.toISOString());
+}
+
+function dateSuffix(value: string | Date | null | undefined): string {
+  const text = jalaliOf(value);
+  return text ? ` — ${text}` : '';
+}
 
 /** برچسبِ فارسیِ وضعیتِ دستورِ کار، برای متنِ ربات. */
 const WORK_ORDER_LABELS: Record<string, string> = {
@@ -135,6 +179,8 @@ export class StaffBotService {
      * دارند و از همان سرویس‌های پنل ثبت می‌شوند.
      */
     private readonly flow: BotFlowService,
+    /** مرخصی‌های خودِ پرسنل در «📋 درخواست‌های من». */
+    private readonly leaves: LeaveService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -870,9 +916,85 @@ export class StaffBotService {
     if (!person) {
       return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
     }
-    if (!person.mobile) return 'شماره موبایلی برای پروندهٔ شما ثبت نشده است.';
 
-    const rows = await this.responses
+    /*
+     * سه منبع، یک فهرست: خرابی‌هایی که اعلام کرده، مرخصی‌هایش، و
+     * درخواست‌هایی که با فرم ثبت کرده. پیش از این فقط پاسخِ فرم (با موبایل)
+     * دیده می‌شد؛ خرابی و مرخصیِ ثبت‌شده از خودِ ربات هیچ‌جا نمی‌آمد، با اینکه
+     * پیامِ ثبت می‌گفت از همین‌جا دنبالشان کنید.
+     */
+    const [faults, leaves, forms] = await Promise.all([
+      this.cmms
+        .listRequests(person.organizationId, {
+          requestedByPersonnelId: person.id,
+          pageSize: MY_REQUESTS_LIMIT,
+        })
+        .then((page) => page.rows)
+        .catch(() => []),
+      this.leaves
+        .list(person.organizationId, {
+          personnelId: person.id,
+          pageSize: MY_REQUESTS_LIMIT,
+        })
+        .then((page) => page.rows)
+        .catch(() => []),
+      person.mobile ? this.formRequests(person) : Promise.resolve([]),
+    ]);
+
+    const items: Array<{ at: number; lines: string[] }> = [];
+    for (const f of faults) {
+      items.push({
+        at: new Date(f.createdAt).getTime(),
+        lines: [
+          `🛠 <b>${escapeHtml(f.number)}</b> — ${escapeHtml(f.title)}${dateSuffix(f.createdAt)}`,
+          `  ${FAULT_STATUS[f.status] ?? f.status}`,
+        ],
+      });
+    }
+    for (const l of leaves) {
+      items.push({
+        at: new Date(l.createdAt).getTime(),
+        lines: [
+          `🌴 <b>${escapeHtml(l.number)}</b> — مرخصی ${jalaliOf(l.fromDate)}${
+            l.toDate && l.toDate !== l.fromDate ? ` تا ${jalaliOf(l.toDate)}` : ''
+          }`,
+          `  ${LEAVE_STATUS[l.status] ?? l.status}`,
+          ...(l.status === 'rejected' && l.decisionNote
+            ? [`  یادداشت: ${escapeHtml(l.decisionNote)}`]
+            : []),
+        ],
+      });
+    }
+    for (const r of forms) {
+      const review = r.meta?.review as
+        | { status?: string; note?: string }
+        | undefined;
+      const when = r.submittedAt ?? r.createdAt;
+      items.push({
+        at: new Date(when).getTime(),
+        lines: [
+          `📝 <b>${escapeHtml(r.formVersion?.form?.title ?? 'فرم')}</b>${dateSuffix(when)}`,
+          `  ${review?.status ? (REVIEW_STATUS[review.status] ?? review.status) : 'ثبت‌شده'}`,
+          ...(review?.status === 'rejected' && review.note
+            ? [`  یادداشت: ${escapeHtml(review.note)}`]
+            : []),
+        ],
+      });
+    }
+
+    if (items.length === 0) return 'درخواستی از شما ثبت نشده است.';
+
+    items.sort((a, b) => b.at - a.at);
+    const lines = ['📋 <b>درخواست‌های اخیرِ شما</b>', ''];
+    for (const item of items.slice(0, MY_REQUESTS_LIMIT)) {
+      lines.push(...item.lines);
+    }
+    return lines.join('\n');
+  }
+
+  /** درخواست‌هایی که با فرم (و موبایلِ پرونده) ثبت شده‌اند. */
+  private formRequests(person: { mobile: string; organizationId: string }) {
+    return this.responses
       .createQueryBuilder('response')
       .innerJoinAndSelect('response.formVersion', 'formVersion')
       .innerJoinAndSelect('formVersion.form', 'form')
@@ -885,33 +1007,8 @@ export class StaffBotService {
         status: ResponseStatus.COMPLETED,
       })
       .orderBy('response.createdAt', 'DESC')
-      .take(5)
+      .take(MY_REQUESTS_LIMIT)
       .getMany();
-
-    if (rows.length === 0) return 'درخواستی از شما ثبت نشده است.';
-
-    const labels: Record<string, string> = {
-      pending: '⏳ در انتظار تأیید',
-      approved: '✅ تأییدشده',
-      rejected: '❌ ردشده',
-    };
-    const lines = ['📋 <b>درخواست‌های اخیرِ شما</b>', ''];
-    for (const row of rows) {
-      const review = row.meta?.review as
-        | { status?: string; note?: string }
-        | undefined;
-      const when = row.submittedAt ?? row.createdAt;
-      const date = when ? isoToJalaliText(new Date(when).toISOString()) : '';
-      const state = review?.status ? (labels[review.status] ?? review.status) : 'ثبت‌شده';
-      lines.push(
-        `• <b>${escapeHtml(row.formVersion?.form?.title ?? 'فرم')}</b>${date ? ` — ${date}` : ''}`,
-      );
-      lines.push(`  ${state}`);
-      if (review?.status === 'rejected' && review.note) {
-        lines.push(`  یادداشت: ${escapeHtml(review.note)}`);
-      }
-    }
-    return lines.join('\n');
   }
 
   /**

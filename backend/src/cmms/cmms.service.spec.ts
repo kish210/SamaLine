@@ -165,6 +165,24 @@ describe('CmmsService', () => {
     expect(paged.total).toBe(2);
   });
 
+  it('فقط درخواست‌های ثبت‌شده توسطِ یک پرسنل (برای «درخواست‌های من»ِ ربات)', async () => {
+    await service.createRequest(ORG, {
+      title: 'اعلامِ خرابی از ربات',
+      requestedByPersonnelId: 'p-1',
+    });
+    await service.createRequest(ORG, {
+      title: 'مالِ همکار',
+      requestedByPersonnelId: 'p-2',
+    });
+    await service.createRequest(ORG, { title: 'ثبتِ پنل، بی‌پرسنل' });
+
+    const mine = await service.listRequests(ORG, {
+      requestedByPersonnelId: 'p-1',
+    });
+    expect(mine.total).toBe(1);
+    expect(mine.rows[0].title).toBe('اعلامِ خرابی از ربات');
+  });
+
   it('دارایی نمی‌تواند والدِ خودش شود', async () => {
     const a = await service.createAsset(ORG, { code: 'A-9', name: 'والد' });
     await expect(

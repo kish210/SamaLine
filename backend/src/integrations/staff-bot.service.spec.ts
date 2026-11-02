@@ -48,6 +48,11 @@ describe('StaffBotService', () => {
   /** پاسخی که BotFlowService برای پیامِ «در حینِ کار» می‌دهد؛ null یعنی کاری باز نیست. */
   let flowReply: unknown;
   let flowStarts: Array<Record<string, unknown>>;
+  /** خرابی‌ها و مرخصی‌هایی که استابِ CMMS/مرخصی برمی‌گرداند + پرس‌وجوها. */
+  let faultRows: Array<Record<string, unknown>>;
+  let leaveRows: Array<Record<string, unknown>>;
+  let faultQueries: Array<Record<string, unknown>>;
+  let leaveQueries: Array<Record<string, unknown>>;
 
   beforeEach(async () => {
     tasks = [];
@@ -60,6 +65,10 @@ describe('StaffBotService', () => {
     inboxSearches = [];
     flowReply = null;
     flowStarts = [];
+    faultRows = [];
+    leaveRows = [];
+    faultQueries = [];
+    leaveQueries = [];
     ds = await createTestDataSource();
     hr = new HrService(
       ds.getRepository(PersonnelEntity),
@@ -119,6 +128,10 @@ describe('StaffBotService', () => {
        */
       {
         workOrdersOfTechnician: async () => tasks,
+        listRequests: async (_org: string, query: Record<string, unknown>) => {
+          faultQueries.push(query);
+          return { rows: faultRows, total: faultRows.length };
+        },
         changeWorkOrderStatus: async (
           _org: string,
           id: string,
@@ -163,6 +176,13 @@ describe('StaffBotService', () => {
           return { text: `شروعِ ${String(input.flow)}` };
         },
         cancel: async () => undefined,
+      } as never,
+      // مرخصی‌های خودِ پرسنل برای «📋 درخواست‌های من».
+      {
+        list: async (_org: string, query: Record<string, unknown>) => {
+          leaveQueries.push(query);
+          return { rows: leaveRows, total: leaveRows.length };
+        },
       } as never,
     );
   });
@@ -705,6 +725,57 @@ describe('StaffBotService', () => {
       expect(replyText(reply)).not.toContain('نامه‌های شما');
       await service.tryHandle(BOT, 'chat-48', '🛠 اعلامِ خرابی');
       expect(flowStarts).toEqual([]);
+    });
+  });
+  describe('«📋 درخواست‌های من» — خرابی، مرخصی و فرم با هم', () => {
+    const link = async (mobile: string | undefined, chatId: string) => {
+      const person = await hr.create(ORG, { fullName: 'گزارش‌دهنده', mobile });
+      await hr.linkChatToPersonnel(ORG, person.id, 'bale', chatId, 'ws-1');
+      return person;
+    };
+
+    it('خرابی و مرخصیِ همین پرسنل را با وضعیت، جدیدترین اول، نشان می‌دهد', async () => {
+      const person = await link('09120000071', 'chat-71');
+      faultRows = [
+        { number: 'MR-00004', title: 'کولرِ ۲۰۳', status: 'in_progress', createdAt: new Date('2026-03-10T08:00:00Z') },
+      ];
+      leaveRows = [
+        { number: 'LV-00002', fromDate: '2026-03-20', toDate: '2026-03-22', status: 'rejected', decisionNote: 'پیکِ کاری', createdAt: new Date('2026-03-12T08:00:00Z') },
+      ];
+      const reply = replyText(await service.tryHandle(BOT, 'chat-71', '📋 درخواست‌های من'));
+
+      expect(reply).toContain('MR-00004');
+      expect(reply).toContain('در حالِ انجام');
+      expect(reply).toContain('LV-00002');
+      expect(reply).toContain('رد شد');
+      expect(reply).toContain('پیکِ کاری');
+      // مرخصی (۱۲ مارس) پیش از خرابی (۱۰ مارس) می‌آید.
+      expect(reply.indexOf('LV-00002')).toBeLessThan(reply.indexOf('MR-00004'));
+      // فقط مالِ همین پرسنل پرسیده می‌شود.
+      expect(faultQueries[0]).toMatchObject({ requestedByPersonnelId: person.id });
+      expect(leaveQueries[0]).toMatchObject({ personnelId: person.id });
+    });
+
+    it('پرسنلِ بی‌موبایل هم خرابی و مرخصی‌اش را می‌بیند', async () => {
+      // پیش از این بی‌موبایل فقط «شماره موبایلی ثبت نشده» می‌گرفت.
+      await link(undefined, 'chat-72');
+      leaveRows = [
+        { number: 'LV-00009', fromDate: '2026-04-01', toDate: '2026-04-01', status: 'pending', decisionNote: '', createdAt: new Date() },
+      ];
+      const reply = replyText(await service.tryHandle(BOT, 'chat-72', '/requests'));
+      expect(reply).toContain('LV-00009');
+      expect(reply).toContain('در انتظارِ تأیید');
+    });
+
+    it('شکستِ یک منبع بقیه را از کار نمی‌اندازد', async () => {
+      await link('09120000073', 'chat-73');
+      faultRows = [
+        { number: 'MR-00010', title: 'لامپ', status: 'new', createdAt: new Date() },
+      ];
+      // مرخصی خطا می‌دهد؛ خرابی باید همچنان بیاید.
+      leaveRows = null as never;
+      const reply = replyText(await service.tryHandle(BOT, 'chat-73', '/requests'));
+      expect(reply).toContain('MR-00010');
     });
   });
 });

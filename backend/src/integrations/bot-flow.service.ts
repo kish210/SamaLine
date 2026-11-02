@@ -320,6 +320,12 @@ export class BotFlowService {
           location: String(data.location ?? ''),
           priority: data.priority as MaintenancePriority,
           category: MaintenanceCategory.OTHER,
+          /*
+           * گزارش‌دهنده ثبت می‌شود؛ وگرنه خرابی بی‌نام می‌ماند و کارمند در
+           * «📋 درخواست‌های من» پیدایش نمی‌کرد، با اینکه پیامِ ثبت همین را
+           * می‌گوید. فنی هم می‌داند برای جزئیات سراغِ چه کسی برود.
+           */
+          requestedByPersonnelId: session.personnelId,
         });
         return [
           `✅ خرابی با شمارهٔ <b>${saved.number}</b> ثبت شد.`,

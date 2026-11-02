@@ -118,6 +118,8 @@ describe('BotFlowService — کارهای چندمرحله‌ای در ربات'
         location: '',
         priority: 'emergency',
         category: 'other',
+        // گزارش‌دهنده ثبت می‌شود تا در «درخواست‌های من» پیدا شود.
+        requestedByPersonnelId: PERSON,
       },
     ]);
     // پس از ثبت، گفتگو بسته است.
