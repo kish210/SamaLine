@@ -16,6 +16,11 @@ import {
   DEFAULT_FOOTER_URL,
   PlatformSettingsService,
 } from './platform-settings.service';
+import { OrganizationEntity } from '../database/entities/organization.entity';
+import { FormEntity } from '../database/entities/form.entity';
+import { ResponseEntity } from '../database/entities/response.entity';
+import { DepartmentEntity } from '../database/entities/department.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 
 /** ExecutionContext ساختگی با کاربر مشخص. */
 const ctxFor = (sub?: string) =>
@@ -35,6 +40,11 @@ describe('تنظیمات سکو و سوپرادمین', () => {
       ds.getRepository(PlatformSettingsEntity),
       ds.getRepository(UserEntity),
       ds.getRepository(WorkspaceEntity),
+      ds.getRepository(OrganizationEntity),
+      ds.getRepository(FormEntity),
+      ds.getRepository(ResponseEntity),
+      ds.getRepository(DepartmentEntity),
+      ds.getRepository(PersonnelEntity),
     );
   });
 

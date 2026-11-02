@@ -20,6 +20,7 @@ import {
 import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { createTestDataSource } from '../testing/test-database';
 import { ExportService } from './export.service';
+import { AnalyticsService } from './analytics.service';
 
 describe('ExportService — خروجی گزارش', () => {
   let ds: DataSource;
@@ -31,6 +32,11 @@ describe('ExportService — خروجی گزارش', () => {
     service = new ExportService(
       ds.getRepository(ResponseEntity),
       ds.getRepository(FormVersionEntity),
+      // واقعی، نه استاب: خروجیِ PowerPoint روی همین تجمیع ساخته می‌شود.
+      new AnalyticsService(
+        ds.getRepository(ResponseEntity),
+        ds.getRepository(FormVersionEntity),
+      ),
     );
 
     const org = await ds
@@ -168,4 +174,5 @@ describe('ExportService — خروجی گزارش', () => {
       expect(buffer.length).toBeGreaterThan(1000);
     });
   });
+
 });

@@ -56,6 +56,8 @@ import { RespondentAuthService } from './respondent-auth.service';
 import { PlatformSettingsService } from '../platform/platform-settings.service';
 import { PlatformSettingsEntity } from '../database/entities/platform-settings.entity';
 import { UserEntity } from '../database/entities/user.entity';
+import { DepartmentEntity } from '../database/entities/department.entity';
+import { PersonnelEntity } from '../database/entities/personnel.entity';
 
 /**
  * تست ادغام روی دیتابیس واقعی (SQLite در حافظه).
@@ -189,6 +191,11 @@ describe('PublicService — مسیر ثبت پاسخ', () => {
         ds.getRepository(PlatformSettingsEntity),
         ds.getRepository(UserEntity),
         ds.getRepository(WorkspaceEntity),
+        ds.getRepository(OrganizationEntity),
+        ds.getRepository(FormEntity),
+        ds.getRepository(ResponseEntity),
+        ds.getRepository(DepartmentEntity),
+        ds.getRepository(PersonnelEntity),
       ),
       new TelegramService(
         ds.getRepository(TelegramIntegrationEntity),
