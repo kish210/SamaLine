@@ -17,6 +17,9 @@ import { AnnouncementService } from './announcement.service';
 import { BotFormFillService, isBotFillable } from './bot-form-fill.service';
 import { isoToJalaliText } from '../common/jalali';
 import { CmmsService } from '../cmms/cmms.service';
+import { LetterService } from '../letters/letter.service';
+import { BotFlowService } from './bot-flow.service';
+import { BotFlow } from '../database/entities/bot-flow-session.entity';
 import { ShiftService, shiftDate, todayIso } from '../hr/shift.service';
 import { WorkOrderStatus } from '../database/entities/work-order.entity';
 import { MaintenancePriority } from '../database/entities/maintenance-request.entity';
@@ -56,6 +59,13 @@ const BTN_OUT = '🔴 ثبتِ خروج';
 const BTN_START_PREFIX = '🚀 ';
 const BTN_DONE_PREFIX = '✅ ';
 
+const BTN_LETTERS = '✉️ نامه‌های من';
+const BTN_FAULT = '🛠 اعلامِ خرابی';
+const BTN_LEAVE = '🌴 درخواستِ مرخصی';
+/** «📬 L-00012» یعنی همان نامه را باز کن؛ «↩️ L-00012» یعنی پاسخ بده. */
+const BTN_OPEN_LETTER_PREFIX = '📬 ';
+const BTN_REPLY_LETTER_PREFIX = '↩️ ';
+
 /** برچسبِ فارسیِ وضعیتِ دستورِ کار، برای متنِ ربات. */
 const WORK_ORDER_LABELS: Record<string, string> = {
   draft: 'بی‌متصدی',
@@ -78,9 +88,10 @@ const TYPE_KEYBOARD = {
 /** کیبوردِ پرسنلِ وصل‌شده. */
 const STAFF_KEYBOARD = {
   keyboard: [
-    [{ text: BTN_TASKS }, { text: BTN_SHIFT }],
+    [{ text: BTN_TASKS }, { text: BTN_LETTERS }],
     [{ text: BTN_IN }, { text: BTN_OUT }],
-    [{ text: BTN_FORMS }],
+    [{ text: BTN_FAULT }, { text: BTN_LEAVE }],
+    [{ text: BTN_SHIFT }, { text: BTN_FORMS }],
     [{ text: BTN_REQUESTS }, { text: BTN_NEWS }],
     [{ text: BTN_ME }, { text: BTN_LOGOUT }],
   ],
@@ -118,6 +129,12 @@ export class StaffBotService {
      */
     private readonly cmms: CmmsService,
     private readonly shifts: ShiftService,
+    private readonly letters: LetterService,
+    /*
+     * کارهای چندمرحله‌ای (خرابی، مرخصی، پاسخِ نامه) حالتِ خودشان را
+     * دارند و از همان سرویس‌های پنل ثبت می‌شوند.
+     */
+    private readonly flow: BotFlowService,
   ) {}
 
   /** سازمانِ یک ربات از فضای کاری‌اش. */
@@ -148,6 +165,13 @@ export class StaffBotService {
      */
     const inFill = await this.fill.handleMessage(chatId, bot.platform, trimmed);
     if (inFill) return inFill;
+
+    /*
+     * کارِ چندمرحله‌ایِ نیمه‌کاره هم بر منو مقدم است: وقتی ربات منتظرِ
+     * «تا چه تاریخی؟» است، پیامِ کاربر پاسخ است نه فرمانِ منو.
+     */
+    const inFlow = await this.flow.handleMessage(chatId, bot.platform, trimmed);
+    if (inFlow) return inFlow;
 
     /*
      * تفکیکِ سخت‌گیرانه‌ی نوع (خواسته‌ی کارفرما): هنگامِ شروع، اول نوعِ کاربر
@@ -253,10 +277,213 @@ export class StaffBotService {
         .trim();
       return this.advanceTask(bot, chatId, number, start);
     }
+    if (
+      command === '/نامه' ||
+      command === '/letters' ||
+      trimmed === BTN_LETTERS
+    ) {
+      return this.myLetters(bot, chatId);
+    }
+    if (trimmed === BTN_FAULT || command === '/خرابی') {
+      return this.startFlow(bot, chatId, BotFlow.FAULT);
+    }
+    if (trimmed === BTN_LEAVE || command === '/مرخصی') {
+      return this.startFlow(bot, chatId, BotFlow.LEAVE);
+    }
+    if (trimmed.startsWith(BTN_OPEN_LETTER_PREFIX)) {
+      return this.openLetter(
+        bot,
+        chatId,
+        trimmed.slice(BTN_OPEN_LETTER_PREFIX.length).trim(),
+      );
+    }
+    if (trimmed.startsWith(BTN_REPLY_LETTER_PREFIX)) {
+      return this.replyToLetter(
+        bot,
+        chatId,
+        trimmed.slice(BTN_REPLY_LETTER_PREFIX.length).trim(),
+      );
+    }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
     return null;
+  }
+
+  /** پرسنلِ وصل‌شده و سازمانش، یا پیامِ راهنما. */
+  private async whoAmI(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<
+    | { ok: true; personnelId: string; organizationId: string }
+    | { ok: false; reply: BotReply }
+  > {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return {
+        ok: false,
+        reply:
+          'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید یا از «داشبورد من» در پنل کدِ اتصال بگیرید.',
+      };
+    }
+    const organizationId = await this.orgIdOf(bot);
+    if (!organizationId) {
+      return { ok: false, reply: 'ربات به سازمانی وصل نیست.' };
+    }
+    return { ok: true, personnelId: person.id, organizationId };
+  }
+
+  /**
+   * «✉️ نامه‌های من»: نخوانده‌ها اول.
+   *
+   * هر نامه دکمه‌ی باز کردن می‌گیرد. نامهٔ **تازه** از ربات نوشته نمی‌شود:
+   * انتخابِ گیرنده از بینِ ده‌ها همکار با کیبوردِ پاسخ غیرقابلِ استفاده
+   * است، پس آن یکی در پنل («داشبورد من») انجام می‌شود. پاسخ به نامهٔ
+   * دریافتی اما کامل در گفتگو کار می‌کند، چون گیرنده از پیش معلوم است.
+   */
+  private async myLetters(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+  ): Promise<BotReply> {
+    const who = await this.whoAmI(bot, chatId);
+    if (!who.ok) return who.reply;
+
+    const inbox = await this.letters.inbox(who.organizationId, who.personnelId, {
+      pageSize: 8,
+    });
+    if (inbox.total === 0) {
+      return { text: '✉️ نامه‌ای ندارید.', keyboard: STAFF_KEYBOARD };
+    }
+
+    const unread = inbox.rows.filter((l) => l.isUnread).length;
+    const lines = [
+      `✉️ <b>نامه‌های شما</b>${unread > 0 ? ` — ${unread} نخوانده` : ''}`,
+      '',
+    ];
+    const rows: Array<Array<{ text: string }>> = [];
+    for (const letter of inbox.rows) {
+      lines.push(
+        `${letter.isUnread ? '🔵' : '⚪️'} <b>${letter.number}</b> — ${escapeHtml(
+          letter.subject,
+        )}`,
+        `  از: ${escapeHtml(letter.senderName)}${
+          letter.priority === 'urgent' ? ' · فوری' : ''
+        }`,
+      );
+      rows.push([{ text: `${BTN_OPEN_LETTER_PREFIX}${letter.number}` }]);
+    }
+    lines.push('', 'نامهٔ تازه را از «داشبورد من» در پنل بنویسید.');
+    rows.push([{ text: BTN_BACK }]);
+    return {
+      text: lines.join('\n'),
+      keyboard: { keyboard: rows, resize_keyboard: true },
+    };
+  }
+
+  /** یک نامه را نشان می‌دهد، خوانده‌اش می‌کند و دکمهٔ پاسخ می‌دهد. */
+  private async openLetter(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    number: string,
+  ): Promise<BotReply> {
+    const who = await this.whoAmI(bot, chatId);
+    if (!who.ok) return who.reply;
+
+    const found = await this.letterByNumber(
+      who.organizationId,
+      who.personnelId,
+      number,
+    );
+    if (!found) {
+      return 'این نامه پیدا نشد. «✉️ نامه‌های من» را بزنید.';
+    }
+
+    // باز کردن یعنی خواندن؛ همان کاری که پنل هم می‌کند.
+    await this.letters
+      .markRead(who.organizationId, found.id, who.personnelId)
+      .catch(() => undefined);
+
+    const text = [
+      `✉️ <b>${found.number}</b> — ${escapeHtml(found.subject)}`,
+      `از: ${escapeHtml(found.senderName)}`,
+      '',
+      escapeHtml(found.body || '—'),
+    ].join('\n');
+    return {
+      text,
+      keyboard: {
+        keyboard: [
+          [{ text: `${BTN_REPLY_LETTER_PREFIX}${found.number}` }],
+          [{ text: BTN_LETTERS }, { text: BTN_BACK }],
+        ],
+        resize_keyboard: true,
+      },
+    };
+  }
+
+  /** پاسخ به نامه را شروع می‌کند (گیرنده از خودِ نامه می‌آید). */
+  private async replyToLetter(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    number: string,
+  ): Promise<BotReply> {
+    const who = await this.whoAmI(bot, chatId);
+    if (!who.ok) return who.reply;
+
+    const found = await this.letterByNumber(
+      who.organizationId,
+      who.personnelId,
+      number,
+    );
+    if (!found) return 'این نامه پیدا نشد.';
+
+    await this.fill.cancel?.(chatId, bot.platform);
+    return this.flow.start({
+      organizationId: who.organizationId,
+      personnelId: who.personnelId,
+      chatId,
+      platform: bot.platform,
+      flow: BotFlow.LETTER_REPLY,
+      contextId: found.id,
+    });
+  }
+
+  /** نامه‌ای از صندوقِ خودم با شمارهٔ خوانا. */
+  private async letterByNumber(
+    organizationId: string,
+    personnelId: string,
+    number: string,
+  ) {
+    const page = await this.letters.inbox(organizationId, personnelId, {
+      search: number,
+      pageSize: 5,
+    });
+    return page.rows.find((l) => l.number === number) ?? null;
+  }
+
+  /** شروعِ یک کارِ چندمرحله‌ای، با بستنِ فرمِ نیمه‌کاره‌ی احتمالی. */
+  private async startFlow(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    flow: BotFlow,
+  ): Promise<BotReply> {
+    const who = await this.whoAmI(bot, chatId);
+    if (!who.ok) return who.reply;
+
+    /*
+     * فرمِ نیمه‌کاره بسته می‌شود.
+     *
+     * وگرنه هر دو باز می‌ماندند و چون فرم در اولویتِ dispatch است، پاسخِ
+     * کاربر به پرسشِ این کار، جوابِ سوالِ فرم شمرده می‌شد.
+     */
+    await this.fill.cancel?.(chatId, bot.platform);
+    return this.flow.start({
+      organizationId: who.organizationId,
+      personnelId: who.personnelId,
+      chatId,
+      platform: bot.platform,
+      flow,
+    });
   }
 
   /**
@@ -478,7 +705,8 @@ export class StaffBotService {
       person.position ? `سمت: ${escapeHtml(person.position)}` : '',
       '',
       'از دکمه‌های پایین استفاده کنید یا فرمان بزنید:',
-      'کارهای من · شیفتِ من · ثبتِ ورود/خروج',
+      'کارهای من · نامه‌های من · شیفتِ من · ثبتِ ورود/خروج',
+      'اعلامِ خرابی · درخواستِ مرخصی',
       'فرم‌ها · درخواست‌های من · اطلاعیه‌ها · پرونده‌ی من · خروج',
     ]
       .filter((l) => l !== '')

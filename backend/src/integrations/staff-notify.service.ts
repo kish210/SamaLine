@@ -104,6 +104,71 @@ export class StaffNotifyService {
     return { sent, skipped };
   }
 
+  /**
+   * نتیجهٔ تصمیمِ مرخصی، در همان لحظه.
+   *
+   * خلاصهٔ روزانه برای این مناسب نیست: کارمند باید همان وقتی که مدیر
+   * تصمیم گرفت بداند، نه فردا صبح. مثلِ بقیهٔ اعلان‌ها هرگز throw نمی‌کند
+   * تا مسیرِ تأیید در پنل نشکند.
+   */
+  async notifyLeaveDecision(input: {
+    organizationId: string;
+    personnelId: string;
+    number: string;
+    decision: 'approved' | 'rejected' | 'cancelled';
+    fromDate: string;
+    toDate: string;
+    note?: string;
+  }): Promise<void> {
+    try {
+      const links = await this.hr.linksOf(
+        input.organizationId,
+        input.personnelId,
+      );
+      if (links.length === 0) return;
+
+      const headline =
+        input.decision === 'approved'
+          ? '✅ مرخصیِ شما تأیید شد'
+          : input.decision === 'rejected'
+            ? '❌ مرخصیِ شما رد شد'
+            : '↩️ مرخصیِ شما لغو شد';
+      const text = [
+        headline,
+        `شمارهٔ درخواست: <b>${escapeHtml(input.number)}</b>`,
+        `از ${escapeHtml(input.fromDate)} تا ${escapeHtml(input.toDate)}`,
+        input.note ? `یادداشت: ${escapeHtml(input.note)}` : '',
+      ]
+        .filter((line) => line !== '')
+        .join('\n');
+
+      // به همهٔ سکوهای وصل‌شدهٔ همان نفر.
+      const botCache = new Map<string, TelegramIntegrationEntity | null>();
+      for (const link of links) {
+        const wsId = link.workspaceId;
+        if (!wsId) continue;
+        if (!botCache.has(wsId)) {
+          botCache.set(
+            wsId,
+            await this.botRepo.findOne({ where: { workspaceId: wsId } }),
+          );
+        }
+        const bot = botCache.get(wsId) ?? null;
+        if (!bot?.isActive) continue;
+        await this.api.send(
+          bot.botToken,
+          link.chatId,
+          text,
+          platformApiBase(link.platform || bot.platform),
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `اعلانِ نتیجهٔ مرخصی ناموفق بود: ${(error as Error).message}`,
+      );
+    }
+  }
+
   async notifyReviewDecision(input: ReviewNotification): Promise<void> {
     try {
       if (!input.respondentKey) return;

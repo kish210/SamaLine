@@ -14,6 +14,7 @@ import { InvitationEntity } from './invitation.entity';
 import { MenuEntity } from './menu.entity';
 import { InvoiceEntity } from './invoice.entity';
 import { BotFormSessionEntity } from './bot-form-session.entity';
+import { BotFlowSessionEntity } from './bot-flow-session.entity';
 import { AssetEntity } from './asset.entity';
 import { PmScheduleEntity } from './pm-schedule.entity';
 import {
@@ -92,6 +93,7 @@ export const ALL_ENTITIES = [
   IdentityProviderEntity,
   KioskSessionEntity,
   BotFormSessionEntity,
+  BotFlowSessionEntity,
   AssetEntity,
   PmScheduleEntity,
   SparePartEntity,

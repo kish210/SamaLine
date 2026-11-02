@@ -2,6 +2,9 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Inject,
+  Optional,
+  forwardRef,
   Get,
   Param,
   Patch,
@@ -33,6 +36,7 @@ import {
 } from '../database/entities/leave-request.entity';
 import { LeaveService, type LeaveListQuery } from './leave.service';
 import { HrService } from './hr.service';
+import { StaffNotifyService } from '../integrations/staff-notify.service';
 
 class LeaveDto {
   @IsNotEmpty() @IsString() personnelId: string;
@@ -75,6 +79,16 @@ export class LeaveController {
     private readonly service: LeaveService,
     /** برای فهمیدنِ «این پروندهٔ خودِ من است یا همکارم». */
     private readonly hr: HrService,
+    /*
+     * اعلانِ نتیجه به ربات.
+     *
+     * `@Optional()` است تا ماژولِ HR به ماژولِ یکپارچه‌سازی وابستهٔ سخت
+     * نشود (حلقه می‌ساخت) و آزمون‌های واحد هم ساده بمانند؛ بی‌ربات،
+     * تصمیم همان‌طور کار می‌کند.
+     */
+    @Optional()
+    @Inject(forwardRef(() => StaffNotifyService))
+    private readonly notify?: StaffNotifyService,
   ) {}
 
   @Get('summary')
@@ -131,16 +145,33 @@ export class LeaveController {
   /** تأیید/رد/لغو — تصمیمِ مدیر. */
   @Patch(':id/decision')
   @MinRole(OrganizationRole.ADMIN)
-  decide(
+  async decide(
     @OrganizationId() organizationId: string,
     @Param('id') id: string,
     @Body() dto: DecisionDto,
     @CurrentUser() user: JwtUser,
   ) {
-    return this.service.decide(organizationId, id, dto.status, {
+    const saved = await this.service.decide(organizationId, id, dto.status, {
       note: dto.note,
       actorId: user.sub,
     });
+
+    /*
+     * نتیجه همان لحظه به رباتِ کارمند می‌رود، نه در خلاصهٔ فردا صبح.
+     *
+     * بی‌انتظار (`void`) و بی‌throw: اعلان نباید مسیرِ تصمیمِ مدیر را کند
+     * یا خراب کند — سرویسِ اعلان خودش خطا را می‌بلعد و لاگ می‌کند.
+     */
+    void this.notify?.notifyLeaveDecision({
+      organizationId,
+      personnelId: saved.personnelId,
+      number: saved.number,
+      decision: dto.status as 'approved' | 'rejected' | 'cancelled',
+      fromDate: saved.fromDate,
+      toDate: saved.toDate,
+      note: dto.note,
+    });
+    return saved;
   }
 
   @Get('balance/:personnelId')

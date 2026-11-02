@@ -105,6 +105,17 @@ export class BotFormFillService {
     private readonly jwt: JwtService,
   ) {}
 
+  /**
+   * بستنِ فرمِ نیمه‌کاره‌ی این چت.
+   *
+   * وقتی کاربر کارِ دیگری را شروع می‌کند (خرابی، مرخصی، پاسخِ نامه) لازم
+   * است: فرم در اولویتِ dispatch است، پس اگر باز بماند پاسخِ کاربر به
+   * پرسشِ کارِ تازه، جوابِ سوالِ فرم شمرده می‌شود.
+   */
+  async cancel(chatId: string, platform: string) {
+    await this.sessions.delete({ chatId, platform });
+  }
+
   /** گفتگوی نیمه‌کاره‌ی این چت، اگر باشد. */
   findSession(chatId: string, platform: string) {
     return this.sessions.findOne({ where: { chatId, platform } });

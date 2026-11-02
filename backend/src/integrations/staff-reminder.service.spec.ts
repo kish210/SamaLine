@@ -32,6 +32,8 @@ describe('StaffReminderService', () => {
   let sendOk = true;
   let tasks: Array<Record<string, unknown>>;
   let shiftRows: Array<Record<string, unknown>>;
+  /** تعدادِ نامه‌های نخواندهٔ هر پرسنل (کلید: personnelId). */
+  let unreadLetters: Record<string, number>;
   let orgId: string;
   let workspaceId: string;
 
@@ -68,6 +70,7 @@ describe('StaffReminderService', () => {
     sentMessages = [];
     sendOk = true;
     tasks = [];
+    unreadLetters = {};
     shiftRows = [];
 
     const org = await ds
@@ -93,6 +96,10 @@ describe('StaffReminderService', () => {
       ds.getRepository(PersonnelBotLinkEntity),
       { myShifts: async () => shiftRows } as never,
       { workOrdersOfTechnician: async () => tasks } as never,
+      {
+        unreadCount: async (_org: string, personnelId: string) =>
+          unreadLetters[personnelId] ?? 0,
+      } as never,
       {
         send: async (_token: string, chatId: string, text: string) => {
           if (sendOk) sentMessages.push({ chatId, text });
@@ -134,6 +141,26 @@ describe('StaffReminderService', () => {
     // اولویت و عقب‌افتادگی باید در متن باشد، وگرنه یادآوری بی‌فایده است.
     expect(sentMessages[0].text).toContain('اضطراری');
     expect(sentMessages[0].text).toContain('عقب‌افتاده');
+  });
+
+  it('صبح، نامه‌های نخوانده را جدا از کارها یادآوری می‌کند', async () => {
+    const reader = await linkedPerson('منشی', 'chat-9');
+    unreadLetters[reader.id] = 3;
+
+    expect(await service.run(at(TASKS_HOUR))).toBe(1);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0].chatId).toBe('chat-9');
+    expect(sentMessages[0].text).toContain('نامهٔ نخوانده');
+    // بی‌کار است، پس پیامِ خالیِ «کارها» نباید برود.
+    expect(sentMessages[0].text).not.toContain('WO-');
+    // همان روز دوباره نمی‌رود.
+    expect(await service.run(at(TASKS_HOUR))).toBe(0);
+  });
+
+  it('بدونِ نامهٔ نخوانده، یادآوریِ نامه نمی‌رود', async () => {
+    await linkedPerson('بی‌نامه', 'chat-10');
+    expect(await service.run(at(TASKS_HOUR))).toBe(0);
+    expect(sentMessages).toHaveLength(0);
   });
 
   it('عصر، شیفتِ فردا را یادآوری می‌کند', async () => {

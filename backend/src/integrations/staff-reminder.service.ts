@@ -16,6 +16,7 @@ import { WorkspaceEntity } from '../database/entities/workspace.entity';
 import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { MaintenancePriority } from '../database/entities/maintenance-request.entity';
 import { CmmsService } from '../cmms/cmms.service';
+import { LetterService } from '../letters/letter.service';
 import { ShiftService, shiftDate, todayIso } from '../hr/shift.service';
 import { isoToJalaliText } from '../common/jalali';
 import { TelegramApi, platformApiBase } from './telegram-api';
@@ -61,6 +62,7 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
     private readonly botLinks: Repository<PersonnelBotLinkEntity>,
     private readonly shifts: ShiftService,
     private readonly cmms: CmmsService,
+    private readonly letters: LetterService,
     private readonly api: TelegramApi,
   ) {}
 
@@ -86,7 +88,16 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
   async run(now = new Date()): Promise<number> {
     const hour = now.getUTCHours();
     const kinds: StaffReminderKind[] = [];
-    if (hour === TASKS_HOUR_UTC) kinds.push(StaffReminderKind.TASKS);
+    if (hour === TASKS_HOUR_UTC) {
+      kinds.push(StaffReminderKind.TASKS);
+      /*
+       * نامهٔ نخوانده هم صبح یادآوری می‌شود.
+       *
+       * جدا از کارها، چون دفترِ یادآوری به‌ازای نوع است: کسی که کار دارد
+       * ولی نامه ندارد نباید پیامِ خالی بگیرد، و برعکس.
+       */
+      kinds.push(StaffReminderKind.LETTERS);
+    }
     if (hour === SHIFT_HOUR_UTC) kinds.push(StaffReminderKind.SHIFT);
     if (kinds.length === 0) return 0;
 
@@ -167,7 +178,9 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
         const text =
           kind === StaffReminderKind.SHIFT
             ? await this.shiftText(person, forDate)
-            : await this.taskText(person, forDate);
+            : kind === StaffReminderKind.LETTERS
+              ? await this.letterText(person)
+              : await this.taskText(person, forDate);
         // چیزی برای گفتن نبود: سطرِ دفتر هم نمی‌نویسیم تا اگر بعداً شیفت
         // اضافه شد، همان روز یادآوری برود.
         if (!text) continue;
@@ -268,6 +281,20 @@ export class StaffReminderService implements OnModuleInit, OnModuleDestroy {
     }
     lines.push('', 'برای شروع یا تکمیل، «🔧 کارهای من» را بزنید.');
     return lines.join('\n');
+  }
+
+  /** متنِ یادآوریِ نامه‌های نخوانده؛ خالی یعنی چیزی نمانده. */
+  private async letterText(person: PersonnelEntity): Promise<string> {
+    const unread = await this.letters.unreadCount(
+      person.organizationId,
+      person.id,
+    );
+    if (unread === 0) return '';
+    return [
+      `✉️ <b>${unread} نامهٔ نخوانده</b> دارید.`,
+      '',
+      'برای دیدن، «✉️ نامه‌های من» را بزنید.',
+    ].join('\n');
   }
 
   /** رباتِ همان فضای کاری که پرسنل از طریقش وصل شده. */

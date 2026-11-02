@@ -41,6 +41,13 @@ describe('StaffBotService', () => {
   let statusCalls: Array<{ id: string; to: string }>;
   let statusError: unknown;
   let punchError: unknown;
+  /** صندوقِ نامه‌ای که استابِ LetterService برمی‌گرداند. */
+  let letterRows: Array<Record<string, unknown>>;
+  let markReadCalls: string[];
+  let inboxSearches: Array<string | undefined>;
+  /** پاسخی که BotFlowService برای پیامِ «در حینِ کار» می‌دهد؛ null یعنی کاری باز نیست. */
+  let flowReply: unknown;
+  let flowStarts: Array<Record<string, unknown>>;
 
   beforeEach(async () => {
     tasks = [];
@@ -48,6 +55,11 @@ describe('StaffBotService', () => {
     statusCalls = [];
     statusError = null;
     punchError = null;
+    letterRows = [];
+    markReadCalls = [];
+    inboxSearches = [];
+    flowReply = null;
+    flowStarts = [];
     ds = await createTestDataSource();
     hr = new HrService(
       ds.getRepository(PersonnelEntity),
@@ -125,6 +137,32 @@ describe('StaffBotService', () => {
             ? { checkIn: '07:05', status: 'present', minutesWorked: 0 }
             : { checkOut: '15:00', status: 'present', minutesWorked: 480 };
         },
+      } as never,
+      // نامه‌ها: صندوقِ قابل‌تنظیم، و ثبتِ جست‌وجو/خواندن برای سنجش.
+      {
+        inbox: async (
+          _org: string,
+          _personnelId: string,
+          query: { search?: string } = {},
+        ) => {
+          inboxSearches.push(query.search);
+          const rows = query.search
+            ? letterRows.filter((l) => l.number === query.search)
+            : letterRows;
+          return { rows, total: rows.length };
+        },
+        markRead: async (_org: string, id: string) => {
+          markReadCalls.push(id);
+        },
+      } as never,
+      // کارهای چندمرحله‌ای: پاسخِ قابل‌تنظیم و ثبتِ شروع‌ها.
+      {
+        handleMessage: async () => flowReply,
+        start: async (input: Record<string, unknown>) => {
+          flowStarts.push(input);
+          return { text: `شروعِ ${String(input.flow)}` };
+        },
+        cancel: async () => undefined,
       } as never,
     );
   });
@@ -588,6 +626,85 @@ describe('StaffBotService', () => {
       );
       expect(text).toContain('قطع شد');
       expect(await hr.findByChat('chat-65', 'bale')).toBeNull();
+    });
+  });
+
+  describe('نامه‌ها و کارهای چندمرحله‌ای در ربات', () => {
+    const linkStaff = async (mobile: string, chatId: string) => {
+      await hr.create(ORG, { fullName: 'کارمندِ نامه', mobile });
+      await service.tryHandle(BOT, chatId, mobile);
+    };
+
+    it('پیامِ وسطِ یک کارِ باز به همان کار می‌رود، نه به منو', async () => {
+      await linkStaff('09120000041', 'chat-41');
+      flowReply = { text: 'تا چه تاریخی؟' };
+      const reply = await service.tryHandle(BOT, 'chat-41', '/me');
+      expect(replyText(reply)).toBe('تا چه تاریخی؟');
+    });
+
+    it('«✉️ نامه‌های من» با صندوقِ خالی پیامِ روشن می‌دهد', async () => {
+      await linkStaff('09120000042', 'chat-42');
+      const reply = await service.tryHandle(BOT, 'chat-42', '✉️ نامه‌های من');
+      expect(replyText(reply)).toContain('نامه‌ای ندارید');
+    });
+
+    it('صندوق را با شمارِ نخوانده و دکمهٔ هر نامه نشان می‌دهد', async () => {
+      await linkStaff('09120000043', 'chat-43');
+      letterRows = [
+        { id: 'L1', number: 'N-1', subject: 'جلسه', senderName: 'مدیر', isUnread: true, priority: 'urgent', body: 'ساعت ۹' },
+        { id: 'L2', number: 'N-2', subject: 'گزارش', senderName: 'HR', isUnread: false, priority: 'normal', body: '' },
+      ];
+      const reply = await service.tryHandle(BOT, 'chat-43', '/letters');
+      const text = replyText(reply);
+      expect(text).toContain('1 نخوانده');
+      expect(text).toContain('N-1');
+      expect(text).toContain('فوری');
+      expect(JSON.stringify(reply)).toContain('📬 N-2');
+    });
+
+    it('باز کردنِ نامه آن را خوانده می‌کند و دکمهٔ پاسخ می‌دهد', async () => {
+      await linkStaff('09120000044', 'chat-44');
+      letterRows = [
+        { id: 'L9', number: 'N-9', subject: 'تمدید', senderName: 'مدیر', isUnread: true, priority: 'normal', body: 'متنِ نامه' },
+      ];
+      const reply = await service.tryHandle(BOT, 'chat-44', '📬 N-9');
+      expect(replyText(reply)).toContain('متنِ نامه');
+      expect(markReadCalls).toEqual(['L9']);
+      expect(JSON.stringify(reply)).toContain('↩️ N-9');
+    });
+
+    it('«اعلامِ خرابی» و «درخواستِ مرخصی» کارِ مربوط را برای همین پرسنل شروع می‌کنند', async () => {
+      await linkStaff('09120000045', 'chat-45');
+      await service.tryHandle(BOT, 'chat-45', '🛠 اعلامِ خرابی');
+      await service.tryHandle(BOT, 'chat-45', '🌴 درخواستِ مرخصی');
+      expect(flowStarts.map((f) => f.flow)).toEqual(['fault', 'leave']);
+      expect(flowStarts[0]).toMatchObject({ organizationId: ORG, chatId: 'chat-45', platform: 'bale' });
+    });
+
+    it('پاسخ به نامه کارِ LETTER_REPLY را با شناسهٔ همان نامه شروع می‌کند', async () => {
+      await linkStaff('09120000046', 'chat-46');
+      letterRows = [
+        { id: 'L7', number: 'N-7', subject: 'x', senderName: 'y', isUnread: false, priority: 'normal', body: '' },
+      ];
+      await service.tryHandle(BOT, 'chat-46', '↩️ N-7');
+      expect(flowStarts).toEqual([
+        expect.objectContaining({ flow: 'letter_reply', contextId: 'L7' }),
+      ]);
+    });
+
+    it('«↩️ بازگشت» با پیشوندِ دکمهٔ پاسخ اشتباه گرفته نمی‌شود', async () => {
+      // هر دو با «↩️ » شروع می‌شوند؛ بازگشت باید پیش از پیشوندِ پاسخ بررسی شود.
+      await linkStaff('09120000047', 'chat-47');
+      await service.tryHandle(BOT, 'chat-47', '↩️ بازگشت');
+      expect(flowStarts).toEqual([]);
+      expect(inboxSearches).not.toContain('بازگشت');
+    });
+
+    it('کاربرِ وصل‌نشده نمی‌تواند نامه ببیند یا کار شروع کند', async () => {
+      const reply = await service.tryHandle(BOT, 'chat-48', '/letters');
+      expect(replyText(reply)).not.toContain('نامه‌های شما');
+      await service.tryHandle(BOT, 'chat-48', '🛠 اعلامِ خرابی');
+      expect(flowStarts).toEqual([]);
     });
   });
 });

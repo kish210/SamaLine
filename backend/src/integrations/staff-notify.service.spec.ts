@@ -175,4 +175,51 @@ describe('StaffNotifyService', () => {
       expect(sends).toHaveLength(0);
     });
   });
+
+  describe('اعلانِ نتیجهٔ مرخصی', () => {
+    const leave = (personnelId: string, decision: 'approved' | 'rejected' | 'cancelled', note?: string) =>
+      make().notifyLeaveDecision({
+        organizationId: ORG,
+        personnelId,
+        number: 'LV-00007',
+        decision,
+        fromDate: '2025-08-03',
+        toDate: '2025-08-05',
+        note,
+      });
+
+    it('تأیید به همهٔ سکوهای وصل‌شدهٔ همان نفر می‌رود', async () => {
+      const person = await hr.create(ORG, { fullName: 'دوسکویی' });
+      await hr.linkChatToPersonnel(ORG, person.id, 'bale', 'c-bale', WS);
+      await hr.linkChatToPersonnel(ORG, person.id, 'telegram', 'c-tg', WS);
+
+      await leave(person.id, 'approved', 'سفر خوش');
+
+      expect(sends.map((x) => x.chatId).sort()).toEqual(['c-bale', 'c-tg']);
+      const text = sends[0].text;
+      expect(text).toContain('تأیید شد');
+      expect(text).toContain('LV-00007');
+      expect(text).toContain('2025-08-03');
+      expect(text).toContain('سفر خوش');
+    });
+
+    it('رد با عنوانِ درست', async () => {
+      const person = await hr.create(ORG, { fullName: 'یک‌سکویی' });
+      await hr.linkChatToPersonnel(ORG, person.id, 'bale', 'c1', WS);
+      await leave(person.id, 'rejected');
+      expect(sends).toHaveLength(1);
+      expect(sends[0].text).toContain('رد شد');
+    });
+
+    it('بی‌ربات یا رباتِ غیرفعال: چیزی نمی‌رود و خطا هم نمی‌دهد', async () => {
+      const alone = await hr.create(ORG, { fullName: 'بی‌ربات' });
+      await expect(leave(alone.id, 'approved')).resolves.toBeUndefined();
+
+      const person = await hr.create(ORG, { fullName: 'رباتِ خاموش' });
+      await hr.linkChatToPersonnel(ORG, person.id, 'bale', 'c2', WS);
+      bot = { botToken: 'TKN', isActive: false, platform: 'bale' };
+      await leave(person.id, 'approved');
+      expect(sends).toHaveLength(0);
+    });
+  });
 });

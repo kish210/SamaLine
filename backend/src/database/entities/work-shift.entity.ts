@@ -212,6 +212,8 @@ export enum StaffReminderKind {
   SHIFT = 'shift',
   /** کارهای بازِ سپرده‌شده. */
   TASKS = 'tasks',
+  /** نامهٔ نخواندهٔ مانده. */
+  LETTERS = 'letters',
 }
 
 /**

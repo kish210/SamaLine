@@ -33,6 +33,9 @@ import { AnnouncementEntity } from '../database/entities/announcement.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { HrModule } from '../hr/hr.module';
 import { CmmsModule } from '../cmms/cmms.module';
+import { LetterModule } from '../letters/letter.module';
+import { BotFlowSessionEntity } from '../database/entities/bot-flow-session.entity';
+import { BotFlowService } from './bot-flow.service';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { StaffReminderLogEntity } from '../database/entities/work-shift.entity';
 import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
@@ -52,12 +55,15 @@ import { EmailReportService } from './email-report.service';
     MessagingModule,
     PlanModule,
     // رباتِ پرسنل (فاز F) پرونده‌ها را با موبایل وصل می‌کند.
-    HrModule,
+    // دوطرفه: HrModule هم برای اعلانِ مرخصی همین ماژول را import می‌کند.
+    forwardRef(() => HrModule),
     /*
      * «کارهای من» در ربات و یادآوریِ روزانه از همان سرویسِ CMMS می‌آیند که
      * پنل استفاده می‌کند، پس قاعده‌ی گذارِ وضعیت یک جا می‌ماند.
      */
     CmmsModule,
+    // «نامه‌های من» و پاسخ در گفتگو، از همان سرویسِ نامهٔ پنل.
+    LetterModule,
     // توکنِ هویتِ مینی‌اپ با همان رازِ سرور امضا می‌شود (payloadِ mode='bot').
     JwtModule.register({ secret: process.env.JWT_SECRET ?? 'change-me' }),
     /*
@@ -82,6 +88,8 @@ import { EmailReportService } from './email-report.service';
       // پر کردنِ فرم داخلِ گفتگو: وضعیتِ گفتگو + ساختارِ نسخه‌ی فرم.
       BotFormSessionEntity,
       FormVersionEntity,
+      // کارهای چندمرحله‌ای: خرابی، مرخصی، پاسخِ نامه.
+      BotFlowSessionEntity,
       // یادآوریِ کار و شیفت: مقصدها + دفترِ «قبلاً فرستاده شد».
       PersonnelEntity,
       StaffReminderLogEntity,
@@ -104,6 +112,7 @@ import { EmailReportService } from './email-report.service';
     TelegramDigestService,
     StaffBotService,
     BotFormFillService,
+    BotFlowService,
     StaffNotifyService,
     StaffReminderService,
     AnnouncementService,
