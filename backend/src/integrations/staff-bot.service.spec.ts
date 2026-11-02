@@ -279,6 +279,28 @@ describe('StaffBotService', () => {
     expect(reply).toContain('وصل نشده');
   });
 
+  describe('/راهنما', () => {
+    it('برای پرسنلِ وصل‌شده منو را با کیبورد می‌دهد', async () => {
+      await hr.create(ORG, { fullName: 'مریم کریمی', mobile: '09120000050' });
+      await service.tryHandle(BOT, 'chat-50', '09120000050');
+      const reply = await service.tryHandle(BOT, 'chat-50', '/راهنما');
+      expect(replyText(reply)).toContain('مریم کریمی');
+      expect(typeof reply === 'object' && reply?.keyboard).toBeTruthy();
+    });
+
+    it('/help هم همان منو را می‌دهد', async () => {
+      await hr.create(ORG, { fullName: 'سعید', mobile: '09120000051' });
+      await service.tryHandle(BOT, 'chat-51', '09120000051');
+      expect(replyText(await service.tryHandle(BOT, 'chat-51', '/help'))).toContain(
+        'سعید',
+      );
+    });
+
+    it('برای گفتگوی وصل‌نشده null می‌دهد تا رباتِ مدیریتی راهنما بدهد', async () => {
+      expect(await service.tryHandle(BOT, 'chat-52', '/راهنما')).toBeNull();
+    });
+  });
+
   describe('/درخواست‌ها', () => {
     let n = 0;
     /** سازمانِ واقعی + فرم + یک درخواست با کلیدِ موبایل و وضعیتِ دلخواه. */

@@ -350,6 +350,17 @@ export class StaffBotService {
         trimmed.slice(BTN_REPLY_LETTER_PREFIX.length).trim(),
       );
     }
+    /*
+     * «/راهنما» برای پرسنلِ وصل‌شده منوی خودش را می‌آورد — پیامِ خوش‌آمد و
+     * بخشِ مدیریت هر دو به همین فرمان ارجاع می‌دهند ولی تا امروز هندلری نداشت.
+     * برای گفتگوی وصل‌نشده null برمی‌گردد تا رباتِ مدیریتی راهنمای خودش را بدهد.
+     */
+    if (command === '/راهنما' || command === '/help') {
+      const who = await this.hr.findByChat(chatId, bot.platform);
+      return who
+        ? { text: this.menuText(who), keyboard: STAFF_KEYBOARD }
+        : null;
+    }
     if (looksLikeMobile(trimmed)) {
       return this.link(bot, chatId, trimmed);
     }
