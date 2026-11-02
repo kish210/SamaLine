@@ -102,6 +102,11 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
   `respondentKey`, `questionIndex`, `answers`(JSON). گفتگوی نیمه‌کاره‌ی پر کردنِ
   فرم داخلِ ربات؛ ایندکسِ یکتا روی (chatId,platform) یعنی هر گفتگو هم‌زمان فقط
   یک فرمِ باز دارد.
+- **bot_flow_sessions** — `organizationId`, `personnelId`, `chatId`, `platform`,
+  `flow` (enum: fault / leave / letter_reply), `step`, `data`(JSON),
+  `contextId*` (برای پاسخ: شناسهٔ نامه). کارِ چندمرحله‌ایِ نیمه‌کاره در ربات؛ جدا
+  از bot_form_sessions چون قدم‌ها ثابت‌اند و ثبت از سرویسِ دامنه (CMMS/مرخصی/نامه)
+  است نه از پاسخِ فرم. هر گفتگو یک کارِ باز؛ شروعِ تازه جایگزینِ قبلی می‌شود.
 - **email_report_recipients** — `workspaceId`, `formId*`, `email`, `label`,
   `digest` (weekly/monthly), `isActive`, `lastDigestAt*`, `lastError*`,
   `lastSentAt*`. گزارش دوره‌ای ایمیلی. ایندکس (workspaceId,formId).
@@ -216,6 +221,9 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
     `telegram_link_codes.personnelId` برای کدِ اتصالِ پرسنلی.
 30. `AddLetters` — letters، letter_recipients (نامهٔ داخلی؛ وضعیتِ خوانده‌شدن
     به‌ازای هر گیرنده، و `threadId` برای خواندنِ یک‌کوئریِ رشتهٔ مکاتبه).
+31. `AddBotFlowSessions` — bot_flow_sessions + مقدارِ تازهٔ `letters` در نوعِ
+    `staff_reminder_log.kind` (در SQLite با بازسازیِ جدول، چون CHECK درجا عوض
+    نمی‌شود؛ در Postgres با `ALTER TYPE … ADD VALUE`).
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام
