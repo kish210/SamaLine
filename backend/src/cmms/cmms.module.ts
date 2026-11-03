@@ -8,6 +8,7 @@ import {
 } from '../database/entities/work-order.entity';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
 import { HotelRoomEntity } from '../database/entities/hotel-room.entity';
+import { DepartmentEntity } from '../database/entities/department.entity';
 import { PmScheduleEntity } from '../database/entities/pm-schedule.entity';
 import {
   SparePartEntity,
@@ -17,6 +18,7 @@ import { CmmsController } from './cmms.controller';
 import { CmmsService } from './cmms.service';
 import { PmService } from './pm.service';
 import { InventoryService } from './inventory.service';
+import { OperationalExportService } from './operational-export.service';
 
 /**
  * دامنهٔ نگهداری و تعمیرات (CMMS).
@@ -36,6 +38,8 @@ import { InventoryService } from './inventory.service';
       PersonnelEntity,
       // آمادگیِ اتاق با پیشرفتِ دستورِ کار همگام می‌شود.
       HotelRoomEntity,
+      // خروجیِ اکسل، شناسه‌ی بخش را به نام تبدیل می‌کند.
+      DepartmentEntity,
       PmScheduleEntity,
       // انبارِ قطعات: موجودی فقط از مسیرِ دفترِ گردش عوض می‌شود.
       SparePartEntity,
@@ -43,7 +47,12 @@ import { InventoryService } from './inventory.service';
     ]),
   ],
   controllers: [CmmsController],
-  providers: [CmmsService, PmService, InventoryService],
-  exports: [CmmsService, PmService, InventoryService],
+  providers: [
+    CmmsService,
+    PmService,
+    InventoryService,
+    OperationalExportService,
+  ],
+  exports: [CmmsService, PmService, InventoryService, OperationalExportService],
 })
 export class CmmsModule {}

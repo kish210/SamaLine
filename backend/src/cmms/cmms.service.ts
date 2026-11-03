@@ -181,6 +181,9 @@ function todayIso(): string {
 
 const MAX_PAGE_SIZE = 200;
 
+/** سقفِ ردیفِ خروجیِ اکسل تا یک درخواست کلِ جدول را به حافظه نکشد. */
+const MAX_EXPORT_ROWS = 5000;
+
 /**
  * دامنهٔ CMMS: دارایی، درخواستِ تعمیر و دستورِ کار.
  *
@@ -287,7 +290,11 @@ export class CmmsService {
 
   // ── درخواستِ تعمیر ────────────────────────────────────────────────────
 
-  async listRequests(organizationId: string, query: ListQuery = {}) {
+  /**
+   * سازندهٔ کوئریِ فهرستِ درخواست‌ها (بی‌صفحه‌بندی) تا هم `listRequests` و هم
+   * خروجیِ اکسل از یک منطقِ فیلتر استفاده کنند و درز نگیرند.
+   */
+  private requestsQuery(organizationId: string, query: ListQuery) {
     const qb = this.requests
       .createQueryBuilder('r')
       .where('r.organizationId = :org', { org: organizationId });
@@ -314,7 +321,19 @@ export class CmmsService {
         ),
       );
     }
-    return this.paginate(qb, 'r.createdAt', query);
+    return qb;
+  }
+
+  async listRequests(organizationId: string, query: ListQuery = {}) {
+    return this.paginate(this.requestsQuery(organizationId, query), 'r.createdAt', query);
+  }
+
+  /** همهٔ درخواست‌های مطابقِ فیلتر برای خروجیِ اکسل (با سقفِ امن). */
+  async allRequests(organizationId: string, query: ListQuery = {}) {
+    return this.requestsQuery(organizationId, query)
+      .orderBy('r.createdAt', 'DESC')
+      .take(MAX_EXPORT_ROWS)
+      .getMany();
   }
 
   async getRequest(organizationId: string, id: string) {
@@ -389,7 +408,7 @@ export class CmmsService {
 
   // ── دستورِ کار ────────────────────────────────────────────────────────
 
-  async listWorkOrders(organizationId: string, query: ListQuery = {}) {
+  private workOrdersQuery(organizationId: string, query: ListQuery) {
     const qb = this.workOrders
       .createQueryBuilder('w')
       .where('w.organizationId = :org', { org: organizationId });
@@ -405,7 +424,19 @@ export class CmmsService {
         ),
       );
     }
-    return this.paginate(qb, 'w.createdAt', query);
+    return qb;
+  }
+
+  async listWorkOrders(organizationId: string, query: ListQuery = {}) {
+    return this.paginate(this.workOrdersQuery(organizationId, query), 'w.createdAt', query);
+  }
+
+  /** همهٔ دستورهای کارِ مطابقِ فیلتر برای خروجیِ اکسل (با سقفِ امن). */
+  async allWorkOrders(organizationId: string, query: ListQuery = {}) {
+    return this.workOrdersQuery(organizationId, query)
+      .orderBy('w.createdAt', 'DESC')
+      .take(MAX_EXPORT_ROWS)
+      .getMany();
   }
 
   async getWorkOrder(organizationId: string, id: string) {

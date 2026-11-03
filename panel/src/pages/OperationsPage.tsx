@@ -157,6 +157,15 @@ export function OperationsPage() {
     refetchOnWindowFocus: true,
   });
 
+  /*
+   * خروجیِ اکسلِ همان فهرستی که باز است، با همان فیلترها؛ سقفش سمت سرور
+   * جداست (۵۰۰۰ ردیف) تا فایل روی سقفِ صفحه‌بندیِ ۲۰ ردیفی نماند.
+   */
+  const exportRows = useMutation({
+    mutationFn: (kind: 'requests' | 'work-orders') =>
+      cmmsApi.exportXlsx(kind, (active?.filter ?? {}) as CmmsQuery),
+  });
+
   const query: CmmsQuery = {
     ...(active?.filter ?? {}),
     ...(search.trim() ? { search: search.trim() } : {}),
@@ -248,6 +257,27 @@ export function OperationsPage() {
           >
             {dashboard.isFetching ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی'}
           </button>
+          {/*
+           * خروجی فقط وقتی معنا دارد که یکی از دو فهرستِ درخواست/دستورِ کار
+           * باز باشد؛ برای تجهیزات و انبار مسیرِ خروجی وجود ندارد.
+           */}
+          {(active?.kind === 'request' || active?.kind === 'workOrder') && (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() =>
+                exportRows.mutate(
+                  active.kind === 'request' ? 'requests' : 'work-orders',
+                )
+              }
+              disabled={exportRows.isPending}
+            >
+              {exportRows.isPending ? 'در حال ساخت…' : 'خروجی اکسل'}
+            </button>
+          )}
+          {exportRows.isError && (
+            <span className="error">ساخت فایل ناموفق بود.</span>
+          )}
         </div>
       </header>
 

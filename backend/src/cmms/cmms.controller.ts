@@ -6,14 +6,17 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser, type JwtUser } from '../common/current-user.decorator';
 import { MinRole } from '../common/roles';
 import { OrganizationRole } from '../database/entities/organization-user.entity';
 import { CmmsService } from './cmms.service';
 import type { ListQuery } from './cmms.service';
+import { OperationalExportService } from './operational-export.service';
 import {
   AssetDto,
   MaintenanceRequestDto,
@@ -30,6 +33,10 @@ import { PmService } from './pm.service';
 import { InventoryService } from './inventory.service';
 import type { MovementListQuery, PartListQuery } from './inventory.service';
 
+/** نوعِ MIME فایل xlsx؛ در دو اندپوینتِ خروجی استفاده می‌شود. */
+const XLSX_MIME =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 /**
  * APIهای دامنهٔ فنی (CMMS).
  *
@@ -45,6 +52,7 @@ export class CmmsController {
     private readonly cmms: CmmsService,
     private readonly pm: PmService,
     private readonly inventory: InventoryService,
+    private readonly exportService: OperationalExportService,
   ) {}
 
   /**
@@ -145,6 +153,54 @@ export class CmmsController {
       note: dto.note,
       actorId: user.sub,
     });
+  }
+
+  // ── خروجیِ اکسل ───────────────────────────────────────────────────────
+
+  /**
+   * اکسلِ همهٔ درخواست‌های تعمیرِ مطابقِ همان فیلترهای فهرست.
+   *
+   * پیش از این، خروجی از مسیرِ صفحه‌بندی‌شده می‌آمد و بی‌صدا روی سقفِ صفحه
+   * می‌ماند؛ این مسیر با سقفِ مستقلِ ۵۰۰۰ ردیف (`MAX_EXPORT_ROWS`) و برچسبِ
+   * فارسیِ وضعیت/اولویت/دسته ساخته می‌شود تا فایل برای مدیر خوانا باشد.
+   */
+  @Get('export/requests.xlsx')
+  @MinRole(OrganizationRole.ANALYST)
+  async exportRequests(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListQuery,
+    @Res() res: ExpressResponse,
+  ): Promise<void> {
+    const buffer = await this.exportService.requestsXlsx(
+      user.organizationId,
+      query,
+    );
+    res.setHeader('Content-Type', XLSX_MIME);
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cmms-requests.xlsx"',
+    );
+    res.send(buffer);
+  }
+
+  /** اکسلِ دستورهای کار، با همان فیلترهای فهرست. */
+  @Get('export/work-orders.xlsx')
+  @MinRole(OrganizationRole.ANALYST)
+  async exportWorkOrders(
+    @CurrentUser() user: JwtUser,
+    @Query() query: ListQuery,
+    @Res() res: ExpressResponse,
+  ): Promise<void> {
+    const buffer = await this.exportService.workOrdersXlsx(
+      user.organizationId,
+      query,
+    );
+    res.setHeader('Content-Type', XLSX_MIME);
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cmms-work-orders.xlsx"',
+    );
+    res.send(buffer);
   }
 
   // ── دستورِ کار ────────────────────────────────────────────────────────

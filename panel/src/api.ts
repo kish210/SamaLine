@@ -1376,6 +1376,28 @@ export const cmmsApi = {
       .get<CmmsPage<WorkOrder>>('/cmms/work-orders', { params: query })
       .then((r) => r.data),
 
+  /**
+   * خروجیِ اکسلِ درخواست‌ها یا دستورهای کار، با همان فیلترهای فهرست.
+   *
+   * اندپوینت با هدر Authorization محافظت می‌شود، پس فایل را به‌صورت blob
+   * می‌گیریم و در مرورگر ذخیره می‌کنیم؛ همان الگوی خروجیِ گزارش‌ها.
+   */
+  exportXlsx: async (
+    kind: 'requests' | 'work-orders',
+    query: CmmsQuery = {},
+  ) => {
+    const response = await api.get<Blob>(`/cmms/export/${kind}.xlsx`, {
+      params: query,
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cmms-${kind}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
   assets: (query: CmmsQuery = {}) =>
     api.get<CmmsPage<Asset>>('/cmms/assets', { params: query }).then((r) => r.data),
 
