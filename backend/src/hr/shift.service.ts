@@ -5,7 +5,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Repository } from 'typeorm';
+import { Between, In, Not, Repository } from 'typeorm';
 import {
   AttendanceRecordEntity,
   AttendanceSource,
@@ -17,7 +17,10 @@ import {
   LeaveRequestEntity,
   LeaveStatus,
 } from '../database/entities/leave-request.entity';
-import { PersonnelEntity } from '../database/entities/personnel.entity';
+import {
+  EmploymentStatus,
+  PersonnelEntity,
+} from '../database/entities/personnel.entity';
 import { AuditService } from '../common/audit.service';
 
 /** «HH:MM» معتبر است؟ */
@@ -428,7 +431,16 @@ export class ShiftService {
   ): Promise<{ date: string; rows: DayBoardRow[]; totals: Record<string, number> }> {
     this.assertDate(date);
 
-    const where: Record<string, unknown> = { organizationId, isActive: true };
+    /*
+     * پرسنلِ «قطعِ همکاری» در تابلوی امروز نمی‌آید؛ پیش از این چون
+     * `isActive`شان true بود، در ستونِ «حضورِ ثبت‌نشده» می‌نشستند و عددِ
+     * واقعیِ شیفت را بالا می‌بردند.
+     */
+    const where: Record<string, unknown> = {
+      organizationId,
+      isActive: true,
+      employmentStatus: Not(EmploymentStatus.TERMINATED),
+    };
     if (opts.departmentId) where.departmentId = opts.departmentId;
     const people = await this.people.find({
       where,

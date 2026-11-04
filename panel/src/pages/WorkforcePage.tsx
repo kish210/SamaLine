@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  departmentsApi,
   describeError,
   hrApi,
   leavesApi,
@@ -110,11 +111,30 @@ export function WorkforcePage() {
   );
   const [assigning, setAssigning] = useState<DayBoardRow | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  /* واحد و جست‌وجو: با ۲۰۰ نفر، پیدا کردنِ یک نفر در جدول سخت بود. */
+  const [departmentId, setDepartmentId] = useState(
+    params.get('department') ?? '',
+  );
+  const [search, setSearch] = useState('');
 
   const board = useQuery({
-    queryKey: ['shift-day', date],
-    queryFn: () => shiftsApi.day(date),
+    queryKey: ['shift-day', date, departmentId],
+    queryFn: () => shiftsApi.day(date, departmentId || undefined),
     refetchOnWindowFocus: true,
+  });
+
+  const departments = useQuery({
+    queryKey: ['departments'],
+    queryFn: departmentsApi.list,
+  });
+
+  /*
+   * ماندهٔ مرخصیِ همه در یک درخواست (نه per-row). سالِ میلادی، مثلِ خودِ
+   * سرویس؛ UI همان عدد را نشان می‌دهد.
+   */
+  const balances = useQuery({
+    queryKey: ['leave-balances', new Date().getFullYear()],
+    queryFn: () => leavesApi.balances(new Date().getFullYear()),
   });
 
   const leaveSummary = useQuery({
@@ -150,7 +170,14 @@ export function WorkforcePage() {
   });
 
   const totals = board.data?.totals;
-  const rows = (board.data?.rows ?? []).filter((r) => matches(r, filter));
+  const needle = search.trim().toLowerCase();
+  const rows = (board.data?.rows ?? [])
+    .filter((r) => matches(r, filter))
+    .filter((r) =>
+      needle
+        ? `${r.fullName} ${r.position ?? ''}`.toLowerCase().includes(needle)
+        : true,
+    );
 
   /** کاشی‌های بالای صفحه؛ هر کدام یک صافیِ واقعیِ جدول است. */
   const tiles: Array<{ key: BoardFilter; label: string; count: number; tone?: string }> =
@@ -306,15 +333,38 @@ export function WorkforcePage() {
           <section className="card">
             <div className="section-head">
               <h3>{FILTER_LABELS[filter]}</h3>
-              {filter !== 'all' && (
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setFilter('all')}
+              <span className="question-actions">
+                <select
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                  aria-label="صافیِ واحد"
+                  style={{ width: 'auto' }}
                 >
-                  نمایشِ همه
-                </button>
-              )}
+                  <option value="">همهٔ واحدها</option>
+                  {(departments.data ?? []).map((dep) => (
+                    <option key={dep.id} value={dep.id}>
+                      {dep.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="search"
+                  value={search}
+                  placeholder="جست‌وجوی نام…"
+                  aria-label="جست‌وجوی پرسنل"
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ width: '12rem' }}
+                />
+                {filter !== 'all' && (
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => setFilter('all')}
+                  >
+                    نمایشِ همه
+                  </button>
+                )}
+              </span>
             </div>
 
             {setAttendance.isError && (
@@ -333,6 +383,7 @@ export function WorkforcePage() {
                       <th>وضعیت</th>
                       <th>ورود / خروج</th>
                       <th>کارکرد</th>
+                      <th>ماندهٔ مرخصی</th>
                       <th>ثبت</th>
                     </tr>
                   </thead>
@@ -390,6 +441,20 @@ export function WorkforcePage() {
                           {r.attendance?.checkOut || '—'}
                         </td>
                         <td>{hours(r.attendance?.minutesWorked ?? 0)}</td>
+                        <td>
+                          {(() => {
+                            const b =
+                              balances.data?.balances[r.personnelId];
+                            if (!b) return <span className="hint">—</span>;
+                            return (
+                              <span
+                                title={`سقف ${b.entitled} · مصرفِ ${b.used} روز`}
+                              >
+                                {b.remaining.toLocaleString('fa-IR')} روز
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td>
                           <span className="question-actions">
                             <button

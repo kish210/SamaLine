@@ -97,6 +97,21 @@ export class LeaveController {
     return this.service.summary(organizationId);
   }
 
+  /** ماندهٔ مرخصیِ همهٔ پرسنل در یک کوئری (ستونِ «مانده» در میزِ کارِ پرسنل). */
+  @Get('balances')
+  @MinRole(OrganizationRole.ANALYST)
+  balances(
+    @OrganizationId() organizationId: string,
+    @Query('year') year?: string,
+  ) {
+    const parsed = Number(year);
+    const safeYear =
+      Number.isFinite(parsed) && parsed > 1300 && parsed < 3000
+        ? parsed
+        : new Date().getFullYear();
+    return this.service.balancesBulk(organizationId, safeYear);
+  }
+
   @Get()
   list(
     @OrganizationId() organizationId: string,

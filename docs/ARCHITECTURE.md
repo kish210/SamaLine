@@ -133,6 +133,11 @@ import می‌کنند تا `LeaveController` نتیجهٔ مرخصی را هم�
   سازگار است؛ `telegram-api.ts` با `platformApiBase(platform)` آدرس پایه را
   انتخاب می‌کند. هر فضای کاری یک ربات دارد (ستون `platform` روی
   TelegramIntegration).
+- **میزِ کارِ منابع انسانی — `hr/hr-desk.service.ts`:** یک `GET /hr/desk?date=`
+  که سرشماری، وضعیتِ امروزِ حضور (از همان `ShiftService.dayBoard`)، مرخصیِ
+  معلق و قراردادِ رو به پایان را یک‌جا می‌دهد؛ هر سطل `href` به فهرستِ واقعیِ
+  خودش. `hr/desk/pending/count` فقط عددِ نشانِ منو است. تفکیکِ واحدها از همان
+  ردیف‌های تابلوی روز ساخته می‌شود، نه کوئریِ جدا — تا دو عددِ متفاوت نبینیم.
 - **خروجیِ اکسلِ HR — `hr/hr-export.controller.ts`:** سه مسیرِ جدا
   (`/hr/export/personnel.xlsx`، `leaves.xlsx`، `attendance.xlsx`) روی
   `HrExportService`؛ برچسبِ فارسی، تاریخِ شمسی و نامِ بخش/پرسنل، با سقفِ بیست

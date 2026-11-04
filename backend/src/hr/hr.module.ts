@@ -19,6 +19,8 @@ import { HrService } from './hr.service';
 import { HrStatsService } from './hr-stats.service';
 import { HrExportService } from './hr-export.service';
 import { HrExportController } from './hr-export.controller';
+import { HrDeskService } from './hr-desk.service';
+import { HrDeskController } from './hr-desk.controller';
 import { LeaveController } from './leave.controller';
 import { LeaveService } from './leave.service';
 import { ShiftController } from './shift.controller';
@@ -59,6 +61,7 @@ import { ShiftService } from './shift.service';
     LeaveController,
     ShiftController,
     HrExportController,
+    HrDeskController,
   ],
   providers: [
     HrService,
@@ -66,7 +69,14 @@ import { ShiftService } from './shift.service';
     LeaveService,
     ShiftService,
     HrExportService,
+    HrDeskService,
   ],
-  exports: [HrService, LeaveService, ShiftService, HrExportService],
+  exports: [
+    HrService,
+    LeaveService,
+    ShiftService,
+    HrExportService,
+    HrDeskService,
+  ],
 })
 export class HrModule {}

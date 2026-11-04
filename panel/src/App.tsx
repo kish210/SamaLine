@@ -7,6 +7,7 @@ import { RoomsPage } from "./pages/RoomsPage";
 import { OperationsPage } from "./pages/OperationsPage";
 import { LeavesPage } from "./pages/LeavesPage";
 import { WorkforcePage } from "./pages/WorkforcePage";
+import { HrDeskPage } from "./pages/HrDeskPage";
 import { MyDeskPage } from "./pages/MyDeskPage";
 import { PersonnelPage } from "./pages/PersonnelPage";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
@@ -89,6 +90,7 @@ function App() {
         <Route path="/units" element={page(<UnitsPage />)} />
         <Route path="/rooms" element={page(<RoomsPage />)} />
         <Route path="/operations" element={page(<OperationsPage />)} />
+        <Route path="/hr" element={page(<HrDeskPage />)} />
         <Route path="/leaves" element={page(<LeavesPage />)} />
         <Route path="/workforce" element={page(<WorkforcePage />)} />
         <Route path="/me" element={page(<MyDeskPage />)} />

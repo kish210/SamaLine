@@ -51,6 +51,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "منابع انسانی",
     items: [
+      { to: "/hr", label: "میزِ کارِ منابع انسانی", icon: "approvals" },
       { to: "/workforce", label: "میزِ کارِ پرسنل", icon: "personnel" },
       { to: "/personnel", label: "پرونده‌ها", icon: "personnel" },
       { to: "/leaves", label: "مرخصی", icon: "approvals" },

@@ -324,6 +324,75 @@ export interface Personnel {
 }
 
 /** پروندهٔ پرسنل به‌عنوان داده‌ی پایهٔ HR. */
+/**
+ * میزِ کارِ منابع انسانی: یک تصویرِ امروز از کارتابل، حضور و قراردادها.
+ *
+ * هر سطل `href` دارد و به فهرستِ واقعیِ همان داده می‌رود؛ عددِ بی‌مقصد در این
+ * صفحه وجود ندارد.
+ */
+export const hrDeskApi = {
+  overview: (date?: string) =>
+    api
+      .get<HrDesk>('/hr/desk', { params: date ? { date } : {} })
+      .then((r) => r.data),
+
+  pendingCount: () =>
+    api.get<{ count: number }>('/hr/desk/pending/count').then((r) => r.data),
+};
+
+export interface HrDeskBucket {
+  key: string;
+  label: string;
+  count: number;
+  href: string;
+  tone: string;
+}
+
+export interface HrDesk {
+  date: string;
+  generatedAt: string;
+  headcount: number;
+  terminated: number;
+  attendance: {
+    scheduled: number;
+    present: number;
+    late: number;
+    absent: number;
+    onLeave: number;
+    unrecorded: number;
+    people: number;
+  };
+  buckets: HrDeskBucket[];
+  pendingLeaves: Array<{
+    id: string;
+    number: string;
+    personnelId: string;
+    personnelName: string;
+    departmentName: string;
+    type: string;
+    typeLabel: string;
+    fromDate: string;
+    toDate: string;
+    days: number;
+  }>;
+  expiringContracts: Array<{
+    id: string;
+    fullName: string;
+    position: string;
+    departmentName: string;
+    contractEndsAt: string;
+    daysLeft: number;
+  }>;
+  departments: Array<{
+    id: string;
+    name: string;
+    key: string;
+    headcount: number;
+    unrecorded: number;
+    onLeave: number;
+  }>;
+}
+
 export const hrApi = {
   list: () => api.get<Personnel[]>('/hr/personnel').then((r) => r.data),
 
@@ -1627,6 +1696,18 @@ export interface HrSummary {
 
 export const leavesApi = {
   summary: () => api.get<HrSummary>('/hr/leaves/summary').then((r) => r.data),
+
+  /** ماندهٔ مرخصیِ همهٔ پرسنل در یک کوئری (ستونِ «مانده» در میزِ کارِ پرسنل). */
+  balances: (year?: number) =>
+    api
+      .get<{
+        year: number;
+        balances: Record<
+          string,
+          { entitled: number; used: number; remaining: number }
+        >;
+      }>('/hr/leaves/balances', { params: year ? { year } : {} })
+      .then((r) => r.data),
 
   list: (query: Record<string, unknown> = {}) =>
     api

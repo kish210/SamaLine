@@ -308,6 +308,47 @@ export class LeaveService {
     });
   }
 
+  /**
+   * ماندهٔ مرخصیِ همهٔ پرسنل در یک کوئری.
+   *
+   * برای ستونِ «مانده» در میزِ کارِ پرسنل: پیش از این هر ردیف یک درخواستِ
+   * جدا می‌خواست (N+1). مبنای سال همان سالِ میلادیِ تاریخِ شروع است، مثلِ
+   * `balanceOf`.
+   */
+  async balancesBulk(organizationId: string, year: number) {
+    const [entitlements, approved] = await Promise.all([
+      this.balances.find({ where: { organizationId } }),
+      this.leaves.find({
+        where: { organizationId, status: LeaveStatus.APPROVED },
+      }),
+    ]);
+
+    const map = new Map<
+      string,
+      { entitled: number; used: number; remaining: number }
+    >();
+    const touch = (personnelId: string) => {
+      let row = map.get(personnelId);
+      if (!row) {
+        row = { entitled: 0, used: 0, remaining: 0 };
+        map.set(personnelId, row);
+      }
+      return row;
+    };
+
+    for (const e of entitlements) {
+      if (Number(e.year) !== year) continue;
+      touch(e.personnelId).entitled += Number(e.entitledDays ?? 0);
+    }
+    for (const l of approved) {
+      if (Number(l.fromDate.slice(0, 4)) !== year) continue;
+      touch(l.personnelId).used += Number(l.days ?? 0);
+    }
+    for (const row of map.values()) row.remaining = row.entitled - row.used;
+
+    return { year, balances: Object.fromEntries(map) };
+  }
+
   // ── داشبوردِ HR ───────────────────────────────────────────────────────
 
   /**
