@@ -336,6 +336,28 @@ export const hrApi = {
   remove: (id: string) =>
     api.delete<{ ok: boolean }>(`/hr/personnel/${id}`).then((r) => r.data),
 
+  /**
+   * خروجیِ اکسلِ HR (پرسنل، مرخصی، حضوروغیاب).
+   *
+   * مثلِ بقیهٔ خروجی‌ها blob گرفته می‌شود، چون اندپوینت هدرِ Authorization
+   * می‌خواهد و لینکِ ساده توکن را نمی‌فرستد.
+   */
+  exportXlsx: async (
+    kind: 'personnel' | 'leaves' | 'attendance',
+    params: Record<string, string | undefined> = {},
+  ) => {
+    const response = await api.get<Blob>(`/hr/export/${kind}.xlsx`, {
+      params,
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hr-${kind}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
   /** اتصال/قطعِ حسابِ ورودِ پنل به پروندهٔ پرسنل (کارِ منابع انسانی). */
   setUserLink: (id: string, userId: string | null) =>
     api

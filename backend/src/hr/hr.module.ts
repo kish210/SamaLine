@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PersonnelEntity } from '../database/entities/personnel.entity';
+import { DepartmentEntity } from '../database/entities/department.entity';
 import { PersonnelBotLinkEntity } from '../database/entities/personnel-bot-link.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import {
@@ -16,6 +17,8 @@ import {
 import { HrController } from './hr.controller';
 import { HrService } from './hr.service';
 import { HrStatsService } from './hr-stats.service';
+import { HrExportService } from './hr-export.service';
+import { HrExportController } from './hr-export.controller';
 import { LeaveController } from './leave.controller';
 import { LeaveService } from './leave.service';
 import { ShiftController } from './shift.controller';
@@ -38,6 +41,8 @@ import { ShiftService } from './shift.service';
     forwardRef(() => IntegrationsModule),
     TypeOrmModule.forFeature([
       PersonnelEntity,
+      // خروجیِ اکسل، شناسهٔ بخش را به نام تبدیل می‌کند.
+      DepartmentEntity,
       // اتصالِ چندسکوییِ پیام‌رسان؛ جای سه ستونِ منسوخِ روی personnel.
       PersonnelBotLinkEntity,
       ResponseEntity,
@@ -49,8 +54,19 @@ import { ShiftService } from './shift.service';
       AttendanceRecordEntity,
     ]),
   ],
-  controllers: [HrController, LeaveController, ShiftController],
-  providers: [HrService, HrStatsService, LeaveService, ShiftService],
-  exports: [HrService, LeaveService, ShiftService],
+  controllers: [
+    HrController,
+    LeaveController,
+    ShiftController,
+    HrExportController,
+  ],
+  providers: [
+    HrService,
+    HrStatsService,
+    LeaveService,
+    ShiftService,
+    HrExportService,
+  ],
+  exports: [HrService, LeaveService, ShiftService, HrExportService],
 })
 export class HrModule {}

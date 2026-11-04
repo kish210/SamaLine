@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   describeError,
+  hrApi,
   leavesApi,
   shiftsApi,
   type DayBoardRow,
@@ -208,6 +209,19 @@ export function WorkforcePage() {
           </button>
           <button type="button" onClick={() => setDate(addDays(date, 1))}>
             روزِ بعد
+          </button>
+          {/* حضوروغیابِ همین هفتهٔ نمایش‌داده‌شده. */}
+          <button
+            type="button"
+            className="secondary"
+            onClick={() =>
+              void hrApi.exportXlsx('attendance', {
+                from: date,
+                to: addDays(date, 6),
+              })
+            }
+          >
+            خروجی حضوروغیاب
           </button>
           <button
             type="button"

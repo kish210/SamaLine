@@ -221,6 +221,16 @@ export function PersonnelPage() {
     <div className="page">
       <header className="page-header">
         <h1>پرسنل</h1>
+        <div className="header-actions">
+          {/* خروجی برای گزارشِ ماهانهٔ منابع انسانی؛ همهٔ ردیف‌ها نه فقط همین صفحه. */}
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => void hrApi.exportXlsx('personnel')}
+          >
+            خروجی اکسل
+          </button>
+        </div>
       </header>
 
       {error && <p className="error">{error}</p>}

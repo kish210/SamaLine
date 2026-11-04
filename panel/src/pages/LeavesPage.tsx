@@ -111,6 +111,22 @@ export function LeavesPage() {
           >
             {summary.isFetching ? 'در حال به‌روزرسانی…' : 'به‌روزرسانی'}
           </button>
+          {/* با همان فیلتری که فهرست را می‌بیند، تا فایل و صفحه یکی باشند. */}
+          <button
+            type="button"
+            className="secondary"
+            onClick={() =>
+              void hrApi.exportXlsx(
+                'leaves',
+                (active?.filter ?? { status: 'pending' }) as Record<
+                  string,
+                  string
+                >,
+              )
+            }
+          >
+            خروجی اکسل
+          </button>
         </div>
       </header>
 

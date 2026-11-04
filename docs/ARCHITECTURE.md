@@ -133,6 +133,10 @@ import می‌کنند تا `LeaveController` نتیجهٔ مرخصی را هم�
   سازگار است؛ `telegram-api.ts` با `platformApiBase(platform)` آدرس پایه را
   انتخاب می‌کند. هر فضای کاری یک ربات دارد (ستون `platform` روی
   TelegramIntegration).
+- **خروجیِ اکسلِ HR — `hr/hr-export.controller.ts`:** سه مسیرِ جدا
+  (`/hr/export/personnel.xlsx`، `leaves.xlsx`، `attendance.xlsx`) روی
+  `HrExportService`؛ برچسبِ فارسی، تاریخِ شمسی و نامِ بخش/پرسنل، با سقفِ بیست
+  هزار ردیف. حضوروغیاب بازهٔ `from..to` اجباری دارد.
 - **صفحه‌بندیِ پاسخ‌ها — `responses/response-query.ts`:** یک سازندهٔ مشترکِ کوئری
   برای `ResponseService` و `ReportService`. صفحه‌بندی سمت سرور با `page/pageSize`
   (سقف ۲۰۰) و `total`؛ فیلترِ متنی با `EXISTS` روی `answer_flat` انجام می‌شود نه
