@@ -38,6 +38,11 @@ export interface ContactSourceInput {
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "/api/v1",
+  /*
+   * بدونِ تایم‌اوت، درخواستِ گیرکرده هیچ‌وقت خطا نمی‌داد و کاربر تا ابد
+   * «در حال بارگذاری…» می‌دید. ۲۰ ثانیه برای گزارش‌های سنگین هم کافی است.
+   */
+  timeout: 20_000,
 });
 
 export function setAuthToken(token?: string) {
@@ -50,12 +55,50 @@ export function setAuthToken(token?: string) {
 
 /** پیام خطای خواناى فارسی از پاسخ سرور. */
 export function describeError(error: unknown): string {
-  const message = (
-    error as { response?: { data?: { message?: string | string[] } } }
-  )?.response?.data?.message;
-  if (Array.isArray(message)) return message.join(" | ");
-  return message ?? "خطا در ارتباط با سرور";
+  const shaped = error as {
+    code?: string;
+    response?: { data?: { message?: string | string[] } };
+  };
+  // خطای شبکه‌ای/تایم‌اوت پیامِ سرور ندارد؛ بدونِ این، کاربر «خطا در ارتباط»
+  // می‌دید در حالی که مشکل کندیِ سرور یا قطعیِ شبکه است.
+  if (shaped?.code === 'ECONNABORTED' || shaped?.code === 'ETIMEDOUT') {
+    return 'سرور در زمان مقرر پاسخ نداد. اتصال را بررسی کنید و دوباره تلاش کنید.';
+  }
+  if (shaped?.code === 'ERR_NETWORK') {
+    return 'ارتباط با سرور برقرار نشد. اتصال شبکه را بررسی کنید.';
+  }
+  const message = shaped?.response?.data?.message;
+  if (Array.isArray(message)) return message.join(' | ');
+  return message ?? 'خطا در ارتباط با سرور';
 }
+
+/*
+ * نشستِ منقضی (۴۰۱): پاک‌کردنِ نشست و برگشت به صفحه‌ی ورود.
+ *
+ * فقط وقتی نشستی وجود دارد این کار انجام می‌شود؛ وگرنه رمزِ اشتباه در همان
+ * صفحه‌ی ورود هم ۴۰۱ می‌گیرد و ری‌لود، پیامِ خطا را از بین می‌برد.
+ * (عمداً از استورِ zustand استفاده نمی‌شود تا چرخه‌ی import نسازیم؛ ری‌لود
+ * استور را از localStorage از نو می‌خواند.)
+ */
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = (error as { response?: { status?: number } })?.response
+      ?.status;
+    if (status === 401) {
+      let hadSession = false;
+      try {
+        hadSession = Boolean(localStorage.getItem('samaline.auth'));
+        localStorage.removeItem('samaline.auth');
+      } catch {
+        // حالتِ خصوصیِ مرورگر: نشستی هم ذخیره نشده بود.
+      }
+      setAuthToken(undefined);
+      if (hadSession) window.location.reload();
+    }
+    return Promise.reject(error);
+  },
+);
 
 export const authApi = {
   register: (body: {
@@ -494,9 +537,30 @@ export const reportsApi = {
       }>(`/reports/forms/${formId}/summary`)
       .then((r) => r.data),
 
-  responses: (formId: string, params?: Record<string, unknown>) =>
+  /**
+   * یک صفحه از پاسخ‌ها + شمارشِ کل.
+   *
+   * سرور به‌جای «۵۰۰ ردیفِ اول و سکوت»، صفحه‌بندی و `total` می‌دهد؛ پنل با
+   * همین عدد «۱–۱۰۰ از N» را نشان می‌دهد.
+   */
+  responses: (
+    formId: string,
+    params?: {
+      page?: number;
+      pageSize?: number;
+      status?: string;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ) =>
     api
-      .get<ResponseRow[]>(`/reports/forms/${formId}/responses`, { params })
+      .get<{
+        rows: ResponseRow[];
+        total: number;
+        page: number;
+        pageSize: number;
+      }>(`/reports/forms/${formId}/responses`, { params })
       .then((r) => r.data),
 
   /**

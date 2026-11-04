@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,7 +12,12 @@ import { FormEntity } from '../database/entities/form.entity';
 import { ResponseCommentEntity } from '../database/entities/response-comment.entity';
 import { ResponseEntity } from '../database/entities/response.entity';
 import { CreateResponseCommentDto, ResponseFilterDto } from './dto';
-import { LIKE_OPERATOR } from '../database/column-types';
+import {
+  buildResponseQuery,
+  listResponsePage,
+  MAX_EXPORT_ROWS,
+  type ResponseQueryFilter,
+} from './response-query';
 import { StaffNotifyService } from '../integrations/staff-notify.service';
 import { AuditService } from '../common/audit.service';
 
@@ -39,46 +45,9 @@ export class ResponseService {
   }
 
   async listByForm(formId: string, filter?: ResponseFilterDto) {
-    const qb = this.responseRepo
-      .createQueryBuilder('response')
-      .innerJoin('response.formVersion', 'formVersion')
-      .where('formVersion.formId = :formId', { formId });
-
-    if (filter?.status) {
-      qb.andWhere('response.status = :status', { status: filter.status });
-    }
-
-    if (filter?.respondentKey) {
-      qb.andWhere('response.respondentKey = :respondentKey', {
-        respondentKey: filter.respondentKey,
-      });
-    }
-
-    if (filter?.dateFrom) {
-      qb.andWhere('response.createdAt >= :dateFrom', {
-        dateFrom: filter.dateFrom,
-      });
-    }
-
-    if (filter?.dateTo) {
-      qb.andWhere('response.createdAt <= :dateTo', { dateTo: filter.dateTo });
-    }
-
-    if (filter?.questionId || filter?.valueText) {
-      qb.innerJoin('response.answerFlat', 'answerFlat');
-      if (filter.questionId) {
-        qb.andWhere('answerFlat.questionId = :questionId', {
-          questionId: filter.questionId,
-        });
-      }
-      if (filter.valueText) {
-        qb.andWhere(`answerFlat.valueText ${LIKE_OPERATOR} :valueText`, {
-          valueText: `%${filter.valueText}%`,
-        });
-      }
-    }
-
-    return qb.orderBy('response.createdAt', 'DESC').take(500).getMany();
+    // سازگاری با فراخوان‌های قدیمی: همان صفحهٔ اول، بدونِ لفافِ صفحه‌بندی.
+    const { rows } = await this.listPage(formId, filter);
+    return rows;
   }
 
   /**
@@ -165,9 +134,50 @@ export class ResponseService {
     return { rows, titleById };
   }
 
-  async exportByForm(formId: string) {
+  /**
+   * یک صفحه از پاسخ‌های فرم + شمارشِ کل.
+   *
+   * پیش از این ۵۰۰ ردیفِ اول بی‌صدا برگردانده می‌شد و کاربر فکر می‌کرد همه‌ی
+   * پاسخ‌ها را می‌بیند؛ حالا `total` هم برمی‌گردد تا پنل بتواند «۱–۱۰۰ از N»
+   * نشان دهد.
+   */
+  async listPage(formId: string, filter?: ResponseFilterDto) {
+    return listResponsePage(this.responseRepo, formId, filter ?? {});
+  }
+
+  /**
+   * همهٔ پاسخ‌های مطابق برای خروجی، در دسته‌های ۱۰۰۰تایی.
+   *
+   * بالای `MAX_EXPORT_ROWS`، خروجی رد می‌شود با پیامِ روشن: فایلِ چند صد
+   * هزار ردیفی حافظهٔ پروسه را می‌بلعد و خطای OOM می‌دهد.
+   */
+  async allForExport(formId: string, filter: ResponseQueryFilter = {}) {
+    const base = buildResponseQuery(this.responseRepo, formId, filter);
+    const total = await base.clone().getCount();
+    if (total > MAX_EXPORT_ROWS) {
+      throw new BadRequestException(
+        `این خروجی ${total.toLocaleString('fa-IR')} پاسخ دارد و سقفِ خروجی ` +
+          `${MAX_EXPORT_ROWS.toLocaleString('fa-IR')} ردیف است. بازهٔ تاریخ را ` +
+          'محدود کنید و دوباره بگیرید.',
+      );
+    }
+
+    const rows: ResponseEntity[] = [];
+    for (let skip = 0; skip < total; skip += 1000) {
+      const batch = await base
+        .clone()
+        .skip(skip)
+        .take(Math.min(1000, total - skip))
+        .getMany();
+      rows.push(...batch);
+      if (batch.length === 0) break;
+    }
+    return rows;
+  }
+
+  async exportByForm(formId: string, filter: ResponseQueryFilter = {}) {
     const form = await this.formRepo.findOne({ where: { id: formId } });
-    const responses = await this.listByForm(formId);
+    const responses = await this.allForExport(formId, filter);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('responses');

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { aiApi, describeError, reportsApi, responsesApi } from '../../api';
 import type { ResponseRow } from '../../types';
 import { useAuth } from '../../auth';
@@ -40,7 +40,7 @@ type Tab = 'charts' | 'table' | 'ai';
 type StatusFilter = 'all' | 'completed' | 'partial';
 
 /** تعداد ردیف در هر صفحه‌ی جدول پاسخ‌ها. */
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 100;
 
 /** برچسب فارسی نوع انتشار (منبعِ پاسخ). */
 const SOURCE_LABELS: Record<string, string> = {
@@ -97,7 +97,10 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
   const [advancedExport, setAdvancedExport] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+  /** صفحه‌ی سمتِ سرور، از ۱ شروع می‌شود. */
+  const [page, setPage] = useState(1);
+  /** متنِ جست‌وجوی تأخیردار؛ هر کلید یک کوئری نمی‌فرستد. */
+  const [queryText, setQueryText] = useState('');
   /** پاسخ‌نامه‌ای که نمای کاملش باز است. */
   const [detail, setDetail] = useState<ResponseRow | null>(null);
 
@@ -107,8 +110,20 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
   });
 
   const responses = useQuery({
-    queryKey: ['responses', formId],
-    queryFn: () => reportsApi.responses(formId),
+    queryKey: [
+      'responses',
+      formId,
+      page,
+      statusFilter,
+      queryText,
+    ],
+    queryFn: () =>
+      reportsApi.responses(formId, {
+        page,
+        pageSize: PAGE_SIZE,
+        ...(statusFilter === 'all' ? {} : { status: statusFilter }),
+        ...(queryText ? { search: queryText } : {}),
+      }),
   });
 
   const analytics = useQuery({
@@ -116,51 +131,48 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
     queryFn: () => reportsApi.analytics(formId, range),
   });
 
-  // ستون‌های جدول از کلید پاسخ‌ها استخراج می‌شود چون ساختار فرم
-  // ممکن است بین نسخه‌ها تغییر کرده باشد.
+  /*
+   * جست‌وجو با ۳۰۰ms تأخیر به سرور می‌رود.
+   *
+   * پیش از این، فیلتر روی ۵۰۰ ردیفِ بارگذاری‌شده در مرورگر انجام می‌شد؛ هر
+   * پاسخی که بیرون از آن ۵۰۰ تا بود، در جست‌وجو و شمارش دیده نمی‌شد.
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQueryText(search.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  /*
+   * ردیف‌ها و شمارش از سرور می‌آیند.
+   *
+   * پیش از این همه‌ی پاسخ‌ها (حداکثر ۵۰۰) یک‌جا گرفته و در مرورگر فیلتر
+   * می‌شد؛ یعنی پاسخِ ۵۰۱ به بعد نه در جدول بود، نه در جست‌وجو و نه در شمارش.
+   */
+  const rows = responses.data?.rows ?? [];
+  const total = responses.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // اگر فیلتر تعداد را کم کرد و صفحه‌ی فعلی دیگر وجود ندارد، به صفحه‌ی آخر برگرد.
+  const safePage = Math.min(page, pageCount);
+  const rangeFrom = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeTo = Math.min(total, safePage * PAGE_SIZE);
+
+  /*
+   * ستون‌های جدول از فهرستِ سوال‌های تجمیع می‌آید (نه فقط ردیف‌های همین
+   * صفحه)، و اگر تجمیع نبود، از کلیدهای پاسخ‌های بارگذاری‌شده.
+   */
   const questionIds = useMemo(() => {
+    const fromAnalytics = (analytics.data?.questions ?? []).map((q) => q.id);
+    if (fromAnalytics.length > 0) return fromAnalytics;
     const ids = new Set<string>();
-    for (const row of responses.data ?? []) {
+    for (const row of rows) {
       Object.keys(row.answers ?? {}).forEach((key) => ids.add(key));
     }
     return [...ids];
-  }, [responses.data]);
-
-  /*
-   * فیلتر و جستجو روی داده‌ی بارگذاری‌شده انجام می‌شود، نه با درخواست تازه.
-   *
-   * اندپوینت حداکثر ۵۰۰ ردیف می‌دهد و همه یک‌جا در دست است؛ فیلترِ سمت مرورگر
-   * فوری است و به هر تایپ، رفت‌وبرگشت سرور اضافه نمی‌کند. جستجو روی متنِ همه‌ی
-   * پاسخ‌های یک ردیف است تا «هر جوابی که این کلمه را دارد» پیدا شود.
-   */
-  const filtered = useMemo(() => {
-    const rows = responses.data ?? [];
-    const needle = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (statusFilter === 'completed' && row.status !== 'completed') {
-        return false;
-      }
-      if (statusFilter === 'partial' && row.status === 'completed') {
-        return false;
-      }
-      if (!needle) return true;
-      const haystack = [
-        row.respondentKey ?? '',
-        ...Object.values(row.answers ?? {}).map((v) => formatAnswer(v)),
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(needle);
-    });
-  }, [responses.data, statusFilter, search]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // اگر فیلتر تعداد را کم کرد و صفحه‌ی فعلی دیگر وجود ندارد، به صفحه‌ی آخر برگرد.
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = filtered.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE,
-  );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analytics.data, rows]);
 
   /**
    * عنوان خوانای هر سوال برای سرستون جدول.
@@ -266,7 +278,7 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
       {tab === 'ai' && (
         <AiAnswerAnalysis
           questions={analytics.data?.questions ?? []}
-          rows={responses.data ?? []}
+          rows={rows}
         />
       )}
 
@@ -303,11 +315,11 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
           </div>
         </div>
         {responses.isLoading && <p>در حال بارگذاری…</p>}
-        {responses.data?.length === 0 && (
+        {total === 0 && (
           <p className="empty">هنوز پاسخی ثبت نشده است.</p>
         )}
 
-        {(responses.data?.length ?? 0) > 0 && (
+        {total > 0 && (
           <>
             <div className="table-toolbar">
               <div className="quick-filter">
@@ -324,7 +336,7 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                     className={statusFilter === key ? 'active' : ''}
                     onClick={() => {
                       setStatusFilter(key);
-                      setPage(0);
+                      setPage(1);
                     }}
                   >
                     {label}
@@ -337,18 +349,15 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                 type="search"
                 placeholder="جستجو در پاسخ‌ها…"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(0);
-                }}
+                onChange={(e) => setSearch(e.target.value)}
               />
 
               <span className="table-count">
-                {filtered.length} از {responses.data?.length} پاسخ
+                {rangeFrom}–{rangeTo} از {total} پاسخ
               </span>
             </div>
 
-            {filtered.length === 0 ? (
+            {rows.length === 0 ? (
               <p className="empty">پاسخی با این فیلتر پیدا نشد.</p>
             ) : (
               <div className="table-scroll">
@@ -368,7 +377,7 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {pageRows.map((row) => (
+                    {rows.map((row) => (
                       <tr key={row.id}>
                         <td className="nowrap">
                           {jalaliDateTime(row.submittedAt ?? row.createdAt)}
@@ -430,18 +439,18 @@ export function ResponsesPanel({ formId, formTitle }: Props) {
                 <button
                   type="button"
                   className="secondary"
-                  disabled={safePage === 0}
+                  disabled={safePage <= 1}
                   onClick={() => setPage(safePage - 1)}
                 >
                   ← قبلی
                 </button>
                 <span>
-                  صفحه {safePage + 1} از {pageCount}
+                  صفحه {safePage} از {pageCount}
                 </span>
                 <button
                   type="button"
                   className="secondary"
-                  disabled={safePage >= pageCount - 1}
+                  disabled={safePage >= pageCount}
                   onClick={() => setPage(safePage + 1)}
                 >
                   بعدی →

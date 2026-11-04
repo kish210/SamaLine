@@ -92,7 +92,9 @@ export function DashboardsPage() {
 
   const questionIds = [
     ...new Set(
-      (responses.data ?? []).flatMap((row) => Object.keys(row.answers ?? {})),
+      (responses.data?.rows ?? []).flatMap((row) =>
+        Object.keys(row.answers ?? {}),
+      ),
     ),
   ];
 

@@ -73,7 +73,7 @@ export class ResponseController {
     @CurrentUser() user: JwtUser,
   ) {
     await this.tenant.assertForm(formId, user);
-    return this.responseService.listByForm(formId, query);
+    return this.responseService.listPage(formId, query);
   }
 
   @MinRole(OrganizationRole.ANALYST)
@@ -86,9 +86,10 @@ export class ResponseController {
     @Param('formId') formId: string,
     @Res() res: ExpressResponse,
     @CurrentUser() user: JwtUser,
+    @Query() query: ResponseFilterDto,
   ) {
     await this.tenant.assertForm(formId, user);
-    const result = await this.responseService.exportByForm(formId);
+    const result = await this.responseService.exportByForm(formId, query);
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${result.filename}"`,

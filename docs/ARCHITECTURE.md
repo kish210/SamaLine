@@ -133,6 +133,12 @@ import می‌کنند تا `LeaveController` نتیجهٔ مرخصی را هم�
   سازگار است؛ `telegram-api.ts` با `platformApiBase(platform)` آدرس پایه را
   انتخاب می‌کند. هر فضای کاری یک ربات دارد (ستون `platform` روی
   TelegramIntegration).
+- **صفحه‌بندیِ پاسخ‌ها — `responses/response-query.ts`:** یک سازندهٔ مشترکِ کوئری
+  برای `ResponseService` و `ReportService`. صفحه‌بندی سمت سرور با `page/pageSize`
+  (سقف ۲۰۰) و `total`؛ فیلترِ متنی با `EXISTS` روی `answer_flat` انجام می‌شود نه
+  `JOIN`، تا ردیفِ تکراری و شمارشِ اشتباه ندهد. خروجیِ اکسل مسیرِ جدا دارد
+  (`allForExport`، دسته‌های ۱۰۰۰تایی) و بالای `MAX_EXPORT_ROWS = 20_000` با پیامِ
+  روشن رد می‌شود، نه با بریدنِ بی‌صدا.
 - **i18n/RTL/شمسی:** رشته‌ها از فایل ترجمه، جهت پیش‌فرض RTL، تاریخ در DB میلادی
   (UTC) و در UI شمسی (`common/jalali.ts`، `panel/src/jalali.ts`).
 - **سرو کردن SPA — `backend/src/main.ts`:** بک‌اند فایل‌های build دو اپ React را

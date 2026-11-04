@@ -54,11 +54,13 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
   draft/active/closed/archived), `settings`(JSON: تم، صفحات شروع/پایان، حالت نمایش…).
 - **form_versions** — `formId`, `version`(int), `structure`(JSON: صفحات/سوال/منطق/شاخص).
   نسخه‌بندی تا تغییر فرم پاسخ‌های قبلی را خراب نکند.
-- **responses** — `formVersionId`, `publicationId`, `respondentKey*`, `status`
+- **responses** — (ایندکس: `(formVersionId, createdAt)`، `(publicationId)`،
+  `(respondentKey)`، `(status, submittedAt)`) `formVersionId`, `publicationId`, `respondentKey*`, `status`
   (ResponseStatus: partial/completed), `startedAt`, `submittedAt*`,
   `durationSeconds*`, `meta`(JSON: ip، منبع، UA…), `answers`(JSON), `scores`(JSON).
 - **answer_flat** — `responseId`, `questionId`, `valueText*`, `valueNumber*`,
-  `choiceId*`. جدول تخت برای گزارش‌گیری سریع (Materialized).
+  `choiceId*`. جدول تخت برای گزارش‌گیری سریع (Materialized). ایندکس:
+  `(responseId)` و `(questionId, choiceId)`.
 - **response_comments** — `responseId`, `authorName`, `body`. کامنت تیمی روی پاسخ.
 - **saved_filters** — `workspaceId`, `definition`(JSON). فیلتر ذخیره‌شده‌ی گزارش.
 - **dashboards** — `organizationId`, `name`, `widgets`(JSON: نوع/عنوان/چیدمان),
@@ -224,6 +226,12 @@ Organization ── OrganizationUser ── User            (عضویت + نقش
 31. `AddBotFlowSessions` — bot_flow_sessions + مقدارِ تازهٔ `letters` در نوعِ
     `staff_reminder_log.kind` (در SQLite با بازسازیِ جدول، چون CHECK درجا عوض
     نمی‌شود؛ در Postgres با `ALTER TYPE … ADD VALUE`).
+32. `AddResponseIndexes` — شش ایندکس روی `responses` و `answer_flat`
+    (`IDX_responses_form_created`، `IDX_responses_publication`،
+    `IDX_responses_respondent`، `IDX_responses_status_submitted`،
+    `IDX_answer_flat_response`، `IDX_answer_flat_question_choice`). پیش از این
+    هیچ ایندکسی روی این دو جدول نبود و هر گزارش، کلِ جدول را اسکن می‌کرد.
+33. `PgAddResponseIndexes` — قرینهٔ Postgresِ همان ایندکس‌ها.
 
 **قاعده:** هر تغییر اسکیما = یک فایل `<ts>-X.ts` (SQLite) + یک `<ts+1>-PgX.ts`
 (Postgres)، هر دو import و در فهرست مربوط ثبت شوند. `migrate-on-boot.ts` هنگام

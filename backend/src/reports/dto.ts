@@ -48,6 +48,18 @@ export class ReportResponseFilterDto {
   @IsOptional()
   @IsString()
   dateTo?: string;
+
+  /** جست‌وجوی آزاد در متنِ پاسخ‌ها و کلیدِ پاسخ‌دهنده. */
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  /** صفحه‌بندیِ سمت سرور؛ اندازهٔ صفحه سقفِ ۲۰۰ دارد. */
+  @IsOptional()
+  page?: number;
+
+  @IsOptional()
+  pageSize?: number;
 }
 
 export class CreateDashboardDto {

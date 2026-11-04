@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -8,7 +9,16 @@ import {
 import { ResponseEntity } from './response.entity';
 import { UUID_COLUMN } from '../column-types';
 
+/*
+ * جدولِ تختِ پاسخ‌ها.
+ *
+ * بدونِ ایندکس، هر فیلترِ «پاسخ‌هایی که به سوالِ X مقدارِ Y داده‌اند» کلِ
+ * جدول را می‌خواند؛ با (questionId, choiceId) و (responseId) این کار به
+ * جست‌وجوی ایندکسی تبدیل می‌شود.
+ */
 @Entity('answer_flat')
+@Index('IDX_answer_flat_response', ['responseId'])
+@Index('IDX_answer_flat_question_choice', ['questionId', 'choiceId'])
 export class AnswerFlatEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

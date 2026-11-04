@@ -6,7 +6,7 @@ import { ResponseEntity } from '../database/entities/response.entity';
 import { SavedFilterEntity } from '../database/entities/saved-filter.entity';
 import { PublicationEntity } from '../database/entities/publication.entity';
 import { ReportResponseFilterDto, SaveFilterDto } from './dto';
-import { LIKE_OPERATOR } from '../database/column-types';
+import { listResponsePage } from '../responses/response-query';
 
 @Injectable()
 export class ReportService {
@@ -120,46 +120,11 @@ export class ReportService {
   }
 
   async filteredResponses(formId: string, filter: ReportResponseFilterDto) {
-    const qb = this.responseRepo
-      .createQueryBuilder('response')
-      .innerJoin('response.formVersion', 'formVersion')
-      .where('formVersion.formId = :formId', { formId });
-
-    if (filter.status) {
-      qb.andWhere('response.status = :status', { status: filter.status });
-    }
-
-    if (filter.respondentKey) {
-      qb.andWhere('response.respondentKey = :respondentKey', {
-        respondentKey: filter.respondentKey,
-      });
-    }
-
-    if (filter.dateFrom) {
-      qb.andWhere('response.createdAt >= :dateFrom', {
-        dateFrom: filter.dateFrom,
-      });
-    }
-
-    if (filter.dateTo) {
-      qb.andWhere('response.createdAt <= :dateTo', { dateTo: filter.dateTo });
-    }
-
-    if (filter.questionId || filter.valueText) {
-      qb.innerJoin('response.answerFlat', 'answerFlat');
-      if (filter.questionId) {
-        qb.andWhere('answerFlat.questionId = :questionId', {
-          questionId: filter.questionId,
-        });
-      }
-      if (filter.valueText) {
-        qb.andWhere(`answerFlat.valueText ${LIKE_OPERATOR} :valueText`, {
-          valueText: `%${filter.valueText}%`,
-        });
-      }
-    }
-
-    return qb.orderBy('response.createdAt', 'DESC').take(500).getMany();
+    /*
+     * همان کوئری/صفحه‌بندیِ مشترک با `ResponseService`؛ پیش از این هر دو
+     * سرویس نسخهٔ خودشان را داشتند و هر دو روی ۵۰۰ ردیف می‌ماندند.
+     */
+    return listResponsePage(this.responseRepo, formId, filter);
   }
 
   saveFilter(dto: SaveFilterDto) {

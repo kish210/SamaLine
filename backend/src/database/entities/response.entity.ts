@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -24,7 +25,18 @@ export enum ResponseStatus {
   COMPLETED = 'completed',
 }
 
+/*
+ * ایندکس‌های مسیرِ داغِ گزارش‌گیری.
+ *
+ * پیش از این هیچ ایندکسی نبود و هر فهرست/گزارش، جدولِ پاسخ‌ها را کامل
+ * اسکن می‌کرد. ترکیبِ (formVersionId, createdAt) همان کوئریِ «آخرین پاسخ‌های
+ * این فرم» است و DEM مرتب‌شده می‌دهد.
+ */
 @Entity('responses')
+@Index('IDX_responses_form_created', ['formVersionId', 'createdAt'])
+@Index('IDX_responses_publication', ['publicationId'])
+@Index('IDX_responses_respondent', ['respondentKey'])
+@Index('IDX_responses_status_submitted', ['status', 'submittedAt'])
 export class ResponseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
