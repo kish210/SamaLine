@@ -10,6 +10,7 @@ import {
   LeaveRequestEntity,
 } from '../database/entities/leave-request.entity';
 import {
+  AttendanceLocationEntity,
   AttendanceRecordEntity,
   ShiftAssignmentEntity,
   ShiftTemplateEntity,
@@ -25,6 +26,8 @@ import { LeaveController } from './leave.controller';
 import { LeaveService } from './leave.service';
 import { ShiftController } from './shift.controller';
 import { ShiftService } from './shift.service';
+import { AttendanceLocationService } from './attendance-location.service';
+import { AttendanceLocationsController } from './attendance-locations.controller';
 
 /**
  * ماژول HR: پروندهٔ پرسنل (فاز E) + گزارشِ درخواست‌ها + مرخصی و ماندهٔ آن.
@@ -54,6 +57,8 @@ import { ShiftService } from './shift.service';
       ShiftTemplateEntity,
       ShiftAssignmentEntity,
       AttendanceRecordEntity,
+      // ژئوفنسِ حضور؛ ربات پیش از ثبتِ ورود با همین جدول می‌سنجد.
+      AttendanceLocationEntity,
     ]),
   ],
   controllers: [
@@ -62,6 +67,7 @@ import { ShiftService } from './shift.service';
     ShiftController,
     HrExportController,
     HrDeskController,
+    AttendanceLocationsController,
   ],
   providers: [
     HrService,
@@ -70,6 +76,7 @@ import { ShiftService } from './shift.service';
     ShiftService,
     HrExportService,
     HrDeskService,
+    AttendanceLocationService,
   ],
   exports: [
     HrService,
@@ -77,6 +84,7 @@ import { ShiftService } from './shift.service';
     ShiftService,
     HrExportService,
     HrDeskService,
+    AttendanceLocationService,
   ],
 })
 export class HrModule {}

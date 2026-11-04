@@ -33,6 +33,12 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 interface TelegramUpdate {
   message?: {
     text?: string;
+    /* موقعیتِ ارسالی با دکمه‌ی request_location؛ تلگرام و بله هر دو همین شکل را دارند. */
+    location?: {
+      latitude: number;
+      longitude: number;
+      horizontal_accuracy?: number;
+    };
     chat?: {
       id: number | string;
       title?: string;
@@ -193,10 +199,36 @@ export class TelegramBotService {
 
       const chat = update.message?.chat;
       const text = update.message?.text?.trim();
-      if (!chat || !text) return;
+      const loc = update.message?.location;
+      if (!chat || (!text && !loc)) return;
 
       const chatId = String(chat.id);
-      const reply = await this.respond(bot, chatId, text, chat);
+
+      /*
+       * پیامِ موقعیت: پیش از هر چیز به رباتِ پرسنل می‌رود تا حضور ثبت شود.
+       * پیام‌رسان‌های دیگر (بله) ممکن است موقعیت را در فیلدِ دیگری بفرستند؛
+       * آن‌ها با متنِ دکمه به راهنما می‌رسند.
+       */
+      if (loc) {
+        const staffReply = await this.staffBot.handleLocation(bot, chatId, {
+          lat: loc.latitude,
+          lng: loc.longitude,
+          accuracy: loc.horizontal_accuracy,
+        });
+        if (staffReply) {
+          const asText = typeof staffReply === 'string' ? staffReply : staffReply.text;
+          const keyboard = typeof staffReply === 'string' ? undefined : staffReply.keyboard;
+          await this.api.send(
+            bot.botToken,
+            chatId,
+            asText,
+            platformApiBase(bot.platform),
+            keyboard,
+          );
+        }
+        return;
+      }
+      const reply = await this.respond(bot, chatId, text ?? '', chat);
       if (reply) {
         // پاسخ یا فقط متن است یا متن + کیبورد (reply_markup).
         const asText = typeof reply === 'string' ? reply : reply.text;

@@ -22,6 +22,11 @@ import {
   PersonnelEntity,
 } from '../database/entities/personnel.entity';
 import { AuditService } from '../common/audit.service';
+import {
+  AttendanceLocationService,
+  type PunchCoords,
+} from './attendance-location.service';
+import type { PunchLocation } from '../database/entities/work-shift.entity';
 
 /** «HH:MM» معتبر است؟ */
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -86,6 +91,9 @@ export interface AttendanceInput {
   checkOut?: string;
   note?: string;
   source?: AttendanceSource;
+  /** محلِ ثبتِ ورود/خروج؛ فقط مسیرِ ربات پر می‌کند. */
+  inLocation?: PunchLocation | null;
+  outLocation?: PunchLocation | null;
 }
 
 /** یک ردیفِ «امروز چه کسی کار می‌کند». */
@@ -136,6 +144,9 @@ export class ShiftService {
     @InjectRepository(LeaveRequestEntity)
     private readonly leaves: Repository<LeaveRequestEntity>,
     @Optional() private readonly audit?: AuditService,
+    /* برای سازمانی که مکانِ مجاز تعریف نکرده، تزریقِ اختیاری رفتارِ پیشین را
+     * حفظ می‌کند و تست‌های موجود ShiftService را بدونِ بازنویسی زنده می‌گذارد. */
+    @Optional() private readonly places?: AttendanceLocationService,
   ) {}
 
   // ── الگوی شیفت ────────────────────────────────────────────────────────
@@ -305,6 +316,24 @@ export class ShiftService {
       : withNames;
   }
 
+  /** آیا سازمان مکانِ مجازِ فعال دارد؟ ربات با این تصمیم می‌گیرد موقعیت بخواهد. */
+  async hasGeofence(organizationId: string): Promise<boolean> {
+    if (!this.places) return false;
+    const places = await this.places.list(organizationId);
+    return places.length > 0;
+  }
+
+  /** سطرِ حضورِ یک روزِ مشخص؛ null یعنی هنوز ثبت نشده. */
+  attendanceOn(
+    organizationId: string,
+    personnelId: string,
+    date = todayIso(),
+  ) {
+    return this.attendance.findOne({
+      where: { organizationId, personnelId, date },
+    });
+  }
+
   /** شیفت‌های یک پرسنل در بازه — پاسخِ «شیفتِ من» در ربات. */
   myShifts(personnelId: string, from: string, to: string) {
     return this.assignments.find({
@@ -347,6 +376,8 @@ export class ShiftService {
     if (input.checkOut !== undefined) row.checkOut = input.checkOut;
     if (input.note !== undefined) row.note = input.note;
     if (input.source !== undefined) row.source = input.source;
+    if (input.inLocation !== undefined) row.inLocation = input.inLocation;
+    if (input.outLocation !== undefined) row.outLocation = input.outLocation;
     row.byUserId = actorId ?? row.byUserId ?? null;
 
     /*
@@ -378,10 +409,20 @@ export class ShiftService {
     personnelId: string,
     kind: 'in' | 'out',
     now = new Date(),
+    coords?: PunchCoords | null,
   ) {
     const date = now.toISOString().slice(0, 10);
     const time = now.toISOString().slice(11, 16);
+    const person = await this.assertPerson(organizationId, personnelId);
 
+    /*
+     * ژئوفنس فقط روی **ورود** اعمال می‌شود.
+     *
+     * الزامِ خروج از داخلِ محل، پرسنل را وقتی ساختمان را ترک کرده در
+     * بن‌بست می‌گذارد؛ خروج با هر موقعیتی ثبت می‌شود و فقط مختصاتش برای
+     * گزارش نگه داشته می‌شود. ورود اما همان لحظه‌ای است که ادعای «سرِ کار
+     * هستم» باید با مکان بخواند.
+     */
     if (kind === 'out') {
       const existing = await this.attendance.findOne({
         where: { organizationId, personnelId, date },
@@ -389,12 +430,32 @@ export class ShiftService {
       if (!existing?.checkIn) {
         throw new BadRequestException('ابتدا ورود را ثبت کنید');
       }
+      const outLocation = await this.describePunch(
+        organizationId,
+        coords,
+        person.departmentId,
+      );
       return this.setAttendance(organizationId, {
         personnelId,
         date,
         checkOut: time,
         source: AttendanceSource.BOT,
+        ...(outLocation ? { outLocation } : {}),
       });
+    }
+
+    const inLocation = await this.describePunch(
+      organizationId,
+      coords,
+      person.departmentId,
+    );
+    if (inLocation?.status === 'outside') {
+      const where = inLocation.locationName
+        ? `نزدیک‌ترین مکانِ مجاز «${inLocation.locationName}» است و شما حدودِ ${inLocation.distanceMeters} متر از آن فاصله دارید.`
+        : 'شما داخلِ محدودهٔ هیچ مکانِ مجازِ سازمان نیستید.';
+      throw new BadRequestException(
+        `ثبتِ ورود از این موقعیت ممکن نیست — ${where} اگر فکر می‌کنید خطاست، دوباره با GPS روشن تلاش کنید یا با منابع انسانی تماس بگیرید.`,
+      );
     }
 
     const shifts = await this.assignments.find({
@@ -412,7 +473,31 @@ export class ShiftService {
       status: late ? AttendanceStatus.LATE : AttendanceStatus.PRESENT,
       source: AttendanceSource.BOT,
       note: late ? `شیفت ${shifts[0].startTime}` : '',
+      ...(inLocation ? { inLocation } : {}),
     });
+  }
+
+  /**
+   * وضعیتِ حضورِ امروزِ یک پرسنل، برای تصمیمِ ربات بینِ «ورود» و «خروج».
+   * اگر رکوردی نباشد `null` برمی‌گردد.
+   */
+  async todayStatus(organizationId: string, personnelId: string, now = new Date()) {
+    const date = now.toISOString().slice(0, 10);
+    const row = await this.attendance.findOne({
+      where: { organizationId, personnelId, date },
+    });
+    if (!row) return null;
+    return { checkIn: row.checkIn, checkOut: row.checkOut };
+  }
+
+  /** سنجشِ مختصات، فقط اگر سرویسِ مکان‌ها تزریق شده باشد. */
+  private async describePunch(
+    organizationId: string,
+    coords: PunchCoords | null | undefined,
+    departmentId: string | null,
+  ): Promise<PunchLocation | null> {
+    if (!coords || !this.places) return null;
+    return this.places.describe(organizationId, coords, { departmentId });
   }
 
   // ── نمای روز ──────────────────────────────────────────────────────────

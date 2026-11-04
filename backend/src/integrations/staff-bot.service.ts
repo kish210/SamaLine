@@ -56,6 +56,8 @@ const BTN_TASKS = '🔧 کارهای من';
 const BTN_SHIFT = '🗓 شیفتِ من';
 const BTN_IN = '🟢 ثبتِ ورود';
 const BTN_OUT = '🔴 ثبتِ خروج';
+/** دکمه‌ای که پیام‌رسان را وادار به فرستادنِ موقعیت می‌کند (request_location). */
+const BTN_LOCATION = '📍 ثبتِ حضور با موقعیت';
 /** پیشوندهای اقدام روی یک دستورِ کار؛ شمارهٔ کار داخلِ خودِ دکمه است. */
 const BTN_START_PREFIX = '🚀 ';
 const BTN_DONE_PREFIX = '✅ ';
@@ -134,6 +136,7 @@ const STAFF_KEYBOARD = {
   keyboard: [
     [{ text: BTN_TASKS }, { text: BTN_LETTERS }],
     [{ text: BTN_IN }, { text: BTN_OUT }],
+    [{ text: BTN_LOCATION, request_location: true }],
     [{ text: BTN_FAULT }, { text: BTN_LEAVE }],
     [{ text: BTN_SHIFT }, { text: BTN_FORMS }],
     [{ text: BTN_REQUESTS }, { text: BTN_NEWS }],
@@ -311,6 +314,14 @@ export class StaffBotService {
     }
     if (trimmed === BTN_OUT || command === '/خروج-کار') {
       return this.punch(bot, chatId, 'out');
+    }
+    /*
+     * دکمهٔ «ثبتِ حضور با موقعیت» در تلگرام مستقیم موقعیت می‌فرستد و متنِ
+     * دکمه به ما نمی‌رسد. اگر پیام‌رسانی (مثلِ بله) request_location را
+     * پشتیبانی نکند، متن می‌آید و ما راهنما می‌دهیم.
+     */
+    if (trimmed === BTN_LOCATION) {
+      return this.askLocation(bot, chatId);
     }
     // «🚀 WO-00012» و «✅ WO-00012» یعنی اقدام روی همان دستورِ کار.
     if (
@@ -692,11 +703,56 @@ export class StaffBotService {
     return { text: lines.join('\n'), keyboard: STAFF_KEYBOARD };
   }
 
+  /** راهنمای ثبتِ حضور با موقعیت؛ وقتی پیام‌رسان دکمه‌ی موقعیت را پشتیبانی نکند. */
+  private askLocation(bot: TelegramIntegrationEntity, chatId: string): BotReply {
+    void bot;
+    void chatId;
+    return {
+      text: [
+        '📍 برای ثبتِ حضور با موقعیت، دکمه‌ی «📍 ثبتِ حضور با موقعیت» را بزنید و',
+        'اجازه‌ی ارسالِ موقعیت را بدهید. اگر دکمه در این پیام‌رسان کار نکرد،',
+        'از دکمه‌های «🟢 ثبتِ ورود» / «🔴 ثبتِ خروج» استفاده کنید.',
+      ].join('\n'),
+      keyboard: STAFF_KEYBOARD,
+    };
+  }
+
+  /**
+   * ثبتِ حضور با مختصاتِ ارسالی از پیام‌رسان.
+   *
+   * نوعِ ثبت خودکار انتخاب می‌شود: اگر امروز ورود ثبت نشده باشد «ورود»، اگر
+   * ورود ثبت شده و خروج نه «خروج»، و اگر هر دو ثبت شده باشند پیامِ روشن.
+   * ژئوفنس در لایه‌ی سرویس اعمال می‌شود و خطای آن با متنِ راهنما برمی‌گردد.
+   */
+  async handleLocation(
+    bot: TelegramIntegrationEntity,
+    chatId: string,
+    coords: { lat: number; lng: number; accuracy?: number },
+  ): Promise<BotReply> {
+    const person = await this.hr.findByChat(chatId, bot.platform);
+    if (!person) {
+      return 'شما هنوز وصل نشده‌اید. شماره موبایلِ خود را همین‌جا بفرستید.';
+    }
+    const organizationId = await this.orgIdOf(bot);
+    if (!organizationId) return 'ربات به سازمانی وصل نیست.';
+
+    const today = await this.shifts.todayStatus(organizationId, person.id);
+    if (today?.checkIn && today?.checkOut) {
+      return {
+        text: 'امروز ورود و خروجِ شما ثبت شده است؛ ثبتِ دوباره لازم نیست.',
+        keyboard: STAFF_KEYBOARD,
+      };
+    }
+    const kind: 'in' | 'out' = today?.checkIn ? 'out' : 'in';
+    return this.punch(bot, chatId, kind, coords);
+  }
+
   /** ثبتِ ورود/خروجِ خودِ پرسنل از ربات. */
   private async punch(
     bot: TelegramIntegrationEntity,
     chatId: string,
     kind: 'in' | 'out',
+    coords?: { lat: number; lng: number; accuracy?: number } | null,
   ): Promise<BotReply> {
     const person = await this.hr.findByChat(chatId, bot.platform);
     if (!person) {
@@ -710,6 +766,8 @@ export class StaffBotService {
         organizationId,
         person.id,
         kind,
+        new Date(),
+        coords ?? null,
       );
       const text =
         kind === 'in'

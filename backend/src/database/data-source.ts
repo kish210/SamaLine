@@ -58,6 +58,8 @@ import { AddBotFlowSessions1800000000028 } from './migrations/1800000000028-AddB
 import { PgAddBotFlowSessions1800000000029 } from './migrations/1800000000029-PgAddBotFlowSessions';
 import { AddResponseIndexes1800000000030 } from './migrations/1800000000030-AddResponseIndexes';
 import { PgAddResponseIndexes1800000000031 } from './migrations/1800000000031-PgAddResponseIndexes';
+import { AddAttendanceLocations1800000000032 } from './migrations/1800000000032-AddAttendanceLocations';
+import { PgAddAttendanceLocations1800000000033 } from './migrations/1800000000033-PgAddAttendanceLocations';
 import { AddHrDomain1800000000016 } from './migrations/1800000000016-AddHrDomain';
 import { PgAddHrDomain1800000000017 } from './migrations/1800000000017-PgAddHrDomain';
 import { AddCmmsCore1800000000014 } from './migrations/1800000000014-AddCmmsCore';
@@ -110,6 +112,7 @@ export const SQLITE_MIGRATIONS = [
   AddLetters1800000000026,
   AddBotFlowSessions1800000000028,
   AddResponseIndexes1800000000030,
+  AddAttendanceLocations1800000000032,
 ];
 export const POSTGRES_MIGRATIONS = [
   PgBaseline1788878200721,
@@ -143,6 +146,7 @@ export const POSTGRES_MIGRATIONS = [
   PgAddLetters1800000000027,
   PgAddBotFlowSessions1800000000029,
   PgAddResponseIndexes1800000000031,
+  PgAddAttendanceLocations1800000000033,
 ];
 
 /** مسیر فایل دیتابیس SQLite؛ نسبی‌ها از ریشه‌ی backend حساب می‌شوند. */

@@ -6,7 +6,12 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ENUM_COLUMN, TIMESTAMP_COLUMN, UUID_COLUMN } from '../column-types';
+import {
+  ENUM_COLUMN,
+  JSON_COLUMN,
+  TIMESTAMP_COLUMN,
+  UUID_COLUMN,
+} from '../column-types';
 
 /*
  * ساعت‌ها به‌شکلِ رشته‌ی «HH:MM» ذخیره می‌شوند، نه نوعِ time یا timestamp.
@@ -36,6 +41,29 @@ export enum AttendanceSource {
   MANUAL = 'manual',
   /** خودِ پرسنل از ربات زد. */
   BOT = 'bot',
+}
+
+/**
+ * محلِ ثبتِ ورود/خروجِ ربات (اختیاری).
+ *
+ * عمداً در همین فایل و نه فایلِ جدا: فقط همراهِ سطرِ حضور معنا دارد و
+ * هیچ‌جا مستقل خوانده نمی‌شود. مختصاتِ خام می‌ماند تا اگر بعداً بخواهیم
+ * نقشه یا گزارشِ مسیر بسازیم، لازم نباشد از نو ثبت شود.
+ */
+export interface PunchLocation {
+  lat: number;
+  lng: number;
+  /** دقتِ گزارش‌شدهٔ دستگاه به متر؛ اگر پیام‌رسان نداده باشد، خالی. */
+  accuracy?: number;
+  /** زمانِ ISO ثبت. */
+  at?: string;
+  /** مکانِ مجازِ منطبق؛ null یعنی سازمان مکانی تعریف نکرده. */
+  locationId?: string | null;
+  locationName?: string;
+  /** فاصله از مرکزِ مکانِ مجاز، به متر. */
+  distanceMeters?: number;
+  /** داخل، بیرون، یا «مکانی تعریف نشده» — برای گزارشِ صادقانه. */
+  status: 'inside' | 'outside' | 'none';
 }
 
 /**
@@ -196,6 +224,19 @@ export class AttendanceRecordEntity {
   @Column({ type: 'varchar', length: 300, default: '' })
   note: string;
 
+  /**
+   * محلِ ثبتِ ورود/خروج از ربات.
+   *
+   * ستونِ JSON، نه چهار ستونِ جدا: تعدادِ فیلدها (دقت، فاصله، نامِ مکان،
+   * وضعیت) ممکن است بعداً بیشتر شود و مهاجرتِ ستون‌به‌ستون برای دادهٔ
+   * کم‌مصرفِ حسابرسی صرف نمی‌کند. ثبتِ دستیِ مدیر این ستون را نمی‌نویسد.
+   */
+  @Column({ type: JSON_COLUMN, nullable: true })
+  inLocation: PunchLocation | null;
+
+  @Column({ type: JSON_COLUMN, nullable: true })
+  outLocation: PunchLocation | null;
+
   @Column({ type: UUID_COLUMN, nullable: true })
   byUserId: string | null;
 
@@ -248,4 +289,51 @@ export class StaffReminderLogEntity {
 
   @CreateDateColumn({ type: TIMESTAMP_COLUMN })
   createdAt: Date;
+}
+
+/**
+ * مکانِ مجازِ حضور (ژئوفنس).
+ *
+ * دایره‌ای ساده به مرکزِ مختصات و شعاعِ متر: برای «کارگاه/هتل/دفتر» کافی است
+ * و برخلافِ چندضلعی، در پنل با دو عدد و یک دکمه قابلِ تعریف است. شعاعِ
+ * پیش‌فرض ۱۵۰ متر است چون دقتِ GPS در شهر معمولاً ۱۰ تا ۵۰ متر خطا دارد و
+ * شعاعِ تنگ، ثبتِ درست را به‌خاطرِ خطای دستگاه رد می‌کند.
+ *
+ * `departmentId = null` یعنی برای همهٔ پرسنلِ سازمان؛ وگرنه فقط پرسنلِ آن بخش.
+ * اگر سازمان هیچ مکانِ فعالی نداشته باشد، حضور با موقعیت **اجبار نمی‌شود**
+ * (سازگاری با سازمان‌های موجود) و ثبت با وضعیتِ «none» ذخیره می‌شود.
+ */
+@Entity('attendance_locations')
+@Index('IDX_attendance_locations_org', ['organizationId', 'isActive'])
+export class AttendanceLocationEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: UUID_COLUMN })
+  organizationId: string;
+
+  @Column({ type: 'varchar', length: 120 })
+  name: string;
+
+  @Column({ type: 'double precision' })
+  lat: number;
+
+  @Column({ type: 'double precision' })
+  lng: number;
+
+  @Column({ type: 'int', default: 150 })
+  radiusMeters: number;
+
+  /** null یعنی همهٔ بخش‌ها. */
+  @Column({ type: UUID_COLUMN, nullable: true })
+  departmentId: string | null;
+
+  @Column({ type: 'boolean', default: true })
+  isActive: boolean;
+
+  @CreateDateColumn({ type: TIMESTAMP_COLUMN })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: TIMESTAMP_COLUMN })
+  updatedAt: Date;
 }
