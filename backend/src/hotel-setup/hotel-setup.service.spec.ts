@@ -83,9 +83,9 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
 
     expect(result.map((r) => r.key)).toEqual(STANDARD_UNITS.map((u) => u.key));
     expect(f.depts.map((d) => d.name)).toContain('فنی');
-    expect(f.forms).toHaveLength(5);
+    expect(f.forms).toHaveLength(STANDARD_UNITS.length);
     expect(f.forms.find((x) => x.templateKey === 'ops-technical-daily')).toBeTruthy();
-    expect(f.dashboards).toHaveLength(5);
+    expect(f.dashboards).toHaveLength(STANDARD_UNITS.length);
     // داشبورد به همان بخش وصل است و ویجت‌هایش به همان فرم اشاره می‌کنند.
     const technical = result.find((r) => r.key === 'technical')!;
     const dash = f.dashboards.find((d) => d.departmentId === technical.departmentId)!;
@@ -94,7 +94,7 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
       f.forms.find((x) => x.departmentId === technical.departmentId)!.id,
     );
     // هر واحد یک پرتال هم می‌گیرد که فرمِ همان واحد را دارد.
-    expect(f.portals).toHaveLength(5);
+    expect(f.portals).toHaveLength(STANDARD_UNITS.length);
     const techPortal = f.portals.find((p) => p.departmentId === technical.departmentId)!;
     expect(techPortal.formIds).toContain(
       f.forms.find((x) => x.departmentId === technical.departmentId)!.id,
@@ -106,10 +106,10 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
     const f = makeFakes();
     await f.service.setupStandardUnits('org', 'ws');
     const again = await f.service.setupStandardUnits('org', 'ws');
-    expect(f.depts).toHaveLength(5);
-    expect(f.forms).toHaveLength(5);
-    expect(f.dashboards).toHaveLength(5);
-    expect(f.portals).toHaveLength(5);
+    expect(f.depts).toHaveLength(STANDARD_UNITS.length);
+    expect(f.forms).toHaveLength(STANDARD_UNITS.length);
+    expect(f.dashboards).toHaveLength(STANDARD_UNITS.length);
+    expect(f.portals).toHaveLength(STANDARD_UNITS.length);
     expect(again.every((r) => r.department === 'existing')).toBe(true);
     expect(
       again.every(
@@ -121,8 +121,8 @@ describe('HotelSetupService — واحدهای استانداردِ هتل', () 
   it('شکستِ ساختِ فرم (مثلا سقفِ پلن) بخش و داشبورد را نمی‌شکند', async () => {
     const f = makeFakes({ formCreateFails: true });
     const result = await f.service.setupStandardUnits('org', 'ws');
-    expect(f.depts).toHaveLength(5);
-    expect(f.dashboards).toHaveLength(5);
+    expect(f.depts).toHaveLength(STANDARD_UNITS.length);
+    expect(f.dashboards).toHaveLength(STANDARD_UNITS.length);
     expect(result.every((r) => r.form === 'skipped' && r.note)).toBe(true);
   });
 });

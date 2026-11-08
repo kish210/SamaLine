@@ -2141,6 +2141,563 @@ const TEMPLATES: TemplateDef[] = [
       },
     ],
   },
+
+  // ─── پذیرش (Front Office) ──────────────────────────────────────
+  {
+    key: 'ops-reception-handover',
+    title: 'تحویل شیفت پذیرش',
+    summary:
+      'ثبت تحویل شیفت پذیرش: موجودی صندوق، اتاق‌های در انتظار، درخواست‌های معلق و موارد ویژه‌ی مهمانان.',
+    category: 'عملیات هتل',
+    icon: '🛎️',
+    theme: 'firuze',
+    oneAtATime: false,
+    endText: 'تحویل شیفت ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'تحویل شیفت',
+        questions: [
+          date('rh_date', 'تاریخ', true),
+          list('rh_shift', 'شیفت تحویل‌شونده', ['صبح', 'عصر', 'شب']),
+          text('rh_from', 'تحویل‌دهنده', true),
+          text('rh_to', 'تحویل‌گیرنده', true),
+          number('rh_cash', 'موجودی صندوق (تومان)', 0, 1000000000),
+          number('rh_arrivals', 'تعداد ورودی‌های امشب/امروز', 0, 500),
+          number('rh_departures', 'تعداد خروجی‌ها', 0, 500),
+          number('rh_occupied', 'اتاق‌های اشغال', 0, 1000),
+          yesNo('rh_pending', 'درخواست یا پیگیری معلقی هست؟'),
+          {
+            ...longText('rh_pending_note', 'شرح موارد معلق'),
+            showWhen: is('rh_pending', true),
+          },
+          multi('rh_flags', 'موارد ویژه', [
+            'مهمان VIP',
+            'شکایت باز',
+            'بدهی مهمان',
+            'اتاق خارج از سرویس',
+            'رویداد/تور گروهی',
+            'موردی نیست',
+          ]),
+          longText('rh_note', 'یادداشت برای شیفت بعد'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-lost-found',
+    title: 'ثبت اموال گم‌شده و پیداشده',
+    summary:
+      'ثبت وسایل جامانده‌ی مهمان: محل پیدا شدن، شرح کالا، یابنده و وضعیت تحویل یا نگهداری.',
+    category: 'عملیات هتل',
+    icon: '🧳',
+    theme: 'holu',
+    oneAtATime: false,
+    endText: 'مورد ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'اموال یافت‌شده',
+        questions: [
+          date('lf_date', 'تاریخ پیدا شدن', true),
+          text('lf_place', 'محل پیدا شدن (اتاق/طبقه/لابی)', true),
+          text('lf_by', 'نام یابنده', true),
+          longText('lf_item', 'شرح کامل کالا', true),
+          list('lf_category', 'دسته', [
+            'مدارک و کارت',
+            'موبایل و لوازم برقی',
+            'طلا و جواهر',
+            'پوشاک',
+            'دارو',
+            'سایر',
+          ]),
+          text('lf_room', 'اتاق/نام مهمان (در صورت معلوم بودن)'),
+          list('lf_status', 'وضعیت', [
+            'تحویل انبار اموال',
+            'تحویل مهمان',
+            'در انتظار تماس مهمان',
+          ]),
+          file('lf_photo', 'عکس کالا'),
+          longText('lf_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  // ─── خانه‌داری (Housekeeping) ───────────────────────────────────
+  {
+    key: 'ops-laundry-request',
+    title: 'درخواست لنژری و لباسشویی',
+    summary:
+      'ثبت تحویل ملحفه و حوله و پوشاک مهمان به لباسشویی با شمارش اقلام و زمان تحویل مورد انتظار.',
+    category: 'عملیات هتل',
+    icon: '🧺',
+    theme: 'barf',
+    oneAtATime: false,
+    endText: 'درخواست لنژری ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'لنژری',
+        questions: [
+          date('lr_date', 'تاریخ', true),
+          list('lr_type', 'نوع', ['البسه هتل', 'لباس مهمان']),
+          text('lr_room', 'شماره اتاق (برای لباس مهمان)'),
+          text('lr_by', 'تحویل‌دهنده', true),
+          number('lr_sheet', 'تعداد ملحفه', 0, 2000),
+          number('lr_towel', 'تعداد حوله', 0, 2000),
+          number('lr_cloth', 'تعداد روتختی/روبالشی', 0, 2000),
+          number('lr_guest', 'تعداد قطعات لباس مهمان', 0, 200),
+          list('lr_priority', 'فوریت', ['عادی', 'فوری (همان روز)']),
+          longText('lr_note', 'توضیحات (لکه، آسیب، …)'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-minibar-consumption',
+    title: 'ثبت مصرف مینی‌بار',
+    summary:
+      'ثبت اقلام مصرف‌شده‌ی مینی‌بار هنگام خروج مهمان برای صورتحساب و تکمیل مجدد.',
+    category: 'عملیات هتل',
+    icon: '🧃',
+    theme: 'holu',
+    oneAtATime: false,
+    endText: 'مصرف مینی‌بار ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'مینی‌بار',
+        questions: [
+          text('mb_room', 'شماره اتاق', true),
+          date('mb_date', 'تاریخ کنترل', true),
+          text('mb_by', 'نام سرویس‌کار', true),
+          yesNo('mb_consumed', 'مصرفی وجود داشت؟'),
+          {
+            ...multi('mb_items', 'اقلام مصرف‌شده', [
+              'آب معدنی',
+              'نوشابه',
+              'آبمیوه',
+              'دلستر',
+              'تنقلات',
+              'شکلات',
+              'سایر',
+            ]),
+            showWhen: is('mb_consumed', true),
+          },
+          {
+            ...longText('mb_detail', 'شرح و تعداد اقلام'),
+            showWhen: is('mb_consumed', true),
+          },
+          yesNo('mb_restocked', 'مینی‌بار دوباره تکمیل شد؟'),
+          longText('mb_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  // ─── رستوران و آشپزخانه (F&B) ───────────────────────────────────
+  {
+    key: 'ops-kitchen-hygiene',
+    title: 'چک‌لیست بهداشت آشپزخانه',
+    summary:
+      'کنترل روزانه‌ی بهداشت آشپزخانه: نظافت سطوح، سلامت کارکنان، تاریخ انقضا و دمای نگهداری مواد.',
+    category: 'عملیات هتل',
+    icon: '🍽️',
+    theme: 'barg',
+    oneAtATime: false,
+    endText: 'چک‌لیست بهداشت ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'بهداشت آشپزخانه',
+        questions: [
+          date('kh_date', 'تاریخ', true),
+          list('kh_shift', 'وعده', ['صبحانه', 'ناهار', 'شام']),
+          text('kh_by', 'مسئول کنترل', true),
+          yesNo('kh_surface', 'سطوح کار و تجهیزات تمیز است؟'),
+          yesNo('kh_staff', 'کارکنان لباس و بهداشت فردی رعایت کرده‌اند؟'),
+          yesNo('kh_expiry', 'قلم نزدیک‌انقضا یا منقضی مشاهده شد؟'),
+          {
+            ...longText('kh_expiry_note', 'اقلام نزدیک انقضا یا منقضی'),
+            showWhen: is('kh_expiry', true),
+          },
+          yesNo('kh_storage', 'مواد غذایی درست نگهداری می‌شوند؟'),
+          yesNo('kh_waste', 'زباله و ضایعات تخلیه شد؟'),
+          yesNo('kh_pest', 'نشانه‌ای از حشرات/جوندگان دیده شد؟'),
+          {
+            ...longText('kh_pest_note', 'شرح مشاهده'),
+            showWhen: is('kh_pest', true),
+          },
+          longText('kh_note', 'توضیحات و اقدام اصلاحی'),
+          file('kh_photo', 'عکس (در صورت ایراد)'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-fridge-temp',
+    title: 'ثبت دمای یخچال و فریزر',
+    summary:
+      'ثبت دوره‌ای دمای یخچال‌ها و فریزرهای آشپزخانه برای زنجیره‌ی سرد و ایمنی مواد غذایی.',
+    category: 'عملیات هتل',
+    icon: '🌡️',
+    theme: 'aseman',
+    oneAtATime: false,
+    endText: 'دما ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'دمای تجهیزات سرد',
+        questions: [
+          date('ft_date', 'تاریخ', true),
+          list('ft_time', 'نوبت', ['صبح', 'عصر', 'شب']),
+          text('ft_by', 'ثبت‌کننده', true),
+          text('ft_unit', 'کد/نام تجهیز (یخچال/فریزر)', true),
+          number('ft_temp', 'دمای ثبت‌شده (سانتی‌گراد)', -40, 20, true),
+          yesNo('ft_ok', 'دما در محدوده‌ی مجاز است؟'),
+          {
+            ...longText('ft_action', 'اقدام اصلاحی (دمای خارج از محدوده)'),
+            showWhen: is('ft_ok', false),
+          },
+          longText('ft_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-banquet-order',
+    title: 'سفارش رویداد و پذیرایی (BEO)',
+    summary:
+      'ثبت جزئیات رویداد سالن: تاریخ، تعداد مهمان، نوع پذیرایی، چیدمان و نیازهای فنی و تشریفات.',
+    category: 'عملیات هتل',
+    icon: '🎉',
+    theme: 'makhmal',
+    oneAtATime: false,
+    endText: 'سفارش رویداد ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'مشخصات رویداد',
+        questions: [
+          text('bo_client', 'نام میزبان/شرکت', true),
+          mobile('bo_mobile', 'شماره تماس', true),
+          date('bo_date', 'تاریخ رویداد', true),
+          text('bo_hall', 'سالن', true),
+          number('bo_guests', 'تعداد مهمان', 1, 2000, true),
+          list('bo_type', 'نوع پذیرایی', [
+            'صبحانه',
+            'ناهار',
+            'شام',
+            'میان‌وعده و کافی‌بریک',
+            'بوفه',
+          ]),
+          list('bo_layout', 'چیدمان', [
+            'کلاس‌روم',
+            'یو شکل',
+            'میزگرد',
+            'تئاتری',
+            'ضیافتی',
+          ]),
+          multi('bo_av', 'نیازهای فنی', [
+            'ویدئوپروژکتور',
+            'سیستم صوت',
+            'میکروفون',
+            'اینترنت',
+            'استیج',
+            'ندارد',
+          ]),
+          longText('bo_menu', 'منو و جزئیات پذیرایی', true),
+          longText('bo_note', 'نیازهای ویژه و تشریفات'),
+        ],
+      },
+    ],
+  },
+
+  // ─── فنی: نگهداری پیشگیرانه ─────────────────────────────────────
+  {
+    key: 'ops-preventive-maintenance',
+    title: 'چک‌لیست نگهداری پیشگیرانه',
+    summary:
+      'ثبت سرویس دوره‌ای تجهیزات (چیلر، آسانسور، دیزل‌ژنراتور، سیستم اعلام حریق) طبق برنامه‌ی PM.',
+    category: 'عملیات هتل',
+    icon: '🛠️',
+    theme: 'mohandes',
+    oneAtATime: false,
+    endText: 'سرویس پیشگیرانه ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'نگهداری پیشگیرانه',
+        questions: [
+          date('pm_date', 'تاریخ سرویس', true),
+          text('pm_asset', 'تجهیز/کد دارایی', true),
+          text('pm_by', 'نام تکنسین', true),
+          list('pm_period', 'دوره', [
+            'هفتگی',
+            'ماهانه',
+            'سه‌ماهه',
+            'شش‌ماهه',
+            'سالانه',
+          ]),
+          yesNo('pm_done', 'همه‌ی اقلام چک‌لیست انجام شد؟'),
+          {
+            ...longText('pm_pending', 'اقلام باقی‌مانده و علت'),
+            showWhen: is('pm_done', false),
+          },
+          yesNo('pm_parts', 'قطعه‌ای تعویض شد؟'),
+          {
+            ...longText('pm_parts_note', 'قطعات تعویض‌شده'),
+            showWhen: is('pm_parts', true),
+          },
+          yesNo('pm_fault', 'ایراد یا هشداری مشاهده شد؟'),
+          {
+            ...longText('pm_fault_note', 'شرح ایراد (به دستور کار تبدیل می‌شود)'),
+            showWhen: is('pm_fault', true),
+          },
+          date('pm_next', 'تاریخ سرویس بعدی'),
+          file('pm_photo', 'عکس'),
+        ],
+      },
+    ],
+  },
+
+  // ─── امنیت (Security) ───────────────────────────────────────────
+  {
+    key: 'ops-security-patrol',
+    title: 'گزارش گشت‌زنی حراست',
+    summary:
+      'ثبت گشت دوره‌ای حراست: نقاط بازدیدشده، درهای خروج اضطراری، دوربین‌ها و موارد مشکوک.',
+    category: 'عملیات هتل',
+    icon: '🛡️',
+    theme: 'shab',
+    oneAtATime: false,
+    endText: 'گزارش گشت ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'گشت‌زنی',
+        questions: [
+          date('sp_date', 'تاریخ', true),
+          list('sp_round', 'نوبت گشت', [
+            'گشت اول شب',
+            'نیمه‌شب',
+            'سحرگاه',
+            'روزانه',
+          ]),
+          text('sp_by', 'نام مأمور', true),
+          multi('sp_points', 'نقاط بازدیدشده', [
+            'لابی و ورودی',
+            'طبقات',
+            'پارکینگ',
+            'پشت‌بام',
+            'موتورخانه',
+            'انبارها',
+            'خروج اضطراری',
+          ]),
+          yesNo('sp_doors', 'درهای خروج اضطراری سالم و باز هستند؟'),
+          yesNo('sp_camera', 'دوربین‌ها فعال بودند؟'),
+          yesNo('sp_incident', 'مورد مشکوک یا حادثه‌ای بود؟'),
+          {
+            ...longText('sp_incident_note', 'شرح مورد'),
+            showWhen: is('sp_incident', true),
+          },
+          longText('sp_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-security-incident',
+    title: 'گزارش حادثه و رخداد',
+    summary:
+      'ثبت هر حادثه‌ی امنیتی، ایمنی یا پزشکی در هتل: زمان، محل، افراد درگیر و اقدامات انجام‌شده.',
+    category: 'عملیات هتل',
+    icon: '🚨',
+    theme: 'ghorub',
+    oneAtATime: false,
+    endText: 'گزارش حادثه ثبت شد و پیگیری می‌شود.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'حادثه',
+        questions: [
+          date('si_date', 'تاریخ', true),
+          text('si_time', 'ساعت تقریبی', true),
+          text('si_place', 'محل وقوع', true),
+          list('si_type', 'نوع حادثه', [
+            'ایمنی (سقوط، آتش، …)',
+            'امنیتی (سرقت، درگیری)',
+            'پزشکی',
+            'خسارت اموال',
+            'سایر',
+          ]),
+          text('si_by', 'گزارش‌دهنده', true),
+          longText('si_desc', 'شرح کامل حادثه', true),
+          longText('si_people', 'افراد درگیر/شاهد'),
+          longText('si_action', 'اقدامات انجام‌شده', true),
+          yesNo('si_authority', 'به مراجع (اورژانس/پلیس/آتش‌نشانی) اطلاع داده شد؟'),
+          file('si_photo', 'عکس/مستند'),
+        ],
+      },
+    ],
+  },
+
+  // ─── انبار (Stores) ────────────────────────────────────────────
+  {
+    key: 'ops-goods-receipt',
+    title: 'رسید ورود کالا به انبار',
+    summary:
+      'ثبت تحویل کالا از تأمین‌کننده: شماره فاکتور، اقلام، تعداد، کنترل کیفی و مغایرت‌ها.',
+    category: 'عملیات هتل',
+    icon: '📦',
+    theme: 'choob',
+    oneAtATime: false,
+    endText: 'رسید کالا ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'رسید کالا',
+        questions: [
+          date('gr_date', 'تاریخ تحویل', true),
+          text('gr_supplier', 'تأمین‌کننده', true),
+          text('gr_invoice', 'شماره فاکتور/حواله', true),
+          text('gr_by', 'تحویل‌گیرنده (انباردار)', true),
+          longText('gr_items', 'اقلام و تعداد', true),
+          yesNo('gr_quality', 'کیفیت و سلامت کالا تأیید شد؟'),
+          {
+            ...longText('gr_quality_note', 'شرح ایراد کیفی'),
+            showWhen: is('gr_quality', false),
+          },
+          yesNo('gr_match', 'تعداد با فاکتور مطابقت دارد؟'),
+          {
+            ...longText('gr_mismatch', 'شرح مغایرت'),
+            showWhen: is('gr_match', false),
+          },
+          file('gr_doc', 'تصویر فاکتور'),
+          longText('gr_note', 'توضیحات'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-stock-request',
+    title: 'درخواست کالا از انبار',
+    summary:
+      'درخواست واحدها برای دریافت اقلام از انبار: واحد درخواست‌کننده، اقلام، تعداد و فوریت.',
+    category: 'عملیات هتل',
+    icon: '📋',
+    theme: 'khakestar',
+    oneAtATime: false,
+    endText: 'درخواست کالا ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'درخواست کالا',
+        questions: [
+          date('sr_date', 'تاریخ', true),
+          list('sr_unit', 'واحد درخواست‌کننده', [
+            'پذیرش',
+            'خانه‌داری',
+            'رستوران و آشپزخانه',
+            'فنی و تأسیسات',
+            'اداری',
+            'حراست',
+            'سایر',
+          ]),
+          text('sr_by', 'نام درخواست‌کننده', true),
+          longText('sr_items', 'اقلام و تعداد درخواستی', true),
+          list('sr_priority', 'فوریت', ['عادی', 'فوری']),
+          longText('sr_reason', 'علت درخواست'),
+        ],
+      },
+    ],
+  },
+
+  // ─── روابط مهمان (Guest Relations) ─────────────────────────────
+  {
+    key: 'ops-guest-complaint',
+    title: 'ثبت شکایت مهمان',
+    summary:
+      'ثبت شکایت یا درخواست مهمان توسط کارکنان: موضوع، واحد مربوط، اقدام فوری و وضعیت پیگیری.',
+    category: 'عملیات هتل',
+    icon: '📣',
+    theme: 'ghorub',
+    oneAtATime: false,
+    endText: 'شکایت ثبت شد و پیگیری می‌شود.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'شکایت مهمان',
+        questions: [
+          date('gc_date', 'تاریخ', true),
+          text('gc_room', 'شماره اتاق/نام مهمان', true),
+          text('gc_by', 'ثبت‌کننده (کارمند)', true),
+          list('gc_unit', 'واحد مرتبط', [
+            'پذیرش',
+            'خانه‌داری',
+            'رستوران',
+            'فنی',
+            'حراست',
+            'سایر',
+          ]),
+          list('gc_severity', 'شدت', ['کم', 'متوسط', 'زیاد']),
+          longText('gc_desc', 'شرح شکایت/درخواست', true),
+          yesNo('gc_resolved', 'در همان لحظه حل شد؟'),
+          {
+            ...longText('gc_action', 'اقدام انجام‌شده یا نیاز به پیگیری'),
+            showWhen: is('gc_resolved', false),
+          },
+          mobile('gc_mobile', 'شماره تماس مهمان (برای پیگیری)'),
+        ],
+      },
+    ],
+  },
+
+  {
+    key: 'ops-vip-preference',
+    title: 'ثبت ترجیحات مهمان ویژه (VIP)',
+    summary:
+      'ثبت سلیقه و نیازهای مهمانان ویژه برای تجربه‌ی شخصی‌سازی‌شده: اتاق، پذیرایی و یادداشت‌ها.',
+    category: 'عملیات هتل',
+    icon: '⭐',
+    theme: 'makhmal',
+    oneAtATime: false,
+    endText: 'ترجیحات مهمان ثبت شد.',
+    pages: [
+      {
+        id: 'p1',
+        title: 'ترجیحات مهمان',
+        questions: [
+          text('vp_name', 'نام مهمان', true),
+          text('vp_room', 'شماره اتاق'),
+          multi('vp_room_pref', 'ترجیح اتاق', [
+            'طبقه‌ی بالا',
+            'دور از آسانسور',
+            'رو به منظره',
+            'اتاق غیرسیگاری',
+            'تخت دونفره',
+            'تخت جدا',
+          ]),
+          multi('vp_food', 'ترجیح پذیرایی', [
+            'گیاه‌خواری',
+            'بدون گلوتن',
+            'حساسیت غذایی',
+            'میوه‌ی ویژه',
+            'نوشیدنی خاص',
+          ]),
+          longText('vp_allergy', 'جزئیات حساسیت غذایی (در صورت وجود)'),
+          longText('vp_note', 'یادداشت‌های ویژه (مناسبت، سلیقه، …)'),
+        ],
+      },
+    ],
+  },
 ];
 
 /** قالب‌های صنفی، ساخته و آماده برای فهرست قالب‌های سامانه. */

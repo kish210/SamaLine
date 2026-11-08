@@ -14,10 +14,19 @@ import { findTemplate } from '../templates/form-templates';
  * قالب‌های عملیاتیِ فاز B؛ این‌جا فقط به هم وصل می‌شوند.
  */
 export const STANDARD_UNITS = [
-  { key: 'technical', name: 'فنی', template: 'ops-technical-daily' },
+  { key: 'reception', name: 'پذیرش', template: 'ops-reception-handover' },
   { key: 'housekeeping', name: 'خانه‌داری', template: 'ops-housekeeping-room' },
-  { key: 'hr', name: 'منابع انسانی', template: 'ops-hr-request' },
+  { key: 'fnb', name: 'رستوران و آشپزخانه', template: 'ops-kitchen-hygiene' },
+  { key: 'technical', name: 'فنی', template: 'ops-technical-daily' },
   { key: 'it', name: 'IT', template: 'ops-it-incident' },
+  { key: 'security', name: 'حراست', template: 'ops-security-patrol' },
+  { key: 'stores', name: 'انبار', template: 'ops-goods-receipt' },
+  {
+    key: 'guest-relations',
+    name: 'روابط مهمان',
+    template: 'ops-guest-complaint',
+  },
+  { key: 'hr', name: 'منابع انسانی', template: 'ops-hr-request' },
   { key: 'contractors', name: 'پیمانکاران', template: 'ops-contractor-visit' },
 ] as const;
 
