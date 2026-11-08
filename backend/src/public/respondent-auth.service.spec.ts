@@ -389,5 +389,28 @@ describe('RespondentAuthService — احراز هویت پاسخ‌دهنده', 
     it('requiresAuth برای فرم عملیاتی true است', () => {
       expect(service.requiresAuth(staffPub())).toBe(true);
     });
+
+    it('توکنِ رباتِ پرسنلی روی فرمِ staff پذیرفته می‌شود', async () => {
+      /*
+       * این همان باگِ «وارد نشدید» بود: فرمی که در پنل روی حالتِ کارمندی
+       * گذاشته شده، از داخلِ ربات رد می‌شد چون توکنِ bot فیلدِ sub ندارد.
+       * ربات هویت را با موبایلِ ثبت‌شده‌ی HR از پیش احراز کرده، پس توکنش
+       * باید همان‌جا بپذیرد و کلیدِ پاسخ‌دهنده (موبایل) را بچسباند.
+       */
+      const pub = staffPub();
+      const botToken = service.issueBotToken(pub.id, '09120000001');
+      const result = await service.verifyStaff(pub, botToken);
+      expect(result.respondentKey).toBe('09120000001');
+      expect(result.mode).toBe(PublicationAuthMode.STAFF);
+    });
+
+    it('توکنِ botِ فرمِ دیگر روی این فرمِ staff رد می‌شود', async () => {
+      // توکنِ bot برای انتشارِ دیگری؛ شاخهٔ bot ردش می‌کند (عدم تطابقِ
+      // publication) و به مسیرِ ورودِ پنل می‌افتد که آنجا هم بی‌`sub` رد می‌شود.
+      const botToken = service.issueBotToken('pub-other', '09120000001');
+      await expect(
+        service.verifyStaff(staffPub(), botToken),
+      ).rejects.toThrow('معتبر نیست');
+    });
   });
 });

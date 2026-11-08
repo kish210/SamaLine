@@ -84,6 +84,24 @@ export class RespondentAuthService {
       throw unauthorized('برای پر کردن این فرم باید با حساب کارمندی وارد شوید');
     }
 
+    /*
+     * توکنِ رباتِ پرسنلی هم اینجا پذیرفته می‌شود.
+     *
+     * فرمِ عملیاتیِ STAFF می‌خواهد مطمئن شود چه کسی پر می‌کند؛ ربات این
+     * احراز را پیش از این انجام داده (گفتگو با موبایلِ ثبت‌شده‌ی HR به
+     * پرونده وصل شده)، پس توکنِ bot همان‌قدر معتبر است که ورودِ پنل. بی‌این
+     * شاخه، فرمی که در پنل روی حالتِ «کارمندی» گذاشته شده از داخلِ ربات با
+     * «وارد نشدید» رد می‌شد، چون توکنِ bot فیلدِ `sub` ندارد.
+     */
+    const botPayload = this.verifyBotToken(publication, accessToken);
+    if (botPayload) {
+      return {
+        publicationId: publication.id,
+        respondentKey: botPayload.respondentKey,
+        mode: PublicationAuthMode.STAFF,
+      };
+    }
+
     let payload: { sub?: string; email?: string; organizationId?: string };
     try {
       payload = this.jwt.verify(accessToken);
